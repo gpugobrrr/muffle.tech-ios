@@ -1,13 +1,14 @@
 {
   "expo": {
-    "name": "surveyor-mobile",
-    "slug": "surveyor-mobile",
+    "name": "Muffle Demo",
+    "slug": "muffle-demo",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "surveyormobile",
-    "userInterfaceStyle": "automatic",
+    "scheme": "muffledemo",
+    "userInterfaceStyle": "light",
     "ios": {
+      "supportsTablet": true,
       "icon": "./assets/expo.icon"
     },
     "android": {
@@ -37,6 +38,15 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    }
+  }
+}
+{
+  "expo": {
+    "name": "muffle Field",
+    "slug": "muffle-field",
+    "web": {
+      "output": "static"
     }
   }
 }

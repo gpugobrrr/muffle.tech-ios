@@ -1,0 +1,343 @@
+export type CommandNode = {
+  /** Keyword as typed in SVYR > (always lowercase). */
+  token: string;
+  /** Autocomplete label — may carry a `<value>` placeholder. */
+  label: string;
+  /**
+   * Portrait learner-facing title. Falls back to `label` when omitted.
+   * Never used by the landscape parser or autocomplete insertions.
+   */
+  learnerLabel?: string;
+  description: string;
+  children?: CommandNode[];
+  /** Leaf that needs free text before it can execute. */
+  requiresValue?: boolean;
+  /** Guidance shown while the value is being typed. */
+  valuePrompt?: string;
+  /** Canonical Muffle write operation applied when a value is submitted. */
+  operationId?: string;
+  /** Canonical Muffle read operation applied when the path is submitted alone. */
+  readOperationId?: string;
+};
+
+/** Portrait display title for a registry node. */
+export function learnerDisplayLabel(node: CommandNode): string {
+  return node.learnerLabel ?? node.label;
+}
+
+/**
+ * The single SVYR command graph. Parsing, autocomplete, atomic Backspace,
+ * pinning, and stored-value resolution all derive from this hierarchy.
+ * Availability is owned here alone: neither renderer may filter, truncate,
+ * or extend what this graph offers for a given path.
+ */
+export const COMMAND_REGISTRY: CommandNode[] = [
+  {
+    token: 'prep',
+    label: 'prep',
+    learnerLabel: 'Preparation',
+    description: 'Inspection preparation commands.',
+    children: [
+      {
+        token: 'brief',
+        label: 'brief',
+        learnerLabel: 'Brief',
+        description: 'Record the inspection instruction and requirements.',
+        children: [
+          {
+            token: 'instr',
+            label: 'instr',
+            learnerLabel: 'Instruction',
+            description: 'Instruction section of the brief.',
+            children: [
+              {
+                token: 'party',
+                label: 'party <name>',
+                learnerLabel: 'Instructing party',
+                description: 'Set the instructing party name.',
+                requiresValue: true,
+                valuePrompt: 'ENTER INSTRUCTING PARTY',
+                operationId: 'survey.brief.instruction.party.set',
+                readOperationId: 'survey.brief.instruction.party.read',
+              },
+              {
+                token: 'client',
+                label: 'client <name>',
+                learnerLabel: 'Client',
+                description: 'Client field — not yet implemented.',
+                requiresValue: true,
+                valuePrompt: 'ENTER CLIENT',
+              },
+              {
+                token: 'ref',
+                label: 'ref <ref>',
+                learnerLabel: 'Instruction reference',
+                description: 'Instruction reference — not yet implemented.',
+                requiresValue: true,
+                valuePrompt: 'ENTER INSTRUCTION REFERENCE',
+              },
+              {
+                token: 'source',
+                label: 'source',
+                learnerLabel: 'Source',
+                description: 'Instruction source — not yet implemented.',
+              },
+            ],
+          },
+          {
+            token: 'purp',
+            label: 'purp',
+            learnerLabel: 'Purpose',
+            description: 'Purpose of the inspection brief.',
+            requiresValue: true,
+            valuePrompt: 'ENTER PURPOSE',
+          },
+          {
+            token: 'deliv',
+            label: 'deliv',
+            learnerLabel: 'Deliverables',
+            description: 'Deliverable for the inspection brief.',
+            requiresValue: true,
+            valuePrompt: 'ENTER DELIVERABLE',
+          },
+          {
+            token: 'limit',
+            label: 'limit',
+            learnerLabel: 'Limitations',
+            description: 'Limitation recorded in the brief.',
+            requiresValue: true,
+            valuePrompt: 'ENTER LIMITATION',
+          },
+        ],
+      },
+      {
+        token: 'scope',
+        label: 'scope',
+        learnerLabel: 'Scope',
+        description: 'Define the areas and elements included in the inspection.',
+      },
+      {
+        token: 'access',
+        label: 'access',
+        learnerLabel: 'Access',
+        description: 'Review access arrangements and site contacts.',
+      },
+      {
+        token: 'equipment',
+        label: 'equipment',
+        learnerLabel: 'Equipment',
+        description: 'Review the required inspection equipment.',
+      },
+      {
+        token: 'plan',
+        label: 'plan',
+        learnerLabel: 'Plan',
+        description: 'Define the intended inspection sequence.',
+      },
+      {
+        token: 'ready',
+        label: 'ready',
+        learnerLabel: 'Ready',
+        description: 'Check whether inspection preparation is complete.',
+      },
+    ],
+  },
+];
+
+/**
+ * Temporary migration aliases accepted as input only. Suggestions and stored
+ * paths always use the canonical short tokens from COMMAND_REGISTRY.
+ */
+export const COMMAND_ALIASES: Readonly<Record<string, string>> = {
+  instruction: 'instr',
+  instructions: 'instr',
+  purpose: 'purp',
+  deliverable: 'deliv',
+  limitation: 'limit',
+  limitations: 'limit',
+  reference: 'ref',
+};
+
+export function normalizeCommandToken(rawToken: string): string {
+  const token = rawToken.trim().toLowerCase();
+  return COMMAND_ALIASES[token] ?? token;
+}
+
+export function isBranchNode(node: CommandNode): boolean {
+  return (node.children?.length ?? 0) > 0;
+}
+
+/** Final executable step in its chain. */
+export function isTerminalNode(node: CommandNode): boolean {
+  return !isBranchNode(node);
+}
+
+/** Only branches may become a pinned prefix — never a value-bearing path. */
+export function isPinnableNode(node: CommandNode): boolean {
+  return isBranchNode(node) && !node.requiresValue;
+}
+
+export function findCommandNode(path: string[]): CommandNode | null {
+  let level = COMMAND_REGISTRY;
+  let found: CommandNode | null = null;
+
+  for (const rawToken of path) {
+    const token = normalizeCommandToken(rawToken);
+    const next = level.find((node) => node.token === token);
+    if (!next) return null;
+    found = next;
+    level = next.children ?? [];
+  }
+
+  return found;
+}
+
+/** Valid next keywords after `path`; registry roots for an empty path. */
+export function childNodes(path: string[]): CommandNode[] {
+  if (path.length === 0) return COMMAND_REGISTRY;
+  const node = findCommandNode(path);
+  if (!node || node.requiresValue) return [];
+  return node.children ?? [];
+}
+
+export type CommandWalk = {
+  /** Recognised keywords, lowercased. */
+  path: string[];
+  /** Node at the end of `path`; null at the registry root. */
+  node: CommandNode | null;
+  /** Number of input tokens recognised as keywords. */
+  consumed: number;
+  /** True when `path` ends on a value-bearing leaf. */
+  expectsValue: boolean;
+};
+
+/** Match tokens against the graph, stopping at the first non-keyword. */
+export function walkCommandPath(tokens: string[]): CommandWalk {
+  const path: string[] = [];
+  let node: CommandNode | null = null;
+  let consumed = 0;
+
+  for (const rawToken of tokens) {
+    if (node?.requiresValue) break;
+
+    const token = normalizeCommandToken(rawToken);
+    const next = childNodes(path).find((child) => child.token === token);
+    if (!next) break;
+
+    path.push(next.token);
+    node = next;
+    consumed += 1;
+  }
+
+  return {
+    path,
+    node,
+    consumed,
+    expectsValue: Boolean(node?.requiresValue),
+  };
+}
+
+/** Visible / composable structural path: `prep/brief/instr`. */
+export const PATH_SEPARATOR = '/';
+
+/**
+ * Presentation-only separator (U+2215 DIVISION SLASH) — taller and steeper
+ * than ASCII `/`, so nested paths read as directories on screen.
+ * Never parsed, typed, stored, or sent to the engine.
+ */
+export const DISPLAY_SEPARATOR = '\u2215';
+
+export function formatCommandPath(path: string[]): string {
+  return path.map((token) => token.trim()).filter(Boolean).join(PATH_SEPARATOR);
+}
+
+/** Read-only rendering of a structural path — no spaces around separators. */
+export function formatSvyrPathForDisplay(path: string): string {
+  return path.split(PATH_SEPARATOR).join(DISPLAY_SEPARATOR);
+}
+
+/**
+ * Read-only rendering of a full command. Only the structural portion before
+ * the first space is converted, so slashes inside free text stay literal.
+ */
+export function formatSvyrCommandForDisplay(raw: string): string {
+  const firstSpaceIndex = raw.indexOf(' ');
+  if (firstSpaceIndex === -1) {
+    return formatSvyrPathForDisplay(raw);
+  }
+  return `${formatSvyrPathForDisplay(raw.slice(0, firstSpaceIndex))}${raw.slice(
+    firstSpaceIndex,
+  )}`;
+}
+
+/**
+ * Append a structural segment with `/` and no surrounding spaces.
+ * Does not add a trailing separator.
+ */
+export function appendCommandSegment(
+  currentPath: string,
+  nextToken: string,
+): string {
+  const normalizedPath = currentPath.replace(/\/+$/, '');
+  const token = nextToken.trim();
+  if (!token) return normalizedPath;
+  return normalizedPath ? `${normalizedPath}/${token}` : token;
+}
+
+export type ParsedSvyrInput = {
+  /** Lowercased structural keywords. */
+  path: string[];
+  /** Free-text after the first space — original casing preserved. */
+  value: string;
+  /** Path text before the first space (may end with `/`). */
+  rawPath: string;
+  /** True when the structural portion ended with `/`. */
+  trailingSeparator: boolean;
+};
+
+/**
+ * Split a SVYR command into slash-separated path tokens and an optional value.
+ * Does not split the free-text value on whitespace.
+ */
+export function parseSvyrInput(rawInput: string): ParsedSvyrInput {
+  const trimmed = rawInput.trim();
+  if (!trimmed) {
+    return {
+      path: [],
+      value: '',
+      rawPath: '',
+      trailingSeparator: false,
+    };
+  }
+
+  const firstSpaceIndex = trimmed.indexOf(' ');
+  const rawPath =
+    firstSpaceIndex === -1 ? trimmed : trimmed.slice(0, firstSpaceIndex);
+  const value =
+    firstSpaceIndex === -1 ? '' : trimmed.slice(firstSpaceIndex + 1);
+
+  const trailingSeparator = rawPath.endsWith(PATH_SEPARATOR);
+  const path = rawPath
+    .split(PATH_SEPARATOR)
+    .map(normalizeCommandToken)
+    .filter(Boolean);
+
+  return {
+    path,
+    value,
+    rawPath,
+    trailingSeparator,
+  };
+}
+
+/** Structural path segments from a slash-separated string (preserves casing). */
+export function commandTokens(raw: string): string[] {
+  const firstSpaceIndex = raw.indexOf(' ');
+  const rawPath =
+    firstSpaceIndex === -1 ? raw.trim() : raw.slice(0, firstSpaceIndex).trim();
+
+  return rawPath
+    .split(PATH_SEPARATOR)
+    .map((token) => token.trim())
+    .filter(Boolean);
+}

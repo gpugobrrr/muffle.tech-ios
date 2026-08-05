@@ -1,65 +1,94 @@
-/**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
- */
-
-import '@/global.css';
-
 import { Platform } from 'react-native';
 
+/**
+ * muffle.tech workspace design tokens
+ * Warm concrete / architectural paper field, weathered slate type,
+ * blue for interaction only.
+ */
 export const Colors = {
-  light: {
-    text: '#000000',
-    background: '#ffffff',
-    backgroundElement: '#F0F0F3',
-    backgroundSelected: '#E0E1E6',
-    textSecondary: '#60646C',
-  },
-  dark: {
-    text: '#ffffff',
-    background: '#000000',
-    backgroundElement: '#212225',
-    backgroundSelected: '#2E3135',
-    textSecondary: '#B0B4BA',
-  },
+  canvas: '#F1F1ED',
+  surface: '#FAFAF7',
+  surfaceMuted: '#F5F4EF',
+
+  border: '#D5D2CA',
+  borderStrong: '#B9B6AE',
+  /** Soft internal separators — limestone-adjacent, not cool grey */
+  borderMuted: '#E4E1D9',
+
+  text: '#20262B',
+  textSecondary: '#737A7D',
+  textMuted: '#A5A49E',
+
+  accent: '#3B82F6',
+  accentSoft: '#E8F0FD',
+  /** Hairline accents — faint blue separators */
+  accentFaint: '#C5D8F5',
+
+  amber: '#C9842B',
+  amberSoft: '#F4E8D6',
+
+  danger: '#A95846',
+  dangerSoft: '#F2E3DE',
+
+  slate: '#5F6873',
+  concrete: '#D9D6CF',
+  limestone: '#C9C2B5',
 } as const;
 
-export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
+/** Status chips — compact, semantic, material-inspired */
+export const StatusColors = {
+  draft: {
+    foreground: Colors.amber,
+    background: Colors.amberSoft,
+  },
+  captured: {
+    foreground: Colors.accent,
+    background: Colors.accentSoft,
+  },
+  reviewed: {
+    foreground: Colors.slate,
+    background: Colors.surfaceMuted,
+  },
+  active: {
+    foreground: Colors.accent,
+    background: Colors.accentSoft,
+  },
+  ready: {
+    foreground: Colors.slate,
+    background: Colors.surfaceMuted,
+  },
+} as const;
 
 export const Fonts = Platform.select({
   ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
-    sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
-    serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
-    rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
-    mono: 'ui-monospace',
+    sans: 'System',
+    mono: 'Menlo',
   },
   default: {
-    sans: 'normal',
-    serif: 'serif',
-    rounded: 'normal',
+    sans: 'sans-serif',
     mono: 'monospace',
   },
   web: {
-    sans: 'var(--font-display)',
-    serif: 'var(--font-serif)',
-    rounded: 'var(--font-rounded)',
-    mono: 'var(--font-mono)',
+    sans: 'system-ui, -apple-system, sans-serif',
+    mono: 'ui-monospace, SFMono-Regular, Menlo, monospace',
   },
-});
+})!;
 
+/** Spacing scale — keep generous margins like the desktop workspace */
 export const Spacing = {
-  half: 2,
-  one: 4,
-  two: 8,
-  three: 16,
-  four: 24,
-  five: 32,
-  six: 64,
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 20,
+  xxl: 24,
+  section: 28,
 } as const;
 
-export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
-export const MaxContentWidth = 800;
+export const Type = {
+  brand: 15,
+  label: 10,
+  body: 12,
+  mono: 11,
+  watermark: 13,
+} as const;

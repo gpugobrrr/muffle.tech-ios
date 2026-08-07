@@ -3,7 +3,7 @@
     "name": "Muffle Demo",
     "slug": "muffle-demo",
     "version": "1.0.0",
-    "orientation": "default",
+    "orientation": "landscape",
     "icon": "./assets/images/icon.png",
     "scheme": "muffledemo",
     "userInterfaceStyle": "light",

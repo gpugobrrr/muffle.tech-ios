@@ -30,8 +30,6 @@ const styles = StyleSheet.create({
     height: 28,
     justifyContent: 'center',
     paddingHorizontal: Spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.border,
   },
   svyrOutputText: {
     fontFamily: Fonts.mono,

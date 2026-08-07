@@ -1,16 +1,17 @@
 import {
-  appendCommandSegment,
-  childNodes,
-  findCommandNode,
-  formatCommandPath,
-  isBranchNode,
-  isPinnableNode,
-  isTerminalNode,
-  normalizeCommandToken,
-  parseSvyrInput,
-  walkCommandPath,
-  type CommandNode,
+    appendCommandSegment,
+    childNodes,
+    findCommandNode,
+    formatCommandPath,
+    isBranchNode,
+    isPinnableNode,
+    isTerminalNode,
+    normalizeCommandToken,
+    parseSvyrInput,
+    walkCommandPath,
+    type CommandNode,
 } from '@/lib/command-registry';
+import { findFieldDefinition, normalizeFieldInputValue } from '@/lib/field-schema';
 import type { SurveyOperation } from '@/lib/survey-operations';
 
 export type ParsedCommand =
@@ -80,13 +81,25 @@ function valuePromptFor(node: CommandNode): string {
 
 function writeCommand(path: string[], value: string): ParsedCommand {
   const node = findCommandNode(path);
-  if (node?.operationId) {
+  const fieldDefinition = findFieldDefinition(path);
+  const normalizedValue = normalizeFieldInputValue(fieldDefinition, value);
+
+  if (!normalizedValue) {
+    return {
+      type: 'incomplete',
+      path,
+      prompt: fieldDefinition?.valuePrompt ?? (node ? valuePromptFor(node) : INCOMPLETE_BRANCH_PROMPT),
+    };
+  }
+
+  const operationId = node?.operationId ?? fieldDefinition?.operationId;
+  if (operationId) {
     return {
       type: 'operation',
       path,
       operation: {
-        operationId: node.operationId,
-        arguments: { value },
+        operationId,
+        arguments: { value: normalizedValue },
       },
     };
   }
@@ -95,12 +108,14 @@ function writeCommand(path: string[], value: string): ParsedCommand {
 
 function readCommand(path: string[]): ParsedCommand {
   const node = findCommandNode(path);
-  if (node?.readOperationId) {
+  const fieldDefinition = findFieldDefinition(path);
+  const operationId = node?.readOperationId ?? fieldDefinition?.readOperationId;
+  if (operationId) {
     return {
       type: 'operation',
       path,
       operation: {
-        operationId: node.readOperationId,
+        operationId,
         arguments: {},
       },
     };
@@ -401,8 +416,8 @@ export function getCommandAssistance(
 
 /**
  * Selectable commands within a suggestion list, in registry order.
- * Both renderers project the shared suggestions through this helper, so
- * neither can add, hide, or reorder commands on its own.
+ * The Power User dock projects shared suggestions through this helper, so
+ * presentation cannot add, hide, or reorder commands on its own.
  */
 export function tokenSuggestions(
   suggestions: CommandSuggestion[],

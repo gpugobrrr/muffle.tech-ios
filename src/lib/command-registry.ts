@@ -4,23 +4,42 @@ export type CommandNode = {
   /** Autocomplete label — may carry a `<value>` placeholder. */
   label: string;
   /**
-   * Portrait learner-facing title. Falls back to `label` when omitted.
-   * Never used by the landscape parser or autocomplete insertions.
+   * Human-readable title for directory completion and similar surfaces.
+   * Falls back to `label` when omitted. Never used by the parser.
    */
   learnerLabel?: string;
   description: string;
   children?: CommandNode[];
   /** Leaf that needs free text before it can execute. */
   requiresValue?: boolean;
-  /** Guidance shown while the value is being typed. */
+  /** Guidance shown while the value is being typed (autocomplete hint). */
   valuePrompt?: string;
+  /**
+   * Label for the dedicated Power User data-entry panel.
+   * Sourced from the registry — never hard-coded in the renderer.
+   */
+  entryLabel?: string;
+  /** Placeholder inside the dedicated value input. */
+  valuePlaceholder?: string;
   /** Canonical Muffle write operation applied when a value is submitted. */
   operationId?: string;
   /** Canonical Muffle read operation applied when the path is submitted alone. */
   readOperationId?: string;
+  /**
+   * Counts toward directory completion. Defaults to `requiresValue` when
+   * omitted. Explicit `false` / `optional: true` excludes the field.
+   */
+  required?: boolean;
+  /** Excluded from completion totals unless also marked required. */
+  optional?: boolean;
+  /**
+   * Live job-record key used by the shared completion resolver.
+   * Required leaves without a fieldId cannot be completed.
+   */
+  fieldId?: string;
 };
 
-/** Portrait display title for a registry node. */
+/** Display title for a registry node (completion rows, guidance headers). */
 export function learnerDisplayLabel(node: CommandNode): string {
   return node.learnerLabel ?? node.label;
 }
@@ -57,8 +76,11 @@ export const COMMAND_REGISTRY: CommandNode[] = [
                 description: 'Set the instructing party name.',
                 requiresValue: true,
                 valuePrompt: 'ENTER INSTRUCTING PARTY',
+                entryLabel: 'INSTRUCTING PARTY',
+                valuePlaceholder: 'Enter name',
                 operationId: 'survey.brief.instruction.party.set',
                 readOperationId: 'survey.brief.instruction.party.read',
+                fieldId: 'instruction.instructingParty',
               },
               {
                 token: 'client',
@@ -67,6 +89,9 @@ export const COMMAND_REGISTRY: CommandNode[] = [
                 description: 'Client field — not yet implemented.',
                 requiresValue: true,
                 valuePrompt: 'ENTER CLIENT',
+                entryLabel: 'CLIENT',
+                valuePlaceholder: 'Enter name',
+                fieldId: 'instruction.client',
               },
               {
                 token: 'ref',
@@ -75,12 +100,23 @@ export const COMMAND_REGISTRY: CommandNode[] = [
                 description: 'Instruction reference — not yet implemented.',
                 requiresValue: true,
                 valuePrompt: 'ENTER INSTRUCTION REFERENCE',
+                entryLabel: 'INSTRUCTION REFERENCE',
+                valuePlaceholder: 'Enter reference',
+                fieldId: 'instruction.reference',
               },
               {
                 token: 'source',
                 label: 'source',
                 learnerLabel: 'Source',
                 description: 'Instruction source — not yet implemented.',
+                requiresValue: true,
+                valuePrompt: 'ENTER SOURCE',
+                entryLabel: 'SOURCE',
+                valuePlaceholder: 'Enter source',
+                operationId: 'survey.brief.instruction.source.set',
+                readOperationId: 'survey.brief.instruction.source.read',
+                required: true,
+                fieldId: 'instruction.source',
               },
             ],
           },
@@ -91,6 +127,9 @@ export const COMMAND_REGISTRY: CommandNode[] = [
             description: 'Purpose of the inspection brief.',
             requiresValue: true,
             valuePrompt: 'ENTER PURPOSE',
+            entryLabel: 'PURPOSE',
+            valuePlaceholder: 'Enter purpose',
+            fieldId: 'purpose',
           },
           {
             token: 'deliv',
@@ -99,6 +138,9 @@ export const COMMAND_REGISTRY: CommandNode[] = [
             description: 'Deliverable for the inspection brief.',
             requiresValue: true,
             valuePrompt: 'ENTER DELIVERABLE',
+            entryLabel: 'DELIVERABLE',
+            valuePlaceholder: 'Enter deliverable',
+            fieldId: 'deliverable',
           },
           {
             token: 'limit',
@@ -107,6 +149,9 @@ export const COMMAND_REGISTRY: CommandNode[] = [
             description: 'Limitation recorded in the brief.',
             requiresValue: true,
             valuePrompt: 'ENTER LIMITATION',
+            entryLabel: 'LIMITATION',
+            valuePlaceholder: 'Enter limitation',
+            fieldId: 'limitation',
           },
         ],
       },

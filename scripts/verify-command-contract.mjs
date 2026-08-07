@@ -32,9 +32,7 @@ assert.deepEqual(
 );
 
 /**
- * One controller state feeds both renderers, so each must receive the same
- * suggestion objects — not merely equal tokens. Expectations come from the
- * registry so the fixtures follow it automatically.
+ * Autocomplete suggestions must be exactly the registry children for each path.
  */
 for (const [commandSuffix, path] of [
   ['', []],
@@ -43,28 +41,23 @@ for (const [commandSuffix, path] of [
   ['prep/brief/instr', ['prep', 'brief', 'instr']],
 ]) {
   const shared = getCommandAssistance(commandSuffix, []);
-
-  const powerUserSuggestions = tokenSuggestions(shared);
-  const portraitSuggestions = tokenSuggestions(shared);
+  const tokens = suggestionTokens(shared);
 
   assert.deepEqual(
-    portraitSuggestions,
-    powerUserSuggestions,
-    `renderers disagree at "${commandSuffix}"`,
-  );
-  portraitSuggestions.forEach((suggestion, index) => {
-    assert.equal(
-      suggestion,
-      powerUserSuggestions[index],
-      `renderers received different suggestion objects at "${commandSuffix}"`,
-    );
-  });
-
-  assert.deepEqual(
-    suggestionTokens(shared),
+    tokens,
     childNodes(path).map((node) => node.token),
     `suggestions at "${commandSuffix}" must match the registered children`,
   );
+
+  // Object identity: token projection must not clone suggestion entries.
+  const projected = tokenSuggestions(shared);
+  projected.forEach((suggestion, index) => {
+    assert.equal(
+      suggestion,
+      shared.filter((item) => item.type === 'token')[index],
+      `token projection diverged at "${commandSuffix}"`,
+    );
+  });
 }
 
 assert.equal(
@@ -145,7 +138,11 @@ const emptyBrief = {
     instructingParty: null,
     client: null,
     reference: null,
+    source: null,
   },
+  purpose: null,
+  deliverable: null,
+  limitation: null,
 };
 
 const readParsed = parseCommand('prep/brief/instr/party');

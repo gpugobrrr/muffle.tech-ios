@@ -1,3 +1,8 @@
+import {
+    applyFieldValue,
+    findFieldDefinitionForOperationId,
+    resolveFieldValue,
+} from '@/lib/field-schema';
 import type { InspectionBrief } from '@/types/workspace';
 
 /**
@@ -14,6 +19,8 @@ export type SurveyOperation = {
 export const SURVEY_OPERATIONS = {
   setInstructingParty: 'survey.brief.instruction.party.set',
   readInstructingParty: 'survey.brief.instruction.party.read',
+  setInstructionSource: 'survey.brief.instruction.source.set',
+  readInstructionSource: 'survey.brief.instruction.source.read',
 } as const;
 
 /** Successful execution payload shared by both SVYR renderers. */
@@ -32,6 +39,10 @@ function recordedOrPlaceholder(value: string | null | undefined): string {
   return trimmed.length > 0 ? trimmed : NOT_RECORDED;
 }
 
+function labelForField(fieldDefinition: ReturnType<typeof findFieldDefinitionForOperationId>): string {
+  return fieldDefinition?.label ?? 'Field';
+}
+
 /**
  * Execute a canonical survey operation against the live brief.
  * Returns null when the operation is unrecognised or a write has no value.
@@ -40,33 +51,29 @@ export function executeSurveyOperation(
   brief: InspectionBrief,
   operation: SurveyOperation,
 ): SurveyOperationResult | null {
-  switch (operation.operationId) {
-    case SURVEY_OPERATIONS.readInstructingParty:
-      return {
-        operationId: operation.operationId,
-        brief,
-        label: 'Instructing party',
-        value: recordedOrPlaceholder(brief.instruction.instructingParty),
-      };
+  const fieldDefinition = findFieldDefinitionForOperationId(operation.operationId);
+  if (!fieldDefinition) return null;
 
-    case SURVEY_OPERATIONS.setInstructingParty: {
-      const value = operation.arguments.value?.trim() ?? '';
-      if (!value) return null;
-      return {
-        operationId: operation.operationId,
-        brief: {
-          ...brief,
-          instruction: {
-            ...brief.instruction,
-            instructingParty: value,
-          },
-        },
-        label: 'Instructing party',
-        value,
-      };
-    }
-
-    default:
-      return null;
+  if (operation.operationId === fieldDefinition.readOperationId) {
+    const value = resolveFieldValue(brief, fieldDefinition.fieldId);
+    return {
+      operationId: operation.operationId,
+      brief,
+      label: labelForField(fieldDefinition),
+      value: recordedOrPlaceholder(value),
+    };
   }
+
+  if (operation.operationId === fieldDefinition.operationId) {
+    const value = operation.arguments.value?.trim() ?? '';
+    if (!value) return null;
+    return {
+      operationId: operation.operationId,
+      brief: applyFieldValue(brief, fieldDefinition.fieldId, value),
+      label: labelForField(fieldDefinition),
+      value,
+    };
+  }
+
+  return null;
 }

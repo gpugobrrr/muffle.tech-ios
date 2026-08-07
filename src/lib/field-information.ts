@@ -1,4 +1,5 @@
 import { parseEditableCommand } from '@/lib/command-edit';
+import { findFieldDefinition, resolveFieldValue, toSchemaPath } from '@/lib/field-schema';
 import type { InspectionBrief } from '@/types/workspace';
 
 export type ResolvedFieldInformation = {
@@ -28,23 +29,29 @@ type FieldPathDefinition = {
 
 /**
  * Registered field paths for internal lookups.
- * Keys are space-joined lowercased token arrays (not the visible slash syntax).
- * Path resolution must not drive the visible info bar — only execution does.
+ * Keys are slash-based schema paths so the lookup layer shares the same
+ * source of truth as completion and execution.
  */
-const FIELD_PATHS: Record<string, FieldPathDefinition> = {
-  'prep brief instr party': {
-    key: 'Instructing party',
-    read: (state) => state.inspectionBrief.instruction.instructingParty,
-  },
-  'prep brief instr client': {
-    key: 'Client',
-    read: (state) => state.inspectionBrief.instruction.client,
-  },
-  'prep brief instr ref': {
-    key: 'Instruction reference',
-    read: (state) => state.inspectionBrief.instruction.reference,
-  },
-};
+const FIELD_PATHS: Record<string, FieldPathDefinition> = {};
+
+function registerFieldPath(path: string[], key: string): void {
+  FIELD_PATHS[toSchemaPath(path)] = {
+    key,
+    read: (state) => {
+      const fieldDefinition = findFieldDefinition(path);
+      if (!fieldDefinition?.fieldId) return null;
+      return resolveFieldValue(state.inspectionBrief, fieldDefinition.fieldId);
+    },
+  };
+}
+
+registerFieldPath(['prep', 'brief', 'instr', 'party'], 'Instructing party');
+registerFieldPath(['prep', 'brief', 'instr', 'client'], 'Client');
+registerFieldPath(['prep', 'brief', 'instr', 'ref'], 'Instruction reference');
+registerFieldPath(['prep', 'brief', 'instr', 'source'], 'Source');
+registerFieldPath(['prep', 'brief', 'purp'], 'Purpose');
+registerFieldPath(['prep', 'brief', 'deliv'], 'Deliverables');
+registerFieldPath(['prep', 'brief', 'limit'], 'Limitations');
 
 export function formatFieldInformation(
   resolved: NonNullable<ResolvedFieldInformation>,
@@ -67,10 +74,7 @@ export function resolveStoredFieldInformation(
   commandPath: string[],
   surveyState: SurveyFieldState,
 ): ResolvedFieldInformation {
-  const key = commandPath
-    .map((token) => token.trim().toLowerCase())
-    .filter(Boolean)
-    .join(' ');
+  const key = toSchemaPath(commandPath);
 
   if (!key) {
     return null;

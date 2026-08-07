@@ -6,18 +6,6 @@ import {
   parseSvyrInput,
 } from '@/lib/command-registry';
 
-/** Dock pin control visual/interaction state */
-export type PinState = 'inactive' | 'armed' | 'active';
-
-export function pinUiState(
-  isPinArmed: boolean,
-  pinnedCommandPrefix: string[],
-): PinState {
-  if (isPinArmed) return 'armed';
-  if (pinnedCommandPrefix.length > 0) return 'active';
-  return 'inactive';
-}
-
 export function pathKey(path: string[]): string {
   return path.map((t) => t.toLowerCase()).join('/');
 }

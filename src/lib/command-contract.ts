@@ -142,40 +142,23 @@ export function verifyCommandContract(): string[] {
 const PARITY_PATHS = ['', 'prep', 'prep/brief', 'prep/brief/instr'];
 
 /**
- * Portrait and Power User mode render one shared suggestion list. Expected
- * commands are read from the registry rather than restated here, so adding or
- * removing a node updates both layouts and this check at once — and neither
- * renderer can filter, truncate, or extend what the registry offers.
+ * Autocomplete must expose exactly the registry children for each path.
+ * Expected commands are read from the registry rather than restated here.
  */
 export function verifySuggestionParity(): string[] {
   const failures: string[] = [];
 
   for (const commandSuffix of PARITY_PATHS) {
     const suggestions = getCommandAssistance(commandSuffix, []);
-
-    // Power User renders every token suggestion; portrait renders the same
-    // projection. Both must agree before either is compared to the registry.
-    const powerUserTokens = suggestionTokens(suggestions);
-    const portraitTokens = tokenSuggestions(suggestions).map(
-      (suggestion) => suggestion.commandPath[suggestion.commandPath.length - 1],
-    );
-
-    if (powerUserTokens.join(',') !== portraitTokens.join(',')) {
-      failures.push(
-        `suggestion parity: "${commandSuffix}" resolved [${portraitTokens.join(
-          ', ',
-        )}] in portrait and [${powerUserTokens.join(', ')}] in Power User mode`,
-      );
-    }
-
+    const resolvedTokens = suggestionTokens(suggestions);
     const { path } = parseSvyrInput(commandSuffix);
     const registered = childNodes(path).map((node) => node.token);
 
-    if (powerUserTokens.join(',') !== registered.join(',')) {
+    if (resolvedTokens.join(',') !== registered.join(',')) {
       failures.push(
         `suggestions for "${commandSuffix}": registry offers [${registered.join(
           ', ',
-        )}], renderers received [${powerUserTokens.join(', ')}]`,
+        )}], resolver returned [${resolvedTokens.join(', ')}]`,
       );
     }
   }

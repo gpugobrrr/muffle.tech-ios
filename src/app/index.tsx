@@ -1,37 +1,21 @@
-import { useEffect } from 'react';
-import { Keyboard, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { PortraitLearnerWorkspace } from '@/components/portrait-learner-workspace';
 import { SvyrInterface } from '@/components/svyr-interface';
 import { Colors } from '@/constants/theme';
-import { useInteractionMode } from '@/hooks/use-interaction-mode';
 import { useSvyrController } from '@/hooks/use-workspace';
 
+/**
+ * Landscape-only Power User workspace.
+ * Portrait learner mode has been removed; native orientation is locked
+ * to landscape in app.json. Web always renders this same surface.
+ */
 export default function HomeScreen() {
-  const { isLandscape } = useInteractionMode();
   const svyr = useSvyrController();
 
-  // Portrait must not keep the Power User keyboard open after rotation.
-  useEffect(() => {
-    if (!isLandscape) {
-      Keyboard.dismiss();
-    }
-  }, [isLandscape]);
-
   return (
-    <SafeAreaView
-      style={styles.safeArea}
-      edges={
-        isLandscape
-          ? ['top', 'left', 'right']
-          : ['top', 'left', 'right', 'bottom']
-      }>
-      {isLandscape ? (
-        <SvyrInterface controller={svyr} />
-      ) : (
-        <PortraitLearnerWorkspace controller={svyr} />
-      )}
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+      <SvyrInterface controller={svyr} />
     </SafeAreaView>
   );
 }

@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { Gesture } from 'react-native-gesture-handler';
 import {
+  Easing,
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
@@ -18,18 +19,32 @@ const COMMIT_DISTANCE = 56;
 /** Shorter travel still commits when flicked decisively. */
 const FLICK_DISTANCE = 36;
 const FLICK_VELOCITY = 500;
-/** Feedback cap — the dock nudges, the screen never slides. */
-const FEEDBACK_MAX = 28;
-const RETURN_DURATION = 140;
+/**
+ * The gesture stays deliberate while the interface barely moves: physical
+ * travel is damped heavily and capped, so the command line nudges rather
+ * than reading as page navigation.
+ */
+const MAX_SWIPE_TRANSLATION = 18;
+const VISUAL_DAMPING = 0.22;
+/** Short, flat return — no spring, no overshoot. */
+const RETURN_DURATION = 120;
 
 /**
  * Shared directory-up swipe: one deliberate right swipe removes exactly one
  * editable command segment via the controller's `moveUpDirectory`.
- * Both orientations use this recognition and feedback so the gesture cannot
- * diverge; neither renderer mutates the command path itself.
+ * Both the command dock and any future surfaces use this recognition and
+ * these motion constants so the gesture cannot diverge; neither renderer
+ * mutates the command path itself.
+ *
+ * The returned style belongs to the SVYR command line alone — never the dock,
+ * autocomplete, learner panel or screen.
  */
-export function useDirectorySwipe(onMoveUpDirectory: () => boolean) {
+export function useDirectorySwipe(
+  onMoveUpDirectory: () => boolean,
+  options?: { maxTranslation?: number },
+) {
   const dragX = useSharedValue(0);
+  const visualMax = options?.maxTranslation ?? MAX_SWIPE_TRANSLATION;
 
   const commitDirectoryUp = useCallback(() => {
     onMoveUpDirectory();
@@ -45,10 +60,12 @@ export function useDirectorySwipe(onMoveUpDirectory: () => boolean) {
         .onUpdate((event) => {
           dragX.value =
             event.translationX > 0
-              ? Math.min(event.translationX, FEEDBACK_MAX)
+              ? Math.min(event.translationX * VISUAL_DAMPING, visualMax)
               : 0;
         })
         .onEnd((event) => {
+          // Commitment is judged on the physical swipe, never on how far the
+          // command line was allowed to move.
           const isHorizontal =
             Math.abs(event.translationX) > Math.abs(event.translationY);
           const committed =
@@ -62,14 +79,17 @@ export function useDirectorySwipe(onMoveUpDirectory: () => boolean) {
           }
         })
         .onFinalize(() => {
-          dragX.value = withTiming(0, { duration: RETURN_DURATION });
+          dragX.value = withTiming(0, {
+            duration: RETURN_DURATION,
+            easing: Easing.out(Easing.cubic),
+          });
         }),
-    [commitDirectoryUp, dragX],
+    [commitDirectoryUp, dragX, visualMax],
   );
 
-  const animatedStyle = useAnimatedStyle(() => ({
+  const commandLineStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: dragX.value }],
   })) as AnimatedStyle<ViewStyle>;
 
-  return { gesture, animatedStyle };
+  return { gesture, commandLineStyle };
 }

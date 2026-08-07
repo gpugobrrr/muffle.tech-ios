@@ -85,6 +85,21 @@ export const Spacing = {
   section: 28,
 } as const;
 
+/**
+ * Faint blue spatial guides for the Power User workspace.
+ * Decorative only — never interactive, never announced.
+ */
+export const SvyrGuide = {
+  /** Horizontal inset for the workspace guide line. */
+  lineInset: Spacing.xl,
+  lineWidth: 1,
+  /** Navigation resting opacity. */
+  lineOpacity: 0.22,
+  /** Slightly quieter while the dedicated entry panel owns attention. */
+  lineOpacityDataEntry: 0.14,
+  lineFadeMs: 150,
+} as const;
+
 export const Type = {
   brand: 15,
   label: 10,

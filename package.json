@@ -23,6 +23,7 @@
   "devDependencies": {
     "@types/react": "~19.1.10",
     "ansi-escapes": "^4.3.2",
+    "pdfjs-dist": "^6.2.108",
     "typescript": "~5.9.2"
   },
   "scripts": {
@@ -33,7 +34,11 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "test:commands": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON ./scripts/verify-command-contract.mjs"
+    "onboarding:minimize-pii": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs ./scripts/minimize-firm-pdf-pii.mjs",
+    "onboarding:parse-pdf": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs ./scripts/parse-firm-pdf.mjs",
+    "test:commands": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON ./scripts/verify-command-contract.mjs",
+    "test:pdf-parser": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/pdf-parser.test.ts",
+    "test:pii-minimizer": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/pii-minimizer.test.ts"
   },
   "private": true
 }

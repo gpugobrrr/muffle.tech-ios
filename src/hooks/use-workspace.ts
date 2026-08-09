@@ -27,6 +27,7 @@ import {
     type SvyrExecutionResult,
 } from '@/lib/field-information';
 import { findFieldDefinition, normalizeFieldInputValue } from '@/lib/field-schema';
+import { createEmptyInspectionRecord } from '@/lib/inspection-record';
 import { resolveLookup } from '@/lib/lookup';
 import {
     composeFullCommand,
@@ -37,7 +38,11 @@ import {
 } from '@/lib/pin-context';
 import { executeSurveyOperation } from '@/lib/survey-operations';
 import type { SvyrNotesByPath } from '@/lib/svyr-notes';
-import type { ActiveJob, InspectionBrief } from '@/types/workspace';
+import type {
+  ActiveJob,
+  ActiveProperty,
+  InspectionBrief,
+} from '@/types/workspace';
 
 if (__DEV__) {
   // Single Power User presentation consumes this hook — one contract check
@@ -66,6 +71,7 @@ const INITIAL_JOB: ActiveJob = {
     displayAddress: '18 Market Street',
     instructionType: 'Level 2 Building Survey',
   },
+  inspection: createEmptyInspectionRecord(),
 };
 
 function announce(message: string) {
@@ -114,6 +120,8 @@ export type SvyrController = {
   pinnedCommandPrefix: string[];
   /** Recognised structural segments of the editable suffix. */
   editablePath: string[];
+  /** Data-entry SVYR directory, updated only by accepted navigation changes. */
+  dataEntryDirectory: string[];
   /** Free text typed after a value-bearing path. */
   entryValue: string;
   inputMode: SvyrInputMode;
@@ -128,6 +136,7 @@ export type SvyrController = {
   inspectionBrief: InspectionBrief;
   /** Active survey job — header property and future job-scoped state. */
   activeJob: ActiveJob;
+  setActiveProperty: (property: ActiveProperty) => void;
   /** Derived from lastExecutionResult only — never from the live path. */
   infoBarText: string | null;
   /** Brief pin acknowledgement — expires on its own. */
@@ -148,6 +157,7 @@ export type SvyrController = {
   submitDataEntry: () => boolean;
   commitFieldValue: (path: string[], value: string) => boolean;
   selectSuggestion: (suggestion: CommandSuggestion) => void;
+  navigateToDataEntrySegment: (index: number) => boolean;
   deletePreviousPart: () => void;
   moveUpDirectory: () => boolean;
   /** Returns true only when the current path is newly pinned. */
@@ -163,6 +173,7 @@ export type SvyrController = {
 
 export function useSvyrController(): SvyrController {
   const [commandSuffix, setCommandSuffix] = useState('');
+  const [dataEntryDirectory, setDataEntryDirectory] = useState<string[]>([]);
   const [pinnedCommandPrefix, setPinnedCommandPrefix] = useState<string[]>([]);
   const [temporaryAutocompleteContent, setTemporaryAutocompleteContent] =
     useState<string | null>(null);
@@ -181,11 +192,12 @@ export function useSvyrController(): SvyrController {
   const [notesByPath, setNotesByPath] = useState<SvyrNotesByPath>({});
   const [inspectionBrief, setInspectionBrief] =
     useState<InspectionBrief>(INITIAL_BRIEF);
-  const [activeJob] = useState<ActiveJob>(INITIAL_JOB);
+  const [activeJob, setActiveJobState] = useState<ActiveJob>(INITIAL_JOB);
   const pinnedRef = useRef<string[]>([]);
   const suffixRef = useRef('');
   const briefRef = useRef<InspectionBrief>(INITIAL_BRIEF);
   const activeEntryRef = useRef<ActiveEntryField | null>(null);
+  const dataEntryDirectoryRef = useRef<string[]>([]);
   const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Kept in sync during render, not in an effect: gesture and native-input
@@ -195,6 +207,7 @@ export function useSvyrController(): SvyrController {
   suffixRef.current = commandSuffix;
   briefRef.current = inspectionBrief;
   activeEntryRef.current = activeEntryField;
+  dataEntryDirectoryRef.current = dataEntryDirectory;
 
   useEffect(
     () => () => {
@@ -263,6 +276,24 @@ export function useSvyrController(): SvyrController {
     setEntryError(null);
   }, []);
 
+  const setDataEntryDirectoryForPath = useCallback((path: string[]) => {
+    const pinned = pinnedRef.current;
+    const isPinnedPrefix = pinned.every(
+      (segment, index) => path[index] === segment,
+    );
+    const nextPath = isPinnedPrefix ? path.slice(pinned.length) : [...path];
+    setDataEntryDirectory((current) => {
+      const sharesCurrentPrefix =
+        current.length + 1 === nextPath.length &&
+        current.every((segment, index) => nextPath[index] === segment);
+      const nextSegment = nextPath.at(-1);
+      if (sharesCurrentPrefix && nextSegment) {
+        return [...current, nextSegment];
+      }
+      return nextPath;
+    });
+  }, []);
+
   const handleCommandSuffixChange = useCallback((value: string) => {
     setTemporaryAutocompleteContent(null);
     setLastExecutionResult(null);
@@ -289,6 +320,7 @@ export function useSvyrController(): SvyrController {
   const applyPinContext = useCallback(
     (path: string[]) => {
       setPinnedCommandPrefix(path);
+      setDataEntryDirectory([]);
       setCommandSuffix('');
       clearActiveEntry();
       setLastExecutionResult(null);
@@ -302,6 +334,7 @@ export function useSvyrController(): SvyrController {
 
   const applyUnpinContext = useCallback(() => {
     setPinnedCommandPrefix([]);
+    setDataEntryDirectory([]);
     setCommandSuffix('');
     clearActiveEntry();
     setLastExecutionResult(null);
@@ -513,9 +546,10 @@ export function useSvyrController(): SvyrController {
     setLastExecutionResult(null);
     setEntryError(null);
     setActiveEntryField({ path: suggestion.commandPath, node });
+    setDataEntryDirectoryForPath(suggestion.commandPath);
     setCommandSuffix(suggestion.insertion);
     setFocusToken((n) => n + 1);
-  }, []);
+  }, [setDataEntryDirectoryForPath]);
 
   /** Abandon the field: drop the draft and the value-bearing segment together. */
   const cancelDataEntry = useCallback(() => {
@@ -526,10 +560,37 @@ export function useSvyrController(): SvyrController {
     setLastExecutionResult(null);
     setEntryError(null);
     setActiveEntryField(null);
+    setDataEntryDirectory((current) => current.slice(0, -1));
     // Restore the parent structural path; pinned prefixes stay protected.
     setCommandSuffix(
       suffixForPath(field.path.slice(0, -1), pinnedRef.current),
     );
+  }, []);
+
+  /**
+   * Return to the selection state represented before a clicked data-entry
+   * segment was chosen. This is the same semantic transition as repeatedly
+   * using the existing one-step directory-up action.
+   */
+  const navigateToDataEntrySegment = useCallback((index: number): boolean => {
+    const currentDirectory = dataEntryDirectoryRef.current;
+    if (index < 0 || index >= currentDirectory.length) return false;
+
+    const parsed = parseEditableCommand(
+      suffixRef.current,
+      pinnedRef.current,
+    );
+    if (parsed.valueText.length > 0) return false;
+
+    const targetDirectory = currentDirectory.slice(0, index);
+    setTemporaryAutocompleteContent(null);
+    setLastExecutionResult(null);
+    setEntryError(null);
+    setActiveEntryField(null);
+    setDataEntryDirectory(targetDirectory);
+    setCommandSuffix(suffixForPath(targetDirectory, pinnedRef.current));
+    setFocusToken((token) => token + 1);
+    return true;
   }, []);
 
   const selectSuggestion = useCallback(
@@ -549,17 +610,20 @@ export function useSvyrController(): SvyrController {
       // Terminal argument-free suggestions execute immediately on tap.
       if (suggestion.isTerminal) {
         clearActiveEntry();
-        executeCommand(composeSuggestionCommand(suggestion));
+        if (executeCommand(composeSuggestionCommand(suggestion))) {
+          setDataEntryDirectoryForPath(suggestion.commandPath);
+        }
         setFocusToken((n) => n + 1);
         return;
       }
 
       // Branches insert and reveal what comes next — still keyboard-free.
       clearActiveEntry();
+      setDataEntryDirectoryForPath(suggestion.commandPath);
       setCommandSuffix(suggestion.insertion);
       setFocusToken((n) => n + 1);
     },
-    [beginDataEntry, clearActiveEntry, executeCommand],
+    [beginDataEntry, clearActiveEntry, executeCommand, setDataEntryDirectoryForPath],
   );
 
   /**
@@ -592,6 +656,7 @@ export function useSvyrController(): SvyrController {
 
     setTemporaryAutocompleteContent(null);
     setLastExecutionResult(null);
+    setDataEntryDirectory((current) => current.slice(0, -1));
     setCommandSuffix(next);
     setFocusToken((n) => n + 1);
     return true;
@@ -705,14 +770,20 @@ export function useSvyrController(): SvyrController {
     });
   }, []);
 
+  const setActiveProperty = useCallback((property: ActiveProperty) => {
+    setActiveJobState((current) => ({ ...current, property }));
+  }, []);
+
   return {
     inspectionBrief,
     activeJob,
+    setActiveProperty,
     fullCommandPath,
     fullCommandText,
     commandSuffix,
     setCommandSuffix: handleCommandSuffixChange,
     editablePath,
+    dataEntryDirectory,
     entryValue,
     inputMode,
     activeEntryField,
@@ -735,6 +806,7 @@ export function useSvyrController(): SvyrController {
     submitDataEntry,
     commitFieldValue,
     selectSuggestion,
+    navigateToDataEntrySegment,
     deletePreviousPart,
     moveUpDirectory,
     notesByPath,

@@ -71,6 +71,11 @@ test('placeholder replacement is idempotent', () => {
   assert.equal(twice.text, once.text);
   assert.deepEqual(twice.actions, []);
   assert.equal(minimizePiiText('[EMAIL] [PHONE] [POSTCODE]').text, '[EMAIL] [PHONE] [POSTCODE]');
+  assert.equal(minimizePiiText('[REFERENCE]').text, '[REFERENCE]');
+  assert.equal(
+    minimizePiiText('[PROFESSIONAL_ID]').text,
+    '[PROFESSIONAL_ID]',
+  );
 });
 
 test('contextual labels survive while adjacent identifying values are minimized', () => {
@@ -99,10 +104,10 @@ test('contextual labels survive while adjacent identifying values are minimized'
       block('p2-b2', 'Alex Example', 220, 700),
       block('p2-b3', 'Property address', 50, 680),
       block('p2-b4', '10 Example Road, Exampletown, OX3 8SE', 220, 680),
-      block('p2-b5', 'Report reference', 50, 660),
-      block('p2-b6', 'JOB-EXAMPLE-001', 220, 660),
+      block('p2-b5', 'Report reference number', 50, 660),
+      block('p2-b6', 'JOB-EXAMPLE-001', 220, 660, 'marker'),
       block('p2-b7', "Surveyor's RICS number", 50, 640),
-      block('p2-b8', '1234567', 220, 640),
+      block('p2-b8', '1234567', 220, 640, 'marker'),
       block('p2-b9', 'Signature', 50, 620),
       block('p2-b10', 'Alex Example', 220, 620),
       block('p2-b11', 'Phone number', 50, 600),
@@ -122,7 +127,7 @@ test('contextual labels survive while adjacent identifying values are minimized'
       '[PERSON]',
       'Property address',
       '[ADDRESS]',
-      'Report reference',
+      'Report reference number',
       '[REFERENCE]',
       "Surveyor's RICS number",
       '[PROFESSIONAL_ID]',
@@ -174,17 +179,198 @@ test('inline label values preserve labels and replace only values', () => {
     minimizePiiText('Signature: Alex Example').text,
     'Signature: [SIGNATURE]',
   );
+  assert.deepEqual(
+    minimizePiiText("Surveyor's RICS number: 7654321"),
+    {
+      text: "Surveyor's RICS number: [PROFESSIONAL_ID]",
+      actions: [
+        {
+          category: 'professional_identifier',
+          replacement: '[PROFESSIONAL_ID]',
+          count: 1,
+        },
+      ],
+    },
+  );
+  assert.deepEqual(
+    minimizePiiText('Report reference number: TEST-XYZ-98765'),
+    {
+      text: 'Report reference number: [REFERENCE]',
+      actions: [
+        {
+          category: 'report_reference',
+          replacement: '[REFERENCE]',
+          count: 1,
+        },
+      ],
+    },
+  );
+});
+
+test('strong adjacent ID labels accept supported parser evidence', () => {
+  const source: ParsedFirmDocument = {
+    parserVersion: 1,
+    sourceFile: 'synthetic-identifiers.pdf',
+    pageCount: 1,
+    blocks: [
+      block('p2-b1', "Surveyor's RICS number", 50, 700),
+      block('p2-b2', '1234567', 220, 700),
+      block('p2-b3', 'Report reference number', 50, 680),
+      block('p2-b4', 'TEST-ABC-12345', 220, 680, 'marker'),
+      block('p2-b5', 'Report reference', 50, 660),
+      block('p2-b6', 'SURV/2026/0042', 220, 660, 'marker'),
+      block(
+        'p2-b7',
+        'Report reference number: TEST-XYZ-98765',
+        50,
+        640,
+      ),
+      block('p2-b8', "Surveyor's RICS number: 7654321", 50, 620),
+      block(
+        'p2-b9',
+        '1930 2021 300mm 18% Condition rating 2',
+        50,
+        600,
+      ),
+      block('p2-b10', 'D4 Main walls', 50, 580, 'heading'),
+      block('p2-b11', 'RICS Home Survey - Level 2', 50, 560, 'heading'),
+      block('p2-b12', 'https://www.rics.org', 50, 540),
+    ],
+  };
+  source.blocks[1].repeatedAcrossPages = true;
+  source.blocks[1].likelyPageFurniture = false;
+  const minimized = minimizeParsedDocument(source);
+
+  assert.deepEqual(
+    minimized.blocks.map(({ text }) => text),
+    [
+      "Surveyor's RICS number",
+      '[PROFESSIONAL_ID]',
+      'Report reference number',
+      '[REFERENCE]',
+      'Report reference',
+      '[REFERENCE]',
+      'Report reference number: [REFERENCE]',
+      "Surveyor's RICS number: [PROFESSIONAL_ID]",
+      '1930 2021 300mm 18% Condition rating 2',
+      'D4 Main walls',
+      'RICS Home Survey - Level 2',
+      'https://www.rics.org',
+    ],
+  );
+  assert.equal(minimized.summary.professional_identifier, 2);
+  assert.equal(minimized.summary.report_reference, 3);
+  assert.deepEqual(minimized.blocks[1].actions, [
+    {
+      category: 'professional_identifier',
+      replacement: '[PROFESSIONAL_ID]',
+      count: 1,
+    },
+  ]);
+  assert.deepEqual(minimized.blocks[3].actions, [
+    {
+      category: 'report_reference',
+      replacement: '[REFERENCE]',
+      count: 1,
+    },
+  ]);
+  assert.equal(JSON.stringify(minimized).includes('1234567'), false);
+  assert.equal(JSON.stringify(minimized).includes('TEST-ABC-12345'), false);
+  assert.equal(JSON.stringify(minimized).includes('TEST-XYZ-98765'), false);
+});
+
+test('strong professional context overrides repetition metadata without broad numeric matching', () => {
+  const repeatedValue = block('p2-b2', '1234567', 220, 700);
+  repeatedValue.repeatedAcrossPages = true;
+  repeatedValue.likelyPageFurniture = false;
+  const source: ParsedFirmDocument = {
+    parserVersion: 1,
+    sourceFile: 'repeated-professional-id.pdf',
+    pageCount: 1,
+    blocks: [
+      block('p2-b1', "Surveyor's RICS number", 50, 700),
+      repeatedValue,
+    ],
+  };
+  const original = structuredClone(source);
+  const minimized = minimizeParsedDocument(source);
+
+  assert.deepEqual(source, original);
+  assert.deepEqual(
+    minimized.blocks.map(({ text }) => text),
+    ["Surveyor's RICS number", '[PROFESSIONAL_ID]'],
+  );
+  assert.equal(minimized.blocks[1].repeatedAcrossPages, true);
+  assert.deepEqual(minimized.blocks[1].actions, [
+    {
+      category: 'professional_identifier',
+      replacement: '[PROFESSIONAL_ID]',
+      count: 1,
+    },
+  ]);
+  assert.equal(minimized.summary.professional_identifier, 1);
+  assert.equal(JSON.stringify(minimized).includes('1234567'), false);
+
+  const repeatedStandalone = block('p2-b1', '1234567', 50, 700);
+  repeatedStandalone.repeatedAcrossPages = true;
+  const standalone = minimizeParsedDocument({
+    parserVersion: 1,
+    sourceFile: 'repeated-ordinary-number.pdf',
+    pageCount: 1,
+    blocks: [repeatedStandalone],
+  });
+  assert.equal(standalone.blocks[0].text, '1234567');
+  assert.deepEqual(standalone.blocks[0].actions, []);
+  assert.equal(standalone.summary.professional_identifier, 0);
+});
+
+test('strong labels do not consume following form labels as values', () => {
+  const source: ParsedFirmDocument = {
+    parserVersion: 1,
+    sourceFile: 'blank-form.pdf',
+    pageCount: 1,
+    blocks: [
+      block('p2-b1', "Client's name", 50, 700),
+      block('p2-b2', 'Consultation date (if applicable)', 220, 700),
+      block('p2-b3', 'Report reference number', 50, 680),
+      block('p2-b4', 'Related party disclosure', 220, 680),
+      block('p2-b5', "Surveyor's RICS number", 50, 660),
+      block('p2-b6', 'Company name', 220, 660),
+    ],
+  };
+
+  assert.deepEqual(
+    minimizeParsedDocument(source).blocks.map(({ text }) => text),
+    [
+      "Client's name",
+      'Consultation date (if applicable)',
+      'Report reference number',
+      'Related party disclosure',
+      "Surveyor's RICS number",
+      'Company name',
+    ],
+  );
 });
 
 test('public organisations and surveying semantics remain unchanged', () => {
   const safeText = [
     'D4 Main walls',
+    'E8 Bathroom fittings',
+    'F1 Electricity',
     'External walls are of traditional masonry construction.',
     'The surveyor recommends further investigation.',
+    'The roof was renewed in 2021.',
+    'Condition rating 3',
     'Condition rating 3 – defects require urgent attention.',
+    'RICS Home Survey - Level 2',
     'RICS Home Survey – Level 2',
     'Royal Institution of Chartered Surveyors',
+    'https://www.rics.org',
     'The wall is approximately 300mm thick and moisture was recorded at 18%.',
+    '1234567',
+    'ABC-12345',
+    'Report reference number',
+    "Surveyor's RICS number",
   ];
   for (const value of safeText) {
     assert.equal(minimizePiiText(value).text, value);

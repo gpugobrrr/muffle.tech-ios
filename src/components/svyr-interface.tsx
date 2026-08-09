@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+    Animated,
+    Easing,
     Keyboard,
     KeyboardAvoidingView,
     Platform,
@@ -7,17 +9,20 @@ import {
     View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { GestureDetector } from 'react-native-gesture-handler';
 
 import { CommandDock } from '@/components/command-dock';
-import { DirectoryCompletionSurface } from '@/components/directory-completion-surface';
-import { PartyNotesSurface } from '@/components/party-notes-surface';
+import { AutocompleteArea } from '@/components/autocomplete-area';
 import { SvyrDataEntryPanel } from '@/components/svyr-data-entry-panel';
 import { WorkspaceHeader } from '@/components/workspace-header';
 import { Colors, Spacing } from '@/constants/theme';
 import { useSvyrHints } from '@/hooks/use-svyr-hints';
+import { useDataEntrySwipe } from '@/hooks/use-data-entry-swipe';
 import type { SvyrController } from '@/hooks/use-workspace';
-import type { CommandSuggestion } from '@/lib/command-parser';
-import { resolveDirectoryCompletion } from '@/lib/completion';
+import type {
+  CommandSuggestion,
+  TokenSuggestion,
+} from '@/lib/command-parser';
 import {
     isBranchSuggestion,
     resolveActiveHint,
@@ -29,7 +34,57 @@ import {
 
 export type SvyrInterfaceProps = {
   controller: SvyrController;
+  onNavigateBack?: () => void;
 };
+
+/**
+ * The visible top-level workflow vocabulary is intentionally broader than
+ * today's canonical command graph. Future entries are presentation-only until
+ * their workflows have real registry/parser handlers.
+ */
+const TOP_LEVEL_WORKFLOW_TOKENS = [
+  'prep',
+  'property',
+  'external',
+  'internal',
+  'services',
+  'structure',
+  'environment',
+  'grounds',
+  'evidence',
+  'summary',
+  'report',
+] as const;
+
+function topLevelWorkflowSuggestions(
+  suggestions: CommandSuggestion[],
+): CommandSuggestion[] {
+  const canonicalByToken = new Map(
+    suggestions
+      .filter(
+        (suggestion): suggestion is TokenSuggestion =>
+          suggestion.type === 'token',
+      )
+      .map((suggestion) => [suggestion.commandPath.at(-1), suggestion]),
+  );
+
+  return TOP_LEVEL_WORKFLOW_TOKENS.map((token) => {
+    const canonicalSuggestion = canonicalByToken.get(token);
+    if (canonicalSuggestion) return canonicalSuggestion;
+
+    return {
+      type: 'token',
+      id: `future-workflow-${token}`,
+      label: token,
+      insertion: token,
+      commandPath: [token],
+      isTerminal: true,
+      available: false,
+      pinnable: false,
+      description: 'Future workflow section — not currently available.',
+    } satisfies TokenSuggestion;
+  });
+}
 
 /**
  * The SVYR command console — landscape Power User only.
@@ -38,7 +93,11 @@ export type SvyrInterfaceProps = {
  * data entry is active; the dedicated entry panel sits above it without
  * overlaying the existing SVYR line.
  */
-export function SvyrInterface({ controller }: SvyrInterfaceProps) {
+export function SvyrInterface({
+  controller,
+  onNavigateBack,
+}: SvyrInterfaceProps) {
+  const entrance = useRef(new Animated.Value(0)).current;
   const insets = useSafeAreaInsets();
   const hints = useSvyrHints();
   const [keyboardVisible, setKeyboardVisible] = useState(false);
@@ -50,31 +109,23 @@ export function SvyrInterface({ controller }: SvyrInterfaceProps) {
       controller.activeEntryField &&
         isPartyNotesPath(controller.activeEntryField.path),
     );
-  const directoryCompletion = useMemo(
-    () =>
-      showPartyNotes
-        ? null
-        : resolveDirectoryCompletion(
-            controller.fullCommandPath,
-            controller.inspectionBrief,
-          ),
-    [
-      controller.fullCommandPath,
-      controller.inspectionBrief,
-      showPartyNotes,
-    ],
-  );
-  /**
-   * The underline marks the active suggestion group while a command must be
-   * chosen: navigation only,
-   * keyboard down, suggestions present, and no guidance replacing them.
-   */
-  const showReadyUnderline =
-    !isDataEntry &&
-    !keyboardVisible &&
-    controller.temporaryAutocompleteContent === null &&
-    controller.suggestions.length > 0;
+  const noteEditing = showPartyNotes && notesOpen;
+  const noteValue = controller.notesByPath[PARTY_NOTES_PATH] ?? '';
+  const visibleSuggestions = useMemo(() => {
+    const isTopLevelWorkspace =
+      controller.inputMode === 'navigation' &&
+      controller.commandSuffix.trim() === '' &&
+      controller.pinnedCommandPrefix.length === 0;
 
+    return isTopLevelWorkspace
+      ? topLevelWorkflowSuggestions(controller.suggestions)
+      : controller.suggestions;
+  }, [
+    controller.commandSuffix,
+    controller.inputMode,
+    controller.pinnedCommandPrefix.length,
+    controller.suggestions,
+  ]);
   const activeHint = useMemo(
     () =>
       resolveActiveHint({
@@ -163,6 +214,18 @@ export function SvyrInterface({ controller }: SvyrInterfaceProps) {
     hints.completeHint('swipeBack');
   }, [hints]);
 
+  const handleNavigateUpDirectory = useCallback(() => {
+    if (
+      onNavigateBack &&
+      controller.fullCommandPath.length === 1 &&
+      controller.fullCommandPath[0] === 'prep'
+    ) {
+      onNavigateBack();
+      return true;
+    }
+    return controller.moveUpDirectory();
+  }, [controller, onNavigateBack]);
+
   const handleNotesOpenChange = useCallback(
     (open: boolean) => {
       setNotesOpen(open);
@@ -181,32 +244,59 @@ export function SvyrInterface({ controller }: SvyrInterfaceProps) {
   const dockBottomPad = keyboardVisible
     ? Spacing.xs
     : Math.max(insets.bottom, Spacing.xs);
+  const dataEntryGesture = useDataEntrySwipe({
+    enabled: isDataEntry,
+    fieldKey: noteEditing
+      ? PARTY_NOTES_PATH
+      : controller.activeEntryField?.path.join('/') ?? null,
+    value: noteEditing ? noteValue : controller.entryValue,
+    onChangeText: noteEditing
+      ? (value: string) => controller.setPathNote(PARTY_NOTES_PATH, value)
+      : controller.setEntryValue,
+    onNavigateBack: controller.cancelCurrentInteraction,
+  });
+
+  useEffect(() => {
+    Animated.timing(entrance, {
+      toValue: 1,
+      duration: 200,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [entrance]);
 
   return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={0}>
-      <View style={styles.shell}>
+    <Animated.View
+      style={[
+        styles.flex,
+        {
+          opacity: entrance,
+          transform: [
+            {
+              translateY: entrance.interpolate({
+                inputRange: [0, 1],
+                outputRange: [8, 0],
+              }),
+            },
+          ],
+        },
+      ]}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={0}>
+        <GestureDetector gesture={dataEntryGesture}>
+          <View style={styles.shell}>
         <View style={styles.headerPad}>
           <WorkspaceHeader
-            address={controller.activeJob?.property?.displayAddress}
+            property={controller.activeJob?.property}
             onPressBackground={Keyboard.dismiss}
             onResetInteractionHints={handleResetHints}
           />
         </View>
 
-        {/*
-          Workspace above the dock: directories show numeric x / y completion.
-          Party notes live in the active field content column.
-        */}
+        {/* Party notes live in the active field content column. */}
         <View style={styles.stageSpacer}>
-          {!showPartyNotes && directoryCompletion ? (
-            <DirectoryCompletionSurface completion={directoryCompletion} />
-          ) : null}
-        </View>
-
-        <View style={[styles.commandDock, { paddingBottom: dockBottomPad }]}>
           {controller.activeEntryField ? (
             <SvyrDataEntryPanel
               field={controller.activeEntryField}
@@ -214,27 +304,18 @@ export function SvyrInterface({ controller }: SvyrInterfaceProps) {
               error={controller.entryError}
               onChangeText={controller.setEntryValue}
               onSubmit={handleSubmitDataEntry}
-              onDeletePreviousPart={controller.deletePreviousPart}
               onCancelEntry={controller.cancelCurrentInteraction}
               focusToken={controller.focusToken}
               pinnedCommandPrefix={controller.pinnedCommandPrefix}
-              editablePath={controller.editablePath}
+              svyrDirectory={controller.dataEntryDirectory}
               canPinCurrentPath={controller.canPinCurrentPath}
               isCurrentPathPinned={controller.isCurrentPathPinned}
               onToggleCurrentPathPin={handleTogglePin}
-              notesSurface={
-                showPartyNotes ? (
-                  <PartyNotesSurface
-                    active
-                    inline
-                    note={controller.notesByPath[PARTY_NOTES_PATH] ?? ''}
-                    onChangeNote={(value) =>
-                      controller.setPathNote(PARTY_NOTES_PATH, value)
-                    }
-                    onEditorClosed={controller.requestTerminalFocus}
-                    onOpenChange={handleNotesOpenChange}
-                  />
-                ) : null
+              onSegmentPress={controller.navigateToDataEntrySegment}
+              noteEditing={noteEditing}
+              noteValue={noteValue}
+              onChangeNote={(value) =>
+                controller.setPathNote(PARTY_NOTES_PATH, value)
               }
               activeHintId={
                 activeHint === 'executeValue' ? 'executeValue' : null
@@ -242,7 +323,18 @@ export function SvyrInterface({ controller }: SvyrInterfaceProps) {
               onDismissHint={hints.dismissHint}
             />
           ) : null}
+          {!isDataEntry ? (
+            <AutocompleteArea
+              suggestions={visibleSuggestions}
+              temporaryContent={controller.temporaryAutocompleteContent}
+              onApplySuggestion={handleSelectSuggestion}
+              onNavigateUpDirectory={handleNavigateUpDirectory}
+              onSwipeBackCommitted={handleSwipeBackCommitted}
+            />
+          ) : null}
+        </View>
 
+        <View style={[styles.commandDock, { paddingBottom: dockBottomPad }]}>
           <CommandDock
             infoBarText={controller.infoBarText}
             transientFeedbackText={controller.transientFeedbackText}
@@ -251,17 +343,7 @@ export function SvyrInterface({ controller }: SvyrInterfaceProps) {
             canPinCurrentPath={controller.canPinCurrentPath}
             isCurrentPathPinned={controller.isCurrentPathPinned}
             onToggleCurrentPathPin={handleTogglePin}
-            autocompleteSuggestions={
-              controller.activeEntryField ? [] : controller.suggestions
-            }
-            temporaryAutocompleteContent={
-              controller.activeEntryField
-                ? null
-                : controller.temporaryAutocompleteContent
-            }
-            showCommandReadyUnderline={showReadyUnderline}
-            onApplySuggestion={handleSelectSuggestion}
-            onNavigateUpDirectory={controller.moveUpDirectory}
+            onNavigateUpDirectory={handleNavigateUpDirectory}
             onSwipeBackCommitted={handleSwipeBackCommitted}
             dataEntryActive={Boolean(controller.activeEntryField)}
             showTerminal={!controller.activeEntryField}
@@ -275,8 +357,10 @@ export function SvyrInterface({ controller }: SvyrInterfaceProps) {
             onDismissHint={hints.dismissHint}
           />
         </View>
-      </View>
-    </KeyboardAvoidingView>
+          </View>
+        </GestureDetector>
+      </KeyboardAvoidingView>
+    </Animated.View>
   );
 }
 
@@ -296,6 +380,7 @@ const styles = StyleSheet.create({
   stageSpacer: {
     flex: 1,
     minHeight: 0,
+    position: 'relative',
   },
   /** Sits above unrelated content so suggestions always receive touches. */
   commandDock: {

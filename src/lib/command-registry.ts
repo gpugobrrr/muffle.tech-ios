@@ -12,6 +12,11 @@ export type CommandNode = {
   children?: CommandNode[];
   /** Leaf that needs free text before it can execute. */
   requiresValue?: boolean;
+  /**
+   * Selection availability. Unavailable nodes remain visible in suggestions
+   * but cannot be selected or executed.
+   */
+  available?: boolean;
   /** Guidance shown while the value is being typed (autocomplete hint). */
   valuePrompt?: string;
   /**
@@ -160,30 +165,35 @@ export const COMMAND_REGISTRY: CommandNode[] = [
         label: 'scope',
         learnerLabel: 'Scope',
         description: 'Define the areas and elements included in the inspection.',
+        available: false,
       },
       {
         token: 'access',
         label: 'access',
         learnerLabel: 'Access',
         description: 'Review access arrangements and site contacts.',
+        available: false,
       },
       {
         token: 'equipment',
         label: 'equipment',
         learnerLabel: 'Equipment',
         description: 'Review the required inspection equipment.',
+        available: false,
       },
       {
         token: 'plan',
         label: 'plan',
         learnerLabel: 'Plan',
         description: 'Define the intended inspection sequence.',
+        available: false,
       },
       {
         token: 'ready',
         label: 'ready',
         learnerLabel: 'Ready',
         description: 'Check whether inspection preparation is complete.',
+        available: false,
       },
     ],
   },

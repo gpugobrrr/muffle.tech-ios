@@ -199,6 +199,16 @@ const ALL_DEFINITIONS: SchemaNodeDefinition[] = [
   ...FIELD_DEFINITIONS,
 ];
 
+/** Read-only schema inventory for development contracts and semantic export. */
+export function allDirectoryDefinitions(): readonly DirectoryDefinition[] {
+  return DIRECTORY_DEFINITIONS;
+}
+
+/** Read-only field inventory for development contracts and semantic export. */
+export function allFieldDefinitions(): readonly FieldDefinition[] {
+  return FIELD_DEFINITIONS;
+}
+
 export function toSchemaPath(path: string[] | string): string {
   return pathKeyForSegments(path);
 }

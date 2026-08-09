@@ -30,21 +30,32 @@ const VISUAL_DAMPING = 0.22;
 const RETURN_DURATION = 120;
 
 /**
- * Shared directory-up swipe: one deliberate right swipe removes exactly one
- * editable command segment via the controller's `moveUpDirectory`.
+ * Shared directory-up swipe: one deliberate directional swipe removes exactly
+ * one editable command segment via the controller's `moveUpDirectory`.
  * Both the command dock and any future surfaces use this recognition and
- * these motion constants so the gesture cannot diverge; neither renderer
- * mutates the command path itself.
+ * these motion constants so the gesture cannot diverge; direction defaults to
+ * left for SVYR back navigation, while keyboard deletion uses right. Neither
+ * renderer mutates the command path itself.
  *
  * The returned style belongs to the SVYR command line alone — never the dock,
  * autocomplete, learner panel or screen.
  */
 export function useDirectorySwipe(
   onMoveUpDirectory: () => boolean,
-  options?: { maxTranslation?: number },
+  options?: {
+    maxTranslation?: number;
+    direction?: 'left' | 'right';
+    enabled?: boolean;
+  },
 ) {
   const dragX = useSharedValue(0);
   const visualMax = options?.maxTranslation ?? MAX_SWIPE_TRANSLATION;
+  const gestureEnabled = options?.enabled ?? true;
+  const directionSign = options?.direction === 'right' ? 1 : -1;
+  const activeOffsetX: [number, number] =
+    directionSign === 1
+      ? [ACTIVATE_OFFSET_X, Number.POSITIVE_INFINITY]
+      : [Number.NEGATIVE_INFINITY, -ACTIVATE_OFFSET_X];
 
   const commitDirectoryUp = useCallback(() => {
     onMoveUpDirectory();
@@ -53,14 +64,17 @@ export function useDirectorySwipe(
   const gesture = useMemo(
     () =>
       Gesture.Pan()
+        .enabled(gestureEnabled)
         // Start away from the extreme edge so system / browser back still works.
-        .activeOffsetX(ACTIVATE_OFFSET_X)
+        .activeOffsetX(activeOffsetX)
         .failOffsetY([-FAIL_OFFSET_Y, FAIL_OFFSET_Y])
         .shouldCancelWhenOutside(false)
         .onUpdate((event) => {
+          const directionalTravel = event.translationX * directionSign;
           dragX.value =
-            event.translationX > 0
-              ? Math.min(event.translationX * VISUAL_DAMPING, visualMax)
+            directionalTravel > 0
+              ? directionSign *
+                Math.min(directionalTravel * VISUAL_DAMPING, visualMax)
               : 0;
         })
         .onEnd((event) => {
@@ -70,9 +84,9 @@ export function useDirectorySwipe(
             Math.abs(event.translationX) > Math.abs(event.translationY);
           const committed =
             isHorizontal &&
-            (event.translationX >= COMMIT_DISTANCE ||
-              (event.translationX >= FLICK_DISTANCE &&
-                event.velocityX >= FLICK_VELOCITY));
+            (event.translationX * directionSign >= COMMIT_DISTANCE ||
+              (event.translationX * directionSign >= FLICK_DISTANCE &&
+                event.velocityX * directionSign >= FLICK_VELOCITY));
 
           if (committed) {
             runOnJS(commitDirectoryUp)();
@@ -84,7 +98,7 @@ export function useDirectorySwipe(
             easing: Easing.out(Easing.cubic),
           });
         }),
-    [commitDirectoryUp, dragX, visualMax],
+    [activeOffsetX, commitDirectoryUp, directionSign, dragX, gestureEnabled, visualMax],
   );
 
   const commandLineStyle = useAnimatedStyle(() => ({

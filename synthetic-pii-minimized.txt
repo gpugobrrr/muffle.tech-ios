@@ -1,0 +1,258 @@
+PII-minimised document
+Pages in source: 6
+Parsed pages: 1, 2, 3, 4, 5, 6
+Blocks: 78
+Minimisation actions: 14
+  email: 2
+  phone: 2
+  postcode: 1
+  person_name: 3
+  postal_address: 3
+  signature: 2
+  professional_identifier: 1
+
+Page 1
+
+[marker; repeated, page-furniture]
+A
+
+[heading]
+About the inspection and report
+
+[paragraph]
+Property address
+
+[paragraph]
+[ADDRESS]
+
+[paragraph]
+Client's name
+
+[paragraph]
+[PERSON]
+
+[paragraph]
+Consultation date (if applicable)
+
+[paragraph]
+12 March 2026
+
+[paragraph]
+Inspection date
+
+[paragraph]
+15 March 2026
+
+[paragraph]
+Surveyor's RICS number
+
+[paragraph; repeated]
+1234567
+
+[paragraph]
+Report reference number
+
+[paragraph]
+TEST-ABC-12345
+
+[paragraph; repeated, page-furniture]
+Synthetic survey document - test data only
+
+[paragraph; repeated, page-furniture]
+1
+
+Page 2
+
+[marker; repeated, page-furniture]
+A
+
+[heading]
+Surveyor details
+
+[paragraph]
+Surveyor's name
+
+[paragraph]
+[PERSON]
+
+[paragraph]
+Company name
+
+[paragraph]
+Example Surveying Ltd
+
+[paragraph]
+Phone number
+
+[paragraph]
+[PHONE]
+
+[paragraph]
+Email
+
+[paragraph]
+[EMAIL]
+
+[paragraph]
+Surveyor's address
+
+[paragraph]
+[ADDRESS]
+
+[paragraph]
+Website
+
+[paragraph]
+https://www.rics.org
+
+[paragraph]
+Signature
+
+[paragraph]
+[SIGNATURE]
+
+[paragraph; repeated, page-furniture]
+Synthetic survey document - test data only
+
+[paragraph; repeated, page-furniture]
+2
+
+Page 3
+
+[marker]
+D
+
+[heading]
+Outside the property
+
+[heading]
+D4 Main walls
+
+[paragraph]
+The main walls are of traditional masonry construction and are approximately 300mm thick. No significant distortion was observed to the principal elevations. Moisture was recorded at 18% to a localised internal area adjacent to the front wall. Condition rating 2
+
+[heading]
+D5 Windows
+
+[paragraph]
+The windows are predominantly double-glazed units. The frames require routine maintenance. Further investigation is not currently recommended.
+
+[heading]
+D6 Outside doors (including patio doors)
+
+[paragraph]
+The entrance door appears serviceable for its age and type.
+
+[paragraph; repeated, page-furniture]
+Synthetic survey document - test data only
+
+[paragraph; repeated, page-furniture]
+3
+
+Page 4
+
+[marker]
+E
+
+[heading]
+Inside the property
+
+[heading]
+E1 Roof structure
+
+[paragraph]
+The roof structure was inspected from the accessible roof space. The property was reportedly constructed in 1930. A section of roof covering was renewed in 2021. The ceiling height is approximately 2.4m.
+
+[heading]
+E3 Walls and partitions
+
+[paragraph]
+Internal partitions are a mixture of solid and lightweight construction. The rear extension measures approximately 4.2m by 3.1m. Condition rating 1.
+
+[heading]
+F1 Electricity
+
+[paragraph]
+No testing was undertaken. The installation appears dated but no immediate safety conclusion is drawn.
+
+[heading]
+F4 Heating
+
+[paragraph]
+The heating installation was operating at the time of inspection.
+
+[paragraph; repeated, page-furniture]
+Synthetic survey document - test data only
+
+[paragraph; repeated, page-furniture]
+4
+
+Page 5
+
+[marker]
+H
+
+[heading]
+Issues for your legal advisers
+
+[paragraph]
+The surveyor does not act as a legal adviser. Further investigation may be recommended where parts of the building are concealed or inaccessible.
+
+[paragraph]
+Public organisation and terminology
+
+[paragraph]
+Royal Institution of Chartered Surveyors RICS Home Survey - Level 2 https://www.rics.org
+
+[paragraph]
+Ordinary values that should remain unchanged
+
+[paragraph]
+2 3 12 300 2021 12.5% 300mm 18% D4 Main walls E8 Bathroom fittings F1 Electricity NI
+
+[paragraph; repeated, page-furniture]
+Synthetic survey document - test data only
+
+[paragraph; repeated, page-furniture]
+5
+
+Page 6
+
+[marker]
+I
+
+[heading]
+Adversarial / ambiguous cases
+
+[paragraph]
+Jane advised that the loft was inspected. This ambiguous free-prose name is intentionally included to test conservative person-name handling.
+
+[paragraph]
+The property is near Example Park and fronts Example High Street. This location-like prose is intentionally ambiguous and should not be aggressively redacted solely because it looks like a place.
+
+[paragraph]
+Contact [EMAIL] on [PHONE] regarding [POSTCODE].
+
+[paragraph]
+Inline labelled values
+
+[paragraph]
+Client's name: [PERSON]
+
+[paragraph]
+Property address: [ADDRESS]
+
+[paragraph]
+Report reference number: TEST-XYZ-98765
+
+[paragraph]
+Surveyor's RICS number: [PROFESSIONAL_ID]
+
+[paragraph]
+Signature: [SIGNATURE]
+
+[paragraph; repeated, page-furniture]
+Synthetic survey document - test data only
+
+[paragraph; repeated, page-furniture]
+6

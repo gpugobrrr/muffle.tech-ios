@@ -8,7 +8,7 @@ PII minimisation or semantic mapping:
 PDF
 → ParsedFirmDocument
 → deterministic PII minimisation
-→ future semantic fragment extraction
+→ deterministic semantic fragment extraction
 ```
 
 It is a Node-side tool and is not imported by the React Native/Expo runtime,
@@ -171,8 +171,9 @@ document-wide repetition.
   forms or multi-column layouts are not fully solved.
 - Signatures, handwriting, and semantic condition-rating interpretation are
   not implemented.
-- Deterministic PII minimisation is the next derived stage; semantic fragment
-  extraction remains future work. See `docs/pii-minimization-v1.md`.
+- Deterministic PII minimisation and semantic fragment extraction are derived
+  downstream stages. See `docs/pii-minimization-v1.md` and
+  `docs/semantic-fragments-v1.md`.
 
 Parser output faithfully contains source text and may therefore contain
 confidential firm, client, or property information. Do not commit real PDFs or

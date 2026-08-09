@@ -3,13 +3,11 @@ import { StyleSheet, View } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 import Animated from 'react-native-reanimated';
 
-import { AutocompleteArea } from '@/components/autocomplete-area';
 import { SvyrHint } from '@/components/svyr-hint';
 import { SvyrOutputLine } from '@/components/svyr-output-line';
 import { WorkspaceTerminal } from '@/components/workspace-terminal';
 import { Colors } from '@/constants/theme';
 import { useDirectorySwipe } from '@/hooks/use-directory-swipe';
-import type { CommandSuggestion } from '@/lib/command-parser';
 import type { SvyrHintId } from '@/lib/hint-repository';
 
 type DockHintId = Extract<
@@ -26,11 +24,6 @@ type Props = {
   canPinCurrentPath: boolean;
   isCurrentPathPinned: boolean;
   onToggleCurrentPathPin: () => void;
-  autocompleteSuggestions: CommandSuggestion[];
-  temporaryAutocompleteContent: string | null;
-  /** Underline the active suggested-command group while commands are available. */
-  showCommandReadyUnderline?: boolean;
-  onApplySuggestion: (suggestion: CommandSuggestion) => void;
   /** Right-swipe: remove one editable structural directory. */
   onNavigateUpDirectory: () => boolean;
   /** Fired only after a committed swipe removes one structural segment. */
@@ -46,8 +39,8 @@ type Props = {
 
 /**
  * Power User navigation dock — mounted at the bottom of the SVYR workspace.
- * Optional result → SVYR > → contextual autocomplete. No permanent
- * controls; long-press pins, swipe moves up one directory.
+ * Optional result → SVYR > navigation line. No permanent controls;
+ * long-press pins, swipe moves up one directory.
  */
 export function CommandDock({
   infoBarText,
@@ -57,10 +50,6 @@ export function CommandDock({
   canPinCurrentPath,
   isCurrentPathPinned,
   onToggleCurrentPathPin,
-  autocompleteSuggestions,
-  temporaryAutocompleteContent,
-  showCommandReadyUnderline = false,
-  onApplySuggestion,
   onNavigateUpDirectory,
   onSwipeBackCommitted,
   dataEntryActive = false,
@@ -113,20 +102,13 @@ export function CommandDock({
             </Animated.View>
           ) : null}
 
-          {/* Branch tip sits directly above the autocomplete row. */}
+          {/* Branch tip remains adjacent to the navigation surface. */}
           {activeHintId === 'selectBranch' ? (
             <View pointerEvents="box-none">
               <SvyrHint id="selectBranch" onDismiss={dismiss} />
             </View>
           ) : null}
 
-          {/* Stationary: the swipe transform stops at the command line. */}
-          <AutocompleteArea
-            suggestions={autocompleteSuggestions}
-            temporaryContent={temporaryAutocompleteContent}
-            showCommandReadyUnderline={showCommandReadyUnderline}
-            onApplySuggestion={onApplySuggestion}
-          />
         </View>
       </GestureDetector>
     </View>
@@ -142,9 +124,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
   },
   /**
-   * Capture area only: the gesture is scoped to the command line +
-   * autocomplete, never the full screen or the info bar above, and this
-   * region itself stays stationary.
+   * Capture area only: the gesture is scoped to the command line, never the
+   * full screen or the info bar above.
    */
   svyrGestureRegion: {
     backgroundColor: Colors.canvas,

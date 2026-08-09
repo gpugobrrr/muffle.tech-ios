@@ -1,10 +1,11 @@
 import { Alert, Pressable, StyleSheet, Text } from 'react-native';
 
 import { Colors, Fonts, Spacing } from '@/constants/theme';
+import { getCompactPropertyLabel } from '@/lib/property-label';
+import type { ActiveProperty } from '@/types/workspace';
 
 type Props = {
-  /** Active property street address — empty when none is recorded. */
-  address?: string | null;
+  property?: ActiveProperty | null;
   onPressBackground?: () => void;
   /**
    * Secondary overflow action — long-press the address (or empty header)
@@ -18,11 +19,11 @@ type Props = {
  * No branding, identity, subtitle, or right-side content.
  */
 export function WorkspaceHeader({
-  address,
+  property,
   onPressBackground,
   onResetInteractionHints,
 }: Props) {
-  const propertyAddress = address?.trim() ?? '';
+  const propertyLabel = getCompactPropertyLabel(property);
 
   const openOverflow = () => {
     if (!onResetInteractionHints) return;
@@ -47,13 +48,13 @@ export function WorkspaceHeader({
           : undefined
       }
       style={styles.workspaceHeader}>
-      {propertyAddress ? (
+      {propertyLabel ? (
         <Text
           style={styles.propertyAddress}
           numberOfLines={1}
           accessibilityRole="text"
-          accessibilityLabel={`Active property ${propertyAddress}`}>
-          {propertyAddress}
+          accessibilityLabel={`Active property ${propertyLabel}`}>
+          {propertyLabel}
         </Text>
       ) : null}
     </Pressable>

@@ -7,15 +7,15 @@ onboarding:
 raw ParsedFirmDocument
 → deterministic PII minimiser
 → PiiMinimizedDocument
-→ future semantic fragment extractor
+→ deterministic semantic fragment extractor
 → CandidateRetriever
 → local SemanticMapper
 → human approval
 → deterministic FirmAdapter
 ```
 
-The mapper must eventually receive only fragments derived from minimised
-blocks. LLM output never directly becomes report output.
+The mapper must receive only fragments derived from minimised blocks. LLM
+output never directly becomes report output.
 
 ## Derived representation
 
@@ -56,6 +56,15 @@ The same contextual replacements apply to explicit inline `label: value` or
 `label – value` text. Labels remain intact because terms such as `Client's
 name`, `Property address`, `Email`, and `Signature` describe useful template
 structure.
+
+Professional identifiers and report/reference identifiers use strong field
+labels plus conservative value shapes. Compact values extracted as structural
+markers are accepted only for those strong categories. Arbitrary numbers and
+alphanumeric tokens are not globally treated as professional IDs or report
+references, and a following form label is not consumed as the preceding
+field's value. Repetition metadata does not exempt a plausible professional ID
+when an adjacent strong professional-ID label and the normal geometry checks
+establish its context; repeated numbers without that context remain unchanged.
 
 Placeholders are stable, contain no source value, and are idempotent. No
 hashes, pseudonyms, random identifiers, or timestamps are generated.
@@ -125,5 +134,4 @@ Raw firm/client PDFs remain confidential.
 
 Potential later phases are improved contextual person-name and postal-address
 detection, structured form-field understanding, cross-block entity detection,
-optional local NER evaluation if justified, and the semantic fragment
-extractor. These are not part of v1.
+and optional local NER evaluation if justified. These are not part of v1.

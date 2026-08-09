@@ -1,25 +1,24 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
-    Keyboard,
-    Pressable,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
-    type GestureResponderEvent,
-    type NativeSyntheticEvent,
-    type TextInputKeyPressEventData,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  type GestureResponderEvent,
 } from 'react-native';
-import { GestureDetector } from 'react-native-gesture-handler';
-import Animated from 'react-native-reanimated';
 
 import { SvyrHint } from '@/components/svyr-hint';
+import { TextEntryPage } from '@/components/text-entry-page';
 import { WorkspaceTerminal } from '@/components/workspace-terminal';
 import { Colors, Fonts, Spacing, Type } from '@/constants/theme';
-import { useDirectorySwipe } from '@/hooks/use-directory-swipe';
 import type { ActiveEntryField } from '@/hooks/use-workspace';
-import { findFieldDefinition, normalizeFieldInputValue } from '@/lib/field-schema';
+import {
+  findFieldDefinition,
+  normalizeFieldInputValue,
+  type FieldDefinition,
+} from '@/lib/field-schema';
 import type { SvyrHintId } from '@/lib/hint-repository';
 
 const SWIPE_THRESHOLD = 24;
@@ -39,26 +38,22 @@ type Props = {
   error: string | null;
   onChangeText: (value: string) => void;
   onSubmit: () => void;
-  /** Empty-value Backspace cancels entry via the shared controller. */
-  onDeletePreviousPart: () => void;
-  /** Empty-value swipe cancels entry; non-empty values are protected. */
   onCancelEntry: () => boolean;
   focusToken?: number;
   activeHintId?: Extract<SvyrHintId, 'executeValue'> | null;
   onDismissHint?: (id: SvyrHintId) => void;
   pinnedCommandPrefix: string[];
-  editablePath: string[];
+  svyrDirectory: string[];
   canPinCurrentPath: boolean;
   isCurrentPathPinned: boolean;
   onToggleCurrentPathPin: () => void;
+  onSegmentPress: (index: number) => void;
   notesSurface?: ReactNode;
+  noteEditing?: boolean;
+  noteValue?: string;
+  onChangeNote?: (value: string) => void;
 };
 
-/**
- * Dedicated Power User value-entry surface. The dock remains mounted below it
- * while a value-bearing command is active — label, value, keyboard. The
- * structural SVYR path stays internal and is never shown here.
- */
 export function SvyrDataEntryPanel({
   field,
   value,
@@ -66,78 +61,128 @@ export function SvyrDataEntryPanel({
   error,
   onChangeText,
   onSubmit,
-  onDeletePreviousPart,
   onCancelEntry,
   focusToken = 0,
   activeHintId = null,
   onDismissHint,
   pinnedCommandPrefix,
-  editablePath,
+  svyrDirectory,
   canPinCurrentPath,
   isCurrentPathPinned,
   onToggleCurrentPathPin,
+  onSegmentPress,
   notesSurface,
+  noteEditing = false,
+  noteValue = '',
+  onChangeNote,
 }: Props) {
-  const inputRef = useRef<TextInput>(null);
-  const valueRef = useRef(value);
-  const isSourceField = field.path.join('/') === 'prep/brief/instr/source';
-  const [pickerMode, setPickerMode] = useState<'picker' | 'text'>(
-    isSourceField ? 'picker' : 'text',
+  const fieldDefinition = findFieldDefinition(field.path);
+
+  if (fieldDefinition?.valueType !== 'singleSelect') {
+    return (
+      <TextEntryPage
+        field={field}
+        value={value}
+        error={error}
+        onChangeText={onChangeText}
+        onSubmit={onSubmit}
+        onCancelEntry={onCancelEntry}
+        focusToken={focusToken}
+        activeHintId={activeHintId}
+        onDismissHint={onDismissHint}
+        pinnedCommandPrefix={pinnedCommandPrefix}
+        svyrDirectory={svyrDirectory}
+        canPinCurrentPath={canPinCurrentPath}
+        isCurrentPathPinned={isCurrentPathPinned}
+        onToggleCurrentPathPin={onToggleCurrentPathPin}
+        onSegmentPress={onSegmentPress}
+        notesSurface={notesSurface}
+        noteEditing={noteEditing}
+        noteValue={noteValue}
+        onChangeNote={onChangeNote}
+      />
+    );
+  }
+
+  return (
+    <SourceEntryPage
+      field={field}
+      fieldDefinition={fieldDefinition}
+      value={value}
+      storedValue={storedValue}
+      error={error}
+      onChangeText={onChangeText}
+      onSubmit={onSubmit}
+      onCancelEntry={onCancelEntry}
+      pinnedCommandPrefix={pinnedCommandPrefix}
+      svyrDirectory={svyrDirectory}
+      canPinCurrentPath={canPinCurrentPath}
+      isCurrentPathPinned={isCurrentPathPinned}
+      onToggleCurrentPathPin={onToggleCurrentPathPin}
+      onSegmentPress={onSegmentPress}
+      notesSurface={notesSurface}
+      activeHintId={activeHintId}
+      onDismissHint={onDismissHint}
+    />
   );
+}
+
+type SourceEntryPageProps = {
+  field: ActiveEntryField;
+  fieldDefinition: FieldDefinition;
+  value: string;
+  storedValue?: string | null;
+  error: string | null;
+  onChangeText: (value: string) => void;
+  onSubmit: () => void;
+  onCancelEntry: () => boolean;
+  pinnedCommandPrefix: string[];
+  svyrDirectory: string[];
+  canPinCurrentPath: boolean;
+  isCurrentPathPinned: boolean;
+  onToggleCurrentPathPin: () => void;
+  onSegmentPress: (index: number) => void;
+  notesSurface?: ReactNode;
+  activeHintId?: Extract<SvyrHintId, 'executeValue'> | null;
+  onDismissHint?: (id: SvyrHintId) => void;
+};
+
+function SourceEntryPage({
+  field,
+  fieldDefinition,
+  value,
+  storedValue,
+  error,
+  onChangeText,
+  onSubmit,
+  onCancelEntry,
+  pinnedCommandPrefix,
+  svyrDirectory,
+  canPinCurrentPath,
+  isCurrentPathPinned,
+  onToggleCurrentPathPin,
+  onSegmentPress,
+  notesSurface,
+  activeHintId,
+  onDismissHint,
+}: SourceEntryPageProps) {
+  const inputRef = useRef<TextInput>(null);
+  const [pickerMode, setPickerMode] = useState<'picker' | 'text'>('picker');
   const [draftText, setDraftText] = useState('');
   const [selectedSourceIndex, setSelectedSourceIndex] = useState(0);
   const [gestureStart, setGestureStart] = useState<{
     x: number;
     y: number;
   } | null>(null);
-  const [gestureLocked, setGestureLocked] = useState<'horizontal' | 'vertical' | null>(null);
+  const [gestureLocked, setGestureLocked] = useState<
+    'horizontal' | 'vertical' | null
+  >(null);
   const [gestureDeltaY, setGestureDeltaY] = useState(0);
-  valueRef.current = value;
 
-  // Subtle cancel nudge on the value row only — the panel itself never slides.
-  const { gesture, commandLineStyle } = useDirectorySwipe(onCancelEntry, {
-    maxTranslation: 10,
-  });
-
-  const focusInput = useCallback(() => {
-    requestAnimationFrame(() => {
-      inputRef.current?.focus();
-    });
-  }, []);
-
-  useEffect(() => {
-    if (!isSourceField && pickerMode === 'text') {
-      focusInput();
-      return;
-    }
-    if (isSourceField && pickerMode === 'text') {
-      focusInput();
-      return;
-    }
-    if (!isSourceField) {
-      focusInput();
-    }
-  }, [focusInput, focusToken, field.path.join('/'), isSourceField, pickerMode]);
-
-  const handleKeyPress = (
-    event: NativeSyntheticEvent<TextInputKeyPressEventData>,
-  ) => {
-    if (event.nativeEvent.key !== 'Backspace') return;
-    if (valueRef.current.length > 0) return;
-    onDeletePreviousPart();
-  };
-
-  const entryLabel =
-    field.node.entryLabel ?? field.node.token.toUpperCase();
-  const placeholder =
-    field.node.valuePlaceholder ?? `Enter ${field.node.token}`;
-  const sourceFieldDefinition = isSourceField
-    ? findFieldDefinition(field.path)
-    : null;
-  const sourceOptions = sourceFieldDefinition?.options ?? SOURCE_OPTIONS;
-  const committedSourceValue = isSourceField ? storedValue ?? null : null;
+  const sourceOptions = fieldDefinition.options ?? SOURCE_OPTIONS;
+  const committedSourceValue = storedValue ?? null;
   const normalizedCommittedValue = committedSourceValue
-    ? normalizeFieldInputValue(sourceFieldDefinition, committedSourceValue)
+    ? normalizeFieldInputValue(fieldDefinition, committedSourceValue)
     : null;
   const matchedSourceIndex = sourceOptions.findIndex(
     (option) => option.value === normalizedCommittedValue,
@@ -152,39 +197,20 @@ export function SvyrDataEntryPanel({
         ? sourceOptions.findIndex((option) => option.value === 'other')
         : 0;
   const activeSourceOption = sourceOptions[selectedSourceIndex] ?? sourceOptions[0];
+  const entryLabel =
+    field.node.entryLabel ?? field.node.token.toUpperCase();
 
-  const commitSourceOption = useCallback((optionValue: string) => {
-    const normalized = normalizeFieldInputValue(sourceFieldDefinition, optionValue);
-    if (!normalized) return;
-    onChangeText(normalized);
-    onSubmit();
-  }, [onChangeText, onSubmit, sourceFieldDefinition]);
-
-  const commitCustomSource = useCallback(() => {
-    const trimmedDraft = draftText.trim();
-    const normalized = normalizeFieldInputValue(sourceFieldDefinition, trimmedDraft);
-    if (!normalized) return;
-    onChangeText(normalized);
-    onSubmit();
-    setDraftText('');
-    setPickerMode('picker');
-  }, [draftText, onChangeText, onSubmit, sourceFieldDefinition]);
+  const focusInput = useCallback(() => {
+    requestAnimationFrame(() => inputRef.current?.focus());
+  }, []);
 
   useEffect(() => {
-    if (!isSourceField) {
-      setPickerMode('picker');
-      setDraftText('');
-      setSelectedSourceIndex(0);
-      Keyboard.dismiss();
-      return;
-    }
-
     setPickerMode('picker');
     setDraftText('');
     setSelectedSourceIndex(
       defaultSourceIndex >= 0 ? defaultSourceIndex : 0,
     );
-  }, [defaultSourceIndex, field.path.join('/'), isSourceField]);
+  }, [defaultSourceIndex, field.path.join('/')]);
 
   const advanceSelection = useCallback(
     (direction: 'up' | 'down') => {
@@ -192,9 +218,7 @@ export function SvyrDataEntryPanel({
         direction === 'up'
           ? Math.min(selectedSourceIndex + 1, sourceOptions.length - 1)
           : Math.max(selectedSourceIndex - 1, 0);
-      const nextOption = sourceOptions[nextIndex];
-      if (!nextOption) return;
-      setSelectedSourceIndex(nextIndex);
+      if (sourceOptions[nextIndex]) setSelectedSourceIndex(nextIndex);
     },
     [selectedSourceIndex, sourceOptions],
   );
@@ -210,7 +234,7 @@ export function SvyrDataEntryPanel({
 
   const handlePickerTouchMove = useCallback(
     (event: GestureResponderEvent) => {
-      if (!gestureStart || pickerMode !== 'picker' || !isSourceField) return;
+      if (!gestureStart) return;
       const dx = event.nativeEvent.pageX - gestureStart.x;
       const dy = event.nativeEvent.pageY - gestureStart.y;
       if (gestureLocked === null) {
@@ -222,179 +246,98 @@ export function SvyrDataEntryPanel({
           return;
         }
       }
-      if (gestureLocked === 'vertical') {
-        setGestureDeltaY(dy);
-      }
+      if (gestureLocked === 'vertical') setGestureDeltaY(dy);
     },
-    [gestureLocked, gestureStart, isSourceField, pickerMode],
+    [gestureLocked, gestureStart],
   );
 
   const handlePickerTouchEnd = useCallback(() => {
-    if (gestureLocked !== 'vertical' || !isSourceField) {
-      setGestureStart(null);
-      setGestureLocked(null);
-      setGestureDeltaY(0);
-      return;
+    if (gestureLocked === 'vertical') {
+      if (gestureDeltaY <= -SWIPE_THRESHOLD) advanceSelection('up');
+      if (gestureDeltaY >= SWIPE_THRESHOLD) advanceSelection('down');
     }
-
-    if (gestureDeltaY <= -SWIPE_THRESHOLD) {
-      advanceSelection('up');
-    } else if (gestureDeltaY >= SWIPE_THRESHOLD) {
-      advanceSelection('down');
-    }
-
     setGestureStart(null);
     setGestureLocked(null);
     setGestureDeltaY(0);
-  }, [advanceSelection, gestureDeltaY, gestureLocked, isSourceField]);
+  }, [advanceSelection, gestureDeltaY, gestureLocked]);
+
+  const commitSourceOption = useCallback(
+    (optionValue: string) => {
+      const normalized = normalizeFieldInputValue(fieldDefinition, optionValue);
+      if (!normalized) return;
+      onChangeText(normalized);
+      onSubmit();
+    },
+    [fieldDefinition, onChangeText, onSubmit],
+  );
 
   const handlePickerPress = useCallback(() => {
-    if (!isSourceField || pickerMode !== 'picker') return;
     if (activeSourceOption?.value === 'other') {
-      const draftValue = normalizedCommittedValue ?? '';
-      setDraftText(draftValue);
+      setDraftText(normalizedCommittedValue ?? '');
       setPickerMode('text');
-      requestAnimationFrame(() => {
-        inputRef.current?.focus();
-      });
+      requestAnimationFrame(() => inputRef.current?.focus());
       return;
     }
     commitSourceOption(activeSourceOption?.value ?? '');
-  }, [activeSourceOption?.value, commitSourceOption, isSourceField, normalizedCommittedValue, pickerMode]);
+  }, [activeSourceOption?.value, commitSourceOption, normalizedCommittedValue]);
+
+  const commitCustomSource = useCallback(() => {
+    const normalized = normalizeFieldInputValue(fieldDefinition, draftText.trim());
+    if (!normalized) return;
+    onChangeText(normalized);
+    onSubmit();
+    setDraftText('');
+    setPickerMode('picker');
+  }, [draftText, fieldDefinition, onChangeText, onSubmit]);
 
   const handleSourceSubmit = useCallback(() => {
-    if (!isSourceField) return;
     if (pickerMode === 'text') {
       commitCustomSource();
       return;
     }
-    if (activeSourceOption?.value === 'other') {
-      const draftValue = normalizedCommittedValue ?? '';
-      setDraftText(draftValue);
-      setPickerMode('text');
-      requestAnimationFrame(() => {
-        inputRef.current?.focus();
-      });
-      return;
-    }
-    commitSourceOption(activeSourceOption?.value ?? '');
-  }, [activeSourceOption?.value, commitCustomSource, commitSourceOption, isSourceField, normalizedCommittedValue, pickerMode]);
+    handlePickerPress();
+  }, [commitCustomSource, handlePickerPress, pickerMode]);
 
   return (
-    isSourceField ? (
-      <View style={styles.dataEntryPanel}>
-        {notesSurface}
-        <WorkspaceTerminal
-          editablePath={editablePath}
-          pinnedCommandPrefix={pinnedCommandPrefix}
-          onToggleCurrentPathPin={onToggleCurrentPathPin}
-          canPinCurrentPath={canPinCurrentPath}
-          isCurrentPathPinned={isCurrentPathPinned}
-          embedded
-        />
+    <View style={styles.dataEntryPanel}>
+      {notesSurface}
+      <WorkspaceTerminal
+        editablePath={svyrDirectory}
+        pinnedCommandPrefix={pinnedCommandPrefix}
+        onToggleCurrentPathPin={onToggleCurrentPathPin}
+        onSegmentPress={onSegmentPress}
+        canPinCurrentPath={canPinCurrentPath}
+        isCurrentPathPinned={isCurrentPathPinned}
+        embedded
+      />
+      {error ? (
         <Text
-          style={styles.dataEntryLabel}
-          accessibilityRole="header"
-          accessibilityLabel={entryLabel}>
-          {entryLabel}
+          style={styles.dataEntryError}
+          accessibilityRole="alert"
+          accessibilityLiveRegion="polite">
+          {error}
         </Text>
-
-        {error ? (
-          <Text
-            style={styles.dataEntryError}
-            accessibilityRole="alert"
-            accessibilityLiveRegion="polite">
-            {error}
-          </Text>
-        ) : null}
-
-        {activeHintId === 'executeValue' && onDismissHint ? (
-          <View pointerEvents="box-none">
-            <SvyrHint id="executeValue" onDismiss={onDismissHint} />
-          </View>
-        ) : null}
-
-        <View style={styles.sourceBarFrame}>
-          {pickerMode === 'picker' ? (
-            <Pressable
-              onStartShouldSetResponder={() => true}
-              onPress={handlePickerPress}
-              onTouchStart={handlePickerTouchStart}
-              onTouchMove={handlePickerTouchMove}
-              onTouchEnd={handlePickerTouchEnd}
-              onTouchCancel={handlePickerTouchEnd}
-              style={styles.sourcePickerShell}>
-              <Text style={styles.sourcePickerText}>
-                {activeSourceOption?.label ?? 'Email'}
-              </Text>
-            </Pressable>
-          ) : (
-            <Pressable
-              onPress={focusInput}
-              accessibilityRole="none"
-              accessibilityActions={[
-                { name: 'escape', label: 'Cancel data entry' },
-              ]}
-              onAccessibilityAction={(event) => {
-                if (event.nativeEvent.actionName === 'escape') onCancelEntry();
-              }}
-              style={styles.dataEntryInputRow}>
-              <TextInput
-                ref={inputRef}
-                value={draftText}
-                onChangeText={setDraftText}
-                onSubmitEditing={handleSourceSubmit}
-                autoFocus
-                autoCapitalize="words"
-                autoCorrect={false}
-                spellCheck={false}
-                returnKeyType="done"
-                submitBehavior="submit"
-                blurOnSubmit={false}
-                placeholder="Type source…"
-                placeholderTextColor={Colors.textMuted}
-                style={styles.dataEntryInput}
-                accessibilityLabel={entryLabel}
-              />
-            </Pressable>
-          )}
+      ) : null}
+      {activeHintId === 'executeValue' && onDismissHint ? (
+        <View pointerEvents="box-none">
+          <SvyrHint id="executeValue" onDismiss={onDismissHint} />
         </View>
-      </View>
-    ) : (
-      <GestureDetector gesture={gesture}>
-        <View style={styles.dataEntryPanel}>
-        {notesSurface}
-        <WorkspaceTerminal
-          editablePath={editablePath}
-          pinnedCommandPrefix={pinnedCommandPrefix}
-          onToggleCurrentPathPin={onToggleCurrentPathPin}
-          canPinCurrentPath={canPinCurrentPath}
-          isCurrentPathPinned={isCurrentPathPinned}
-          embedded
-        />
-        <Text
-          style={styles.dataEntryLabel}
-          accessibilityRole="header"
-          accessibilityLabel={entryLabel}>
-          {entryLabel}
-        </Text>
-
-        {error ? (
-          <Text
-            style={styles.dataEntryError}
-            accessibilityRole="alert"
-            accessibilityLiveRegion="polite">
-            {error}
-          </Text>
-        ) : null}
-
-        {activeHintId === 'executeValue' && onDismissHint ? (
-          <View pointerEvents="box-none">
-            <SvyrHint id="executeValue" onDismiss={onDismissHint} />
-          </View>
-        ) : null}
-
-        <Animated.View style={commandLineStyle}>
+      ) : null}
+      <View style={styles.sourceBarFrame}>
+        {pickerMode === 'picker' ? (
+          <Pressable
+            onStartShouldSetResponder={() => true}
+            onPress={handlePickerPress}
+            onTouchStart={handlePickerTouchStart}
+            onTouchMove={handlePickerTouchMove}
+            onTouchEnd={handlePickerTouchEnd}
+            onTouchCancel={handlePickerTouchEnd}
+            style={styles.sourcePickerShell}>
+            <Text style={styles.sourcePickerText}>
+              {activeSourceOption?.label ?? 'Email'}
+            </Text>
+          </Pressable>
+        ) : (
           <Pressable
             onPress={focusInput}
             accessibilityRole="none"
@@ -407,10 +350,9 @@ export function SvyrDataEntryPanel({
             style={styles.dataEntryInputRow}>
             <TextInput
               ref={inputRef}
-              value={value}
-              onChangeText={onChangeText}
-              onKeyPress={handleKeyPress}
-              onSubmitEditing={onSubmit}
+              value={draftText}
+              onChangeText={setDraftText}
+              onSubmitEditing={handleSourceSubmit}
               autoFocus
               autoCapitalize="words"
               autoCorrect={false}
@@ -418,16 +360,15 @@ export function SvyrDataEntryPanel({
               returnKeyType="done"
               submitBehavior="submit"
               blurOnSubmit={false}
-              placeholder={placeholder}
+              placeholder="Type source…"
               placeholderTextColor={Colors.textMuted}
               style={styles.dataEntryInput}
               accessibilityLabel={entryLabel}
             />
           </Pressable>
-        </Animated.View>
+        )}
       </View>
-      </GestureDetector>
-    )
+    </View>
   );
 }
 
@@ -435,26 +376,18 @@ const styles = StyleSheet.create({
   dataEntryPanel: {
     width: '100%',
   },
-  dataEntryLabel: {
-    minHeight: 38,
-    paddingHorizontal: 20,
-    paddingTop: Spacing.sm,
-    paddingBottom: Spacing.xs,
-    textAlignVertical: 'center',
-    fontFamily: Fonts.mono,
-    fontSize: Type.label,
-    letterSpacing: 0.8,
-    color: Colors.textSecondary,
-  },
   dataEntryError: {
+    width: '100%',
     paddingHorizontal: 20,
     paddingBottom: Spacing.xs,
+    textAlign: 'center',
     fontFamily: Fonts.mono,
     fontSize: Type.label,
     color: Colors.danger,
     letterSpacing: 0.4,
   },
   dataEntryInputRow: {
+    width: '100%',
   },
   sourceBarFrame: {
     width: '100%',
@@ -475,11 +408,13 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   dataEntryInput: {
+    width: '100%',
     minHeight: 58,
     paddingHorizontal: 20,
     paddingVertical: Spacing.md,
     fontFamily: Fonts.mono,
     fontSize: 18,
     color: Colors.text,
+    textAlign: 'center',
   },
 });

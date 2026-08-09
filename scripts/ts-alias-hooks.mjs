@@ -4,7 +4,7 @@
  * Node strips the types itself (v22.6+), so no build step is required.
  */
 import { pathToFileURL } from 'node:url';
-import { resolve as resolvePath } from 'node:path';
+import { extname, resolve as resolvePath } from 'node:path';
 
 const SRC_URL = pathToFileURL(
   `${resolvePath(import.meta.dirname, '..', 'src')}/`,
@@ -13,6 +13,19 @@ const SRC_URL = pathToFileURL(
 export function resolve(specifier, context, nextResolve) {
   if (specifier.startsWith('@/')) {
     return nextResolve(`${SRC_URL}${specifier.slice(2)}.ts`, context);
+  }
+  const extension = extname(specifier);
+  const hasModuleExtension = [
+    '.js',
+    '.mjs',
+    '.cjs',
+    '.json',
+    '.ts',
+    '.tsx',
+    '.jsx',
+  ].includes(extension);
+  if (specifier.startsWith('.') && !hasModuleExtension) {
+    return nextResolve(`${specifier}.ts`, context);
   }
   return nextResolve(specifier, context);
 }

@@ -45,7 +45,7 @@ const LABEL_PATTERNS: readonly {
   {
     category: 'report_reference',
     pattern:
-      /^(?:report ref(?:erence)?|reference number|job reference|our reference)$/,
+      /^(?:report ref(?:erence)?(?: number)?|reference number|job reference|our reference)$/,
   },
   {
     category: 'signature',
@@ -57,6 +57,15 @@ const LABEL_PATTERNS: readonly {
       /^(?:surveyor(?:'s)? rics number|rics (?:membership )?number|professional registration number)$/,
   },
 ];
+
+const NON_VALUE_FIELD_LABELS = new Set([
+  'company name',
+  'consultation date (if applicable)',
+  'email',
+  'inspection date',
+  'phone number',
+  'related party disclosure',
+]);
 
 type MinimizedText = {
   text: string;
@@ -102,11 +111,46 @@ function labelCategory(value: string): PiiCategory | undefined {
   return LABEL_PATTERNS.find(({ pattern }) => pattern.test(normalized))?.category;
 }
 
+function isLikelyFieldLabel(value: string): boolean {
+  return (
+    labelCategory(value) !== undefined ||
+    NON_VALUE_FIELD_LABELS.has(normalizeLabel(value))
+  );
+}
+
+function isPlausibleContextualValue(
+  category: PiiCategory,
+  value: string,
+): boolean {
+  const candidate = value.trim();
+  if (
+    !candidate ||
+    Object.values(PLACEHOLDERS).includes(candidate as PiiPlaceholder) ||
+    isLikelyFieldLabel(candidate)
+  ) {
+    return false;
+  }
+  if (category === 'professional_identifier') {
+    return /^\d{5,10}$/.test(candidate);
+  }
+  if (category === 'report_reference') {
+    return (
+      candidate.length <= 80 &&
+      /^[A-Z0-9][A-Z0-9 ./_-]*$/i.test(candidate) &&
+      /[A-Z]/i.test(candidate) &&
+      /\d/.test(candidate)
+    );
+  }
+  return true;
+}
+
 function replaceInlineLabelValue(value: string): MinimizedText | undefined {
   const delimiter = value.match(/^(.{2,80}?)(\s*:\s+|\s+[–—-]\s+)(.+)$/);
   if (!delimiter) return undefined;
   const category = labelCategory(delimiter[1]);
-  if (!category || delimiter[3].trim().length === 0) return undefined;
+  if (!category || !isPlausibleContextualValue(category, delimiter[3])) {
+    return undefined;
+  }
   return {
     text: `${delimiter[1]}${delimiter[2]}${PLACEHOLDERS[category]}`,
     actions: [action(category)],
@@ -171,7 +215,19 @@ export function minimizePiiText(value: string): MinimizedText {
 function canBeContextualValue(
   label: ParsedDocumentBlock,
   value: ParsedDocumentBlock,
+  category: PiiCategory,
 ): boolean {
+  const plausibleValue =
+    value.text !== undefined &&
+    isPlausibleContextualValue(category, value.text);
+  const permitsCompactMarker =
+    value.type === 'marker' &&
+    (category === 'professional_identifier' ||
+      category === 'report_reference');
+  const permitsRepeatedProfessionalIdentifier =
+    value.repeatedAcrossPages === true &&
+    category === 'professional_identifier' &&
+    plausibleValue;
   if (
     label.page !== value.page ||
     !label.bounds ||
@@ -180,9 +236,11 @@ function canBeContextualValue(
     value.text.trim().length === 0 ||
     value.text.length > 180 ||
     value.likelyPageFurniture ||
-    value.repeatedAcrossPages ||
-    !['paragraph', 'unknown'].includes(value.type) ||
-    labelCategory(value.text)
+    (value.repeatedAcrossPages &&
+      !permitsRepeatedProfessionalIdentifier) ||
+    (!['paragraph', 'unknown'].includes(value.type) &&
+      !permitsCompactMarker) ||
+    !plausibleValue
   ) {
     return false;
   }
@@ -215,7 +273,7 @@ function contextualValues(
     const category = label.text ? labelCategory(label.text) : undefined;
     if (!category) continue;
     const value = blocks[index + 1];
-    if (canBeContextualValue(label, value)) {
+    if (canBeContextualValue(label, value, category)) {
       values.set(index + 1, category);
     }
   }

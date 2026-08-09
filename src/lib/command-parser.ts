@@ -60,6 +60,8 @@ export type TokenSuggestion = {
   isTerminal: boolean;
   /** Needs a free-text value before it can execute */
   requiresValue?: boolean;
+  /** Visible but cannot be selected when the registry marks it unavailable. */
+  available: boolean;
   pinnable?: boolean;
   description: string;
 };
@@ -277,6 +279,7 @@ function tokenSuggestion(
     commandPath,
     isTerminal: isTerminalNode(node),
     requiresValue: node.requiresValue,
+    available: node.available !== false,
     pinnable: isPinnableNode(node),
     description: node.description,
   };

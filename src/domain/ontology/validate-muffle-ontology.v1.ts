@@ -20,8 +20,8 @@ export function validateMuffleOntologyV1(
   if (ontology.ontologyId !== 'muffle-ontology') {
     failures.push('ontologyId must be "muffle-ontology"');
   }
-  if (ontology.version !== '1.1.0') {
-    failures.push('ontology version must be "1.1.0"');
+  if (ontology.version !== '1.2.0') {
+    failures.push('ontology version must be "1.2.0"');
   }
 
   const byId = new Map<string, number>();

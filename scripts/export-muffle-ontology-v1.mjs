@@ -10,7 +10,7 @@ if (failures.length > 0) {
 }
 
 const outputDirectory = resolve('dist', 'ontology');
-const outputPath = resolve(outputDirectory, 'muffle-ontology.v1.1.json');
+const outputPath = resolve(outputDirectory, 'muffle-ontology.v1.2.json');
 
 await mkdir(outputDirectory, { recursive: true });
 await writeFile(outputPath, `${serializeMuffleOntologyV1()}\n`, 'utf8');

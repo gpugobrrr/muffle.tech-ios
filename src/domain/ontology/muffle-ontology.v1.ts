@@ -44,11 +44,12 @@ export type OntologySourceType =
   | 'engine-operation'
   | 'completion-model'
   | 'notes-contract'
-  | 'report-model';
+  | 'report-model'
+  | 'ontology-review';
 
 export type OntologyConcept = {
   id: string;
-  introducedIn: '1.0.0' | '1.1.0';
+  introducedIn: '1.0.0' | '1.1.0' | '1.2.0';
   kind: OntologyConceptKind;
   label: string;
   description: string;
@@ -85,7 +86,7 @@ export type OntologyConcept = {
 
 export type MuffleOntologyV1 = {
   ontologyId: 'muffle-ontology';
-  version: '1.1.0';
+  version: '1.2.0';
   concepts: readonly OntologyConcept[];
 };
 
@@ -95,6 +96,10 @@ const BASE = {
 
 const V1_1_BASE = {
   introducedIn: '1.1.0',
+} as const;
+
+const V1_2_BASE = {
+  introducedIn: '1.2.0',
 } as const;
 
 const DOMAIN_CONCEPTS: OntologyConcept[] = [
@@ -561,6 +566,110 @@ const INSPECTION_CONCEPTS: OntologyConcept[] = [
     ],
   },
   {
+    ...V1_2_BASE,
+    id: 'building_element.ceiling',
+    kind: 'value',
+    label: 'Ceiling',
+    description: 'A ceiling inspected as the subject of a finding.',
+    parentId: 'building_element',
+    canonical: true,
+    ownership: 'engine-record',
+    maturity: 'type-only',
+    valueType: { kind: 'text' },
+    source: [{ type: 'ontology-review', id: 'canonical-promotion-batch-1' }],
+  },
+  {
+    ...V1_2_BASE,
+    id: 'building_element.chimney',
+    kind: 'value',
+    label: 'Chimney',
+    description: 'A chimney inspected as the subject of a finding.',
+    parentId: 'building_element',
+    canonical: true,
+    ownership: 'engine-record',
+    maturity: 'type-only',
+    valueType: { kind: 'text' },
+    source: [{ type: 'ontology-review', id: 'canonical-promotion-batch-1' }],
+  },
+  {
+    ...V1_2_BASE,
+    id: 'building_element.damp_proof_course',
+    kind: 'value',
+    label: 'Damp proof course',
+    description: 'A damp proof course inspected as the subject of a finding.',
+    parentId: 'building_element',
+    canonical: true,
+    ownership: 'engine-record',
+    maturity: 'type-only',
+    valueType: { kind: 'text' },
+    source: [{ type: 'ontology-review', id: 'canonical-promotion-batch-1' }],
+  },
+  {
+    ...V1_2_BASE,
+    id: 'building_element.fireplace',
+    kind: 'value',
+    label: 'Fireplace',
+    description: 'A fireplace inspected as the subject of a finding.',
+    parentId: 'building_element',
+    canonical: true,
+    ownership: 'engine-record',
+    maturity: 'type-only',
+    valueType: { kind: 'text' },
+    source: [{ type: 'ontology-review', id: 'canonical-promotion-batch-1' }],
+  },
+  {
+    ...V1_2_BASE,
+    id: 'building_element.porch',
+    kind: 'value',
+    label: 'Porch',
+    description: 'A porch inspected as the subject of a finding.',
+    parentId: 'building_element',
+    canonical: true,
+    ownership: 'engine-record',
+    maturity: 'type-only',
+    valueType: { kind: 'text' },
+    source: [{ type: 'ontology-review', id: 'canonical-promotion-batch-1' }],
+  },
+  {
+    ...V1_2_BASE,
+    id: 'building_element.rainwater_goods',
+    kind: 'value',
+    label: 'Rainwater goods',
+    description: 'Rainwater goods inspected as the subject of a finding.',
+    parentId: 'building_element',
+    canonical: true,
+    ownership: 'engine-record',
+    maturity: 'type-only',
+    valueType: { kind: 'text' },
+    source: [{ type: 'ontology-review', id: 'canonical-promotion-batch-1' }],
+  },
+  {
+    ...V1_2_BASE,
+    id: 'building_element.staircase',
+    kind: 'value',
+    label: 'Staircase',
+    description: 'A staircase inspected as the subject of a finding.',
+    parentId: 'building_element',
+    canonical: true,
+    ownership: 'engine-record',
+    maturity: 'type-only',
+    valueType: { kind: 'text' },
+    source: [{ type: 'ontology-review', id: 'canonical-promotion-batch-1' }],
+  },
+  {
+    ...V1_2_BASE,
+    id: 'building_element.window',
+    kind: 'value',
+    label: 'Window',
+    description: 'A window inspected as the subject of a finding.',
+    parentId: 'building_element',
+    canonical: true,
+    ownership: 'engine-record',
+    maturity: 'type-only',
+    valueType: { kind: 'text' },
+    source: [{ type: 'ontology-review', id: 'canonical-promotion-batch-1' }],
+  },
+  {
     ...V1_1_BASE,
     id: 'observation',
     kind: 'field',
@@ -639,6 +748,71 @@ const INSPECTION_CONCEPTS: OntologyConcept[] = [
       },
     ],
   },
+  {
+    ...V1_2_BASE,
+    id: 'cause',
+    kind: 'field',
+    label: 'Cause',
+    description: 'A possible explanation recorded as part of an inspection finding.',
+    parentId: 'inspection.finding',
+    canonical: true,
+    ownership: 'engine-record',
+    maturity: 'type-only',
+    valueType: { kind: 'text', nullable: true },
+    source: [{ type: 'ontology-review', id: 'canonical-promotion-batch-1' }],
+  },
+  {
+    ...V1_2_BASE,
+    id: 'further_investigation',
+    kind: 'field',
+    label: 'Further investigation',
+    description: 'Advice to undertake further investigation recorded as part of an inspection finding.',
+    parentId: 'inspection.finding',
+    canonical: true,
+    ownership: 'engine-record',
+    maturity: 'type-only',
+    valueType: { kind: 'text', nullable: true },
+    source: [{ type: 'ontology-review', id: 'canonical-promotion-batch-1' }],
+  },
+  {
+    ...V1_2_BASE,
+    id: 'implication',
+    kind: 'field',
+    label: 'Implication',
+    description: 'A potential consequence recorded as part of an inspection finding.',
+    parentId: 'inspection.finding',
+    canonical: true,
+    ownership: 'engine-record',
+    maturity: 'type-only',
+    valueType: { kind: 'text', nullable: true },
+    source: [{ type: 'ontology-review', id: 'canonical-promotion-batch-1' }],
+  },
+  {
+    ...V1_2_BASE,
+    id: 'risk',
+    kind: 'field',
+    label: 'Risk',
+    description: 'An assessed potential adverse outcome recorded as part of an inspection finding.',
+    parentId: 'inspection.finding',
+    canonical: true,
+    ownership: 'engine-record',
+    maturity: 'type-only',
+    valueType: { kind: 'text', nullable: true },
+    source: [{ type: 'ontology-review', id: 'canonical-promotion-batch-1' }],
+  },
+  {
+    ...V1_2_BASE,
+    id: 'significance',
+    kind: 'field',
+    label: 'Significance',
+    description: 'An assessment of significance recorded as part of an inspection finding.',
+    parentId: 'inspection.finding',
+    canonical: true,
+    ownership: 'engine-record',
+    maturity: 'type-only',
+    valueType: { kind: 'text', nullable: true },
+    source: [{ type: 'ontology-review', id: 'canonical-promotion-batch-1' }],
+  },
 ];
 
 const ADJUNCT_AND_REPORT_CONCEPTS: OntologyConcept[] = [
@@ -714,7 +888,7 @@ const ADJUNCT_AND_REPORT_CONCEPTS: OntologyConcept[] = [
 
 export const MUFFLE_ONTOLOGY_V1: MuffleOntologyV1 = {
   ontologyId: 'muffle-ontology',
-  version: '1.1.0',
+  version: '1.2.0',
   concepts: [
     ...DOMAIN_CONCEPTS,
     ...ADDRESS_CONCEPTS,

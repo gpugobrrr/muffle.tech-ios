@@ -18,6 +18,8 @@ type Props = {
   onSubmit: () => void;
   disabled?: boolean;
   showNumericMode?: boolean;
+  /** Initial layer; numeric capture starts on `123` without a manual toggle. */
+  initialMode?: 'alpha' | 'numeric';
 };
 
 const ALPHA_LEFT_ROWS = ['QWERT', 'ASDFG', 'ZXCV'];
@@ -35,10 +37,11 @@ export function SplitTextKeyboard({
   onSubmit,
   disabled = false,
   showNumericMode = true,
+  initialMode = 'alpha',
 }: Props) {
   const insets = useSafeAreaInsets();
   const [shift, setShift] = useState(false);
-  const [mode, setMode] = useState<'alpha' | 'numeric'>('alpha');
+  const [mode, setMode] = useState<'alpha' | 'numeric'>(initialMode);
   const appendText = (text: string) => {
     if (disabled) return;
     const next = `${value}${text}`;

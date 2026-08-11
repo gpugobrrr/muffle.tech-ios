@@ -1,6 +1,6 @@
 # Muffle Ontology v1
 
-`muffle-ontology` version `1.1.0` is a machine-readable extraction of the
+`muffle-ontology` version `1.2.0` is a machine-readable extraction of the
 semantics currently implemented by muffle.tech. It is not a replacement for
 the runtime schema, command registry, engine, or domain records.
 
@@ -17,7 +17,7 @@ npm run ontology:export
 
 The JSON development export is written to:
 
-`dist/ontology/muffle-ontology.v1.1.json`
+`dist/ontology/muffle-ontology.v1.2.json`
 
 ## Version contract
 
@@ -27,9 +27,15 @@ The JSON development export is written to:
 - Runtime schema and engine sources remain authoritative. Ontology validation
   detects drift between those sources and this semantic registry.
 
-Version `1.1.0` is additive: all 49 concepts introduced in `1.0.0` remain
-present. It adds the first inspection-finding slice and one derived report
-block.
+Version `1.2.0` is additive: all 49 concepts introduced in `1.0.0` remain
+present. It adds the first human-approved canonical promotion batch:
+eight building-element concepts and five finding semantic primitives.
+
+The promoted concepts are canonical domain meaning, but remain `type-only`.
+They have no Engine field bindings, completion rules, SVYR tokens, operations,
+or report behavior until a separately approved implementation adds them.
+Their source traceability records the abstract ontology-review promotion batch,
+not reviewer identity, local paths, timestamps, or raw review data.
 
 ## Authoritative repository sources
 
@@ -288,11 +294,11 @@ This preserves the existing separation implemented by `SvyrNotesByPath`.
 
 | Candidate | Status | Repository evidence |
 | --- | --- | --- |
-| Cause | Not yet canonical | No finding property or operation |
-| Implication | Not yet canonical | No finding property or operation |
-| Significance | Not yet canonical | No finding property or operation |
-| Risk | Not yet canonical | No finding property or operation |
-| Further investigation | Not yet canonical | Kept distinct from recommendation |
+| Cause | Canonical, type-only | No finding property, operation, or approved relationship |
+| Implication | Canonical, type-only | No finding property, operation, or approved relationship |
+| Significance | Canonical, type-only | No finding property or operation |
+| Risk | Canonical, type-only | No finding property, operation, or approved relationship |
+| Further investigation | Canonical, type-only | Kept distinct from recommendation; no operation or approved relationship |
 | Finding-level limitation | Not yet canonical | Brief-level limitation is a separate concept |
 | Legal matter | Not yet canonical | No finding property or operation |
 | Summary propagation | Not implemented | One finding maps to one report block only |
@@ -300,8 +306,9 @@ This preserves the existing separation implemented by `SvyrNotesByPath`.
 | Construction | Does not exist | No domain representation |
 | Limitation | Partially exists | Brief field/schema slot; no engine write |
 
-No roof, windows, services, floors, grounds, defect taxonomy, firm condition
-scale, or full report ontology is introduced in `1.1.0`.
+No roof, services, floors, grounds, defect taxonomy, firm condition scale, or
+full report ontology is introduced in `1.2.0`. Window is added only as a
+type-only concept-level inspection subject.
 
 ## Validation
 

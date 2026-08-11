@@ -1,8 +1,17 @@
+import { labelForControlledStatus } from '@/lib/controlled-fact';
+import { isInspectionElementConceptId } from '@/lib/inspection-finding-elements';
 import {
-    applyFieldValue,
-    findFieldDefinitionForOperationId,
-    resolveFieldValue,
+  applyFieldSetValue,
+  applyFieldValue,
+  findFieldDefinitionByFieldId,
+  findFieldDefinitionForOperationId,
+  normalizeFieldInputValue,
+  resolveFieldSetValue,
+  resolveFieldValue,
 } from '@/lib/field-schema';
+import {
+  normalizeMultiChoiceValues,
+} from '@/lib/multi-choice';
 import type {
   InspectionBrief,
   InspectionFinding,
@@ -17,6 +26,8 @@ export type SurveyOperation = {
   operationId: string;
   arguments: {
     value?: string;
+    values?: readonly string[];
+    fieldId?: string;
     findingId?: string;
     finding?: InspectionFinding;
   };
@@ -27,6 +38,10 @@ export const SURVEY_OPERATIONS = {
   readInstructingParty: 'survey.brief.instruction.party.read',
   setInstructionSource: 'survey.brief.instruction.source.set',
   readInstructionSource: 'survey.brief.instruction.source.read',
+  setControlledFact: 'survey.controlled_fact.set',
+  readControlledFact: 'survey.controlled_fact.read',
+  setControlledFactSet: 'survey.controlled_fact_set.set',
+  readControlledFactSet: 'survey.controlled_fact_set.read',
   upsertInspectionFinding: 'survey.inspection.finding.upsert',
   readInspectionFinding: 'survey.inspection.finding.read',
 } as const;
@@ -53,7 +68,9 @@ function recordedOrPlaceholder(value: string | null | undefined): string {
   return trimmed.length > 0 ? trimmed : NOT_RECORDED;
 }
 
-function labelForField(fieldDefinition: ReturnType<typeof findFieldDefinitionForOperationId>): string {
+function labelForField(
+  fieldDefinition: ReturnType<typeof findFieldDefinitionForOperationId>,
+): string {
   return fieldDefinition?.label ?? 'Field';
 }
 
@@ -70,7 +87,7 @@ function normalizeFinding(
   if (
     !id ||
     !observation ||
-    finding.elementConceptId !== 'building_element.external_wall'
+    !isInspectionElementConceptId(finding.elementConceptId)
   ) {
     return null;
   }
@@ -99,6 +116,120 @@ function normalizeFinding(
   };
 }
 
+function displayValueForField(
+  fieldDefinition: NonNullable<ReturnType<typeof findFieldDefinitionByFieldId>>,
+  brief: InspectionBrief,
+): string {
+  if (fieldDefinition.valueType === 'multiSelect') {
+    const values = resolveFieldSetValue(brief, fieldDefinition.fieldId);
+    if (values.length === 0) return NOT_RECORDED;
+    return values
+      .map((value) => {
+        const option = fieldDefinition.options?.find(
+          (item) => item.value === value,
+        );
+        return option?.label ?? value;
+      })
+      .join(', ');
+  }
+
+  const value = resolveFieldValue(brief, fieldDefinition.fieldId);
+  if (fieldDefinition.valueType === 'controlledStatus') {
+    return labelForControlledStatus(fieldDefinition, value);
+  }
+  return recordedOrPlaceholder(value);
+}
+
+function executeControlledFactWrite(
+  brief: InspectionBrief,
+  operation: SurveyOperation,
+): SurveyOperationResult | null {
+  const fieldId = operation.arguments.fieldId?.trim();
+  if (!fieldId) return null;
+
+  const fieldDefinition = findFieldDefinitionByFieldId(fieldId);
+  if (!fieldDefinition) return null;
+
+  const value = normalizeFieldInputValue(
+    fieldDefinition,
+    operation.arguments.value ?? '',
+  );
+  if (!value) return null;
+
+  const nextBrief = applyFieldValue(brief, fieldId, value);
+  return {
+    operationId: operation.operationId,
+    brief: nextBrief,
+    label: fieldDefinition.label,
+    value: displayValueForField(fieldDefinition, nextBrief),
+  };
+}
+
+function executeControlledFactRead(
+  brief: InspectionBrief,
+  operation: SurveyOperation,
+): SurveyOperationResult | null {
+  const fieldId = operation.arguments.fieldId?.trim();
+  if (!fieldId) return null;
+
+  const fieldDefinition = findFieldDefinitionByFieldId(fieldId);
+  if (!fieldDefinition) return null;
+
+  return {
+    operationId: operation.operationId,
+    brief,
+    label: fieldDefinition.label,
+    value: displayValueForField(fieldDefinition, brief),
+  };
+}
+
+function executeControlledFactSetWrite(
+  brief: InspectionBrief,
+  operation: SurveyOperation,
+): SurveyOperationResult | null {
+  const fieldId = operation.arguments.fieldId?.trim();
+  if (!fieldId) return null;
+
+  const fieldDefinition = findFieldDefinitionByFieldId(fieldId);
+  if (!fieldDefinition || fieldDefinition.valueType !== 'multiSelect') {
+    return null;
+  }
+
+  const values = normalizeMultiChoiceValues(
+    fieldDefinition,
+    operation.arguments.values ?? [],
+  );
+  if (!values) return null;
+
+  const nextBrief = applyFieldSetValue(brief, fieldId, values);
+  return {
+    operationId: operation.operationId,
+    brief: nextBrief,
+    label: fieldDefinition.label,
+    value: displayValueForField(fieldDefinition, nextBrief),
+  };
+}
+
+function executeControlledFactSetRead(
+  brief: InspectionBrief,
+  operation: SurveyOperation,
+): SurveyOperationResult | null {
+  const fieldId = operation.arguments.fieldId?.trim();
+  if (!fieldId) return null;
+
+  const fieldDefinition = findFieldDefinitionByFieldId(fieldId);
+  if (!fieldDefinition || fieldDefinition.valueType !== 'multiSelect') {
+    return null;
+  }
+
+  return {
+    operationId: operation.operationId,
+    brief,
+    label: fieldDefinition.label,
+    value: displayValueForField(fieldDefinition, brief),
+  };
+}
+
 /**
  * Execute a canonical survey operation against the live brief.
  * Returns null when the operation is unrecognised or a write has no value.
@@ -107,6 +238,19 @@ export function executeSurveyOperation(
   brief: InspectionBrief,
   operation: SurveyOperation,
 ): SurveyOperationResult | null {
+  if (operation.operationId === SURVEY_OPERATIONS.setControlledFact) {
+    return executeControlledFactWrite(brief, operation);
+  }
+  if (operation.operationId === SURVEY_OPERATIONS.readControlledFact) {
+    return executeControlledFactRead(brief, operation);
+  }
+  if (operation.operationId === SURVEY_OPERATIONS.setControlledFactSet) {
+    return executeControlledFactSetWrite(brief, operation);
+  }
+  if (operation.operationId === SURVEY_OPERATIONS.readControlledFactSet) {
+    return executeControlledFactSetRead(brief, operation);
+  }
+
   const fieldDefinition = findFieldDefinitionForOperationId(operation.operationId);
   if (!fieldDefinition) return null;
 
@@ -121,7 +265,10 @@ export function executeSurveyOperation(
   }
 
   if (operation.operationId === fieldDefinition.operationId) {
-    const value = operation.arguments.value?.trim() ?? '';
+    const value = normalizeFieldInputValue(
+      fieldDefinition,
+      operation.arguments.value ?? '',
+    );
     if (!value) return null;
     return {
       operationId: operation.operationId,

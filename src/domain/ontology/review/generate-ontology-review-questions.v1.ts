@@ -22,6 +22,8 @@ export type OntologyReviewAnswer = (typeof ONTOLOGY_REVIEW_ANSWER_OPTIONS)[numbe
 export type OntologyReviewQuestion = {
   id: string;
   candidateId?: string;
+  relationshipId?: string;
+  relatedCandidateIds?: readonly string[];
   auditIssueCodes?: readonly string[];
   question: string;
   context?: {

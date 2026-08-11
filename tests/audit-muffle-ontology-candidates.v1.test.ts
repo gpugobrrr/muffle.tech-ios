@@ -214,6 +214,19 @@ test('detects a proposed ID that already exists canonically', () => {
   assert.equal(codes(result).includes('PROPOSED_ID_ALREADY_CANONICAL'), true);
 });
 
+test('recognizes review-promoted candidates as historical overlaps, not new hard errors', () => {
+  const result = auditMuffleOntologyCandidatesV1();
+  const promotedWindow = result.warnings.find(
+    ({ code, candidateId, conceptId }) =>
+      code === 'PROMOTED_CANDIDATE_OVERLAPS_CANONICAL' &&
+      candidateId === 'candidate.building_element.window' &&
+      conceptId === 'building_element.window',
+  );
+
+  assert.ok(promotedWindow);
+  assert.equal(result.errorCount, 0);
+});
+
 test('surfaces deterministic human-review warnings without auto-fixing', () => {
   const result = auditMuffleOntologyCandidatesV1({
     candidates: [

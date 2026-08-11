@@ -1,3 +1,6 @@
+import {
+  labelForInspectionElement,
+} from '@/lib/inspection-finding-elements';
 import { resolveFieldValue } from '@/lib/field-schema';
 import type {
   FindingBlock,
@@ -69,7 +72,7 @@ function projectFinding(finding: InspectionFinding): FindingBlock {
     kind: 'finding',
     findingId: finding.id,
     elementConceptId: finding.elementConceptId,
-    elementLabel: 'External wall',
+    elementLabel: labelForInspectionElement(finding.elementConceptId),
     observation: finding.observation,
     ...(condition ? { condition } : {}),
     ...(defect ? { defect } : {}),

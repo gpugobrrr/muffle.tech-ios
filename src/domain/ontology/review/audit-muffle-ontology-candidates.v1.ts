@@ -231,14 +231,32 @@ export function auditMuffleOntologyCandidatesV1(
       candidate.proposedConceptId &&
       existingIds.has(candidate.proposedConceptId)
     ) {
-      errors.push(
-        issue(
-          'error',
-          'PROPOSED_ID_ALREADY_CANONICAL',
-          'New canonical proposal uses an ID already present in the canonical ontology.',
-          { candidateId, conceptId: candidate.proposedConceptId },
-        ),
+      const existingConcept = ontology.concepts.find(
+        ({ id }) => id === candidate.proposedConceptId,
       );
+      const promotedFromReview =
+        existingConcept?.source.some(
+          ({ type }) => type === 'ontology-review',
+        ) === true;
+      if (promotedFromReview) {
+        warnings.push(
+          issue(
+            'warning',
+            'PROMOTED_CANDIDATE_OVERLAPS_CANONICAL',
+            'Historical candidate now resolves to a canonically promoted review concept.',
+            { candidateId, conceptId: candidate.proposedConceptId },
+          ),
+        );
+      } else {
+        errors.push(
+          issue(
+            'error',
+            'PROPOSED_ID_ALREADY_CANONICAL',
+            'New canonical proposal uses an ID already present in the canonical ontology.',
+            { candidateId, conceptId: candidate.proposedConceptId },
+          ),
+        );
+      }
     }
     if (
       candidate.mapsToExistingConceptId &&

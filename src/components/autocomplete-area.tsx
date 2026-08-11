@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  Pressable,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -8,60 +7,104 @@ import {
   type GestureResponderEvent,
 } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
+import {
+  defaultSuggestionGridItem,
+  SvyrSuggestionGrid,
+  type SvyrSuggestionGridItem,
+} from '@/components/svyr-suggestion-grid';
+import {
+  HORIZONTAL_HOLD_CANCEL_DISTANCE,
+  SvyrNavigationItem,
+} from '@/components/svyr-navigation-item';
 import { Colors, Fonts, Spacing, Type } from '@/constants/theme';
 import { useDirectorySwipe } from '@/hooks/use-directory-swipe';
+import type { MultiChoiceSuggestion } from '@/lib/multi-choice';
+import type { SingleChoiceSuggestion } from '@/lib/single-choice';
 import type { CommandSuggestion } from '@/lib/command-parser';
 
 const SUGGESTED_COMMAND_LONG_PRESS_MS = 350;
-const HORIZONTAL_HOLD_CANCEL_DISTANCE = 12;
-/** Suggestion group cross-fade after a directory change. */
-const GROUP_FADE_IN_MS = 160;
-const GROUP_FADE_OUT_MS = 120;
-/**
- * Narrow landscape widths use a tighter gap while keeping the same command
- * group and touch targets.
- */
 const ERGONOMIC_START_RATIO = 0.18;
 const ERGONOMIC_START_MAX = 120;
 
-type Props = {
-  suggestions: CommandSuggestion[];
-  /** Errors, lookup results — cleared when the surveyor types again */
+type AutocompleteSuggestion =
+  | CommandSuggestion
+  | SingleChoiceSuggestion
+  | MultiChoiceSuggestion;
+
+type Props<Suggestion extends AutocompleteSuggestion> = {
+  suggestions: readonly Suggestion[];
   temporaryContent?: string | null;
-  onApplySuggestion: (suggestion: CommandSuggestion) => void;
+  onApplySuggestion: (suggestion: Suggestion) => void;
   onNavigateUpDirectory?: () => boolean;
   onSwipeBackCommitted?: () => void;
 };
 
-function heldDescriptionFor(suggestion: CommandSuggestion): string {
+function heldDescriptionFor(suggestion: AutocompleteSuggestion): string {
   if (suggestion.type === 'input-hint') {
     return suggestion.description ?? suggestion.label;
   }
   return suggestion.description;
 }
 
+function toGridItem(suggestion: AutocompleteSuggestion): SvyrSuggestionGridItem {
+  if (suggestion.type === 'input-hint') {
+    return {
+      id: suggestion.id,
+      label: suggestion.label,
+      description: suggestion.description ?? suggestion.label,
+      available: true,
+      kind: 'hint',
+    };
+  }
+
+  if (suggestion.type === 'choice') {
+    return {
+      id: suggestion.id,
+      label: suggestion.label,
+      description: suggestion.description,
+      available: suggestion.available,
+      selected: suggestion.selected,
+      kind: 'navigation',
+    };
+  }
+
+  if (suggestion.type === 'multi-commit') {
+    return {
+      id: suggestion.id,
+      label: suggestion.label,
+      description: suggestion.description,
+      available: suggestion.available,
+      kind: 'navigation',
+    };
+  }
+
+  return {
+    id: suggestion.id,
+    label: suggestion.label,
+    description: suggestion.description,
+    available: suggestion.available,
+    kind: 'navigation',
+  };
+}
+
 /**
- * Dynamic contextual autocomplete for the SVYR workspace.
- * Two vertical groups preserve the shared suggestion order: the first half
- * stays on the left and the second half stays on the right.
+ * Sparse suggestion surface for controlled capture pages.
+ * Navigation containers use `SvyrNavigationPage` instead.
  */
-export function AutocompleteArea({
+export function AutocompleteArea<Suggestion extends AutocompleteSuggestion>({
   suggestions,
   temporaryContent = null,
   onApplySuggestion,
   onNavigateUpDirectory,
   onSwipeBackCommitted,
-}: Props) {
+}: Props<Suggestion>) {
   const { height } = useWindowDimensions();
   const ergonomicStart = Math.min(
     Math.max(height * ERGONOMIC_START_RATIO, Spacing.lg),
     ERGONOMIC_START_MAX,
   );
-  const [heldSuggestionId, setHeldSuggestionId] = useState<string | null>(
-    null,
-  );
+  const [heldSuggestionId, setHeldSuggestionId] = useState<string | null>(null);
   const holdSelectSuppressRef = useRef(false);
   const pressStartRef = useRef<{ x: number; y: number } | null>(null);
   const longPressCancelledRef = useRef(false);
@@ -78,7 +121,8 @@ export function AutocompleteArea({
       ? null
       : suggestions.find(
           (suggestion) =>
-            suggestion.type === 'token' && suggestion.id === heldSuggestionId,
+            suggestion.type !== 'input-hint' &&
+            suggestion.id === heldSuggestionId,
         );
 
   useEffect(() => {
@@ -104,100 +148,74 @@ export function AutocompleteArea({
     longPressCancelledRef.current = true;
   };
 
-  const renderSuggestion = (
-    suggestion: CommandSuggestion,
+  const gridItems = suggestions.map(toGridItem);
+  const suggestionById = new Map(suggestions.map((item) => [item.id, item]));
+
+  const renderGridItem = (
+    item: SvyrSuggestionGridItem,
     align: 'left' | 'right',
   ) => {
-    if (suggestion.type === 'input-hint') {
+    if (item.kind === 'hint') {
       return (
-        <View
-          key={suggestion.id}
-          style={styles.hintTarget}
-          accessible
-          accessibilityRole="text"
-          accessibilityLabel={suggestion.label}>
-          <Text style={styles.hintText}>{suggestion.label}</Text>
-        </View>
+        <SvyrNavigationItem
+          key={item.id}
+          id={item.id}
+          label={item.label}
+          description={item.description}
+          available={item.available}
+          align={align}
+          kind="hint"
+        />
       );
     }
 
-    const isAvailable = suggestion.available;
+    const suggestion = suggestionById.get(item.id);
+    if (!suggestion || suggestion.type === 'input-hint') {
+      return null;
+    }
 
-    return (
-      <Pressable
-        key={suggestion.id}
-        disabled={!isAvailable}
-        onPress={
-          isAvailable
-            ? () => {
-                if (holdSelectSuppressRef.current) return;
-                onApplySuggestion(suggestion);
-              }
-            : undefined
+    return defaultSuggestionGridItem(item, align, {
+      onPress: () => {
+        if (holdSelectSuppressRef.current) return;
+        onApplySuggestion(suggestion);
+      },
+      onPressIn: (event: GestureResponderEvent) => {
+        holdSelectSuppressRef.current = false;
+        longPressCancelledRef.current = false;
+        pressStartRef.current = {
+          x: event.nativeEvent.pageX,
+          y: event.nativeEvent.pageY,
+        };
+      },
+      onTouchMove: (event: GestureResponderEvent) => {
+        const start = pressStartRef.current;
+        if (
+          start &&
+          Math.abs(event.nativeEvent.pageX - start.x) >=
+            HORIZONTAL_HOLD_CANCEL_DISTANCE
+        ) {
+          cancelLongPressForSwipe();
         }
-        onPressIn={(event: GestureResponderEvent) => {
-          holdSelectSuppressRef.current = false;
-          longPressCancelledRef.current = false;
-          pressStartRef.current = {
-            x: event.nativeEvent.pageX,
-            y: event.nativeEvent.pageY,
-          };
-        }}
-        onTouchMove={(event: GestureResponderEvent) => {
-          const start = pressStartRef.current;
-          if (
-            start &&
-            Math.abs(event.nativeEvent.pageX - start.x) >=
-              HORIZONTAL_HOLD_CANCEL_DISTANCE
-          ) {
-            cancelLongPressForSwipe();
-          }
-        }}
-        onLongPress={
-          isAvailable
-            ? () => {
-                if (longPressCancelledRef.current) return;
-                holdSelectSuppressRef.current = true;
-                setHeldSuggestionId(suggestion.id);
-              }
-            : undefined
-        }
-        onPressOut={() => {
-          requestAnimationFrame(() => {
-            clearHeldSuggestion();
-          });
-        }}
-        onTouchCancel={clearHeldSuggestion}
-        delayLongPress={SUGGESTED_COMMAND_LONG_PRESS_MS}
-        cancelable
-        hitSlop={6}
-        accessibilityRole="button"
-        accessibilityLabel={`Suggestion [${suggestion.label}]`}
-        accessibilityHint={
-          isAvailable ? 'Tap to use. Hold for command details.' : undefined
-        }
-        accessibilityState={{ disabled: !isAvailable }}
-        style={({ pressed }) => [
-          styles.suggestionTouchTarget,
-          align === 'right' ? styles.suggestionTouchTargetRight : null,
-          isAvailable && pressed ? styles.pressed : null,
-        ]}>
-        <Text
-          style={[
-            styles.suggestionText,
-            !isAvailable ? styles.suggestionTextUnavailable : null,
-            align === 'right' ? styles.suggestionTextRight : null,
-          ]}>
-          [{suggestion.label}]
-        </Text>
-      </Pressable>
-    );
+      },
+      onLongPress: () => {
+        if (longPressCancelledRef.current) return;
+        holdSelectSuppressRef.current = true;
+        setHeldSuggestionId(item.id);
+      },
+      onPressOut: () => {
+        requestAnimationFrame(() => {
+          clearHeldSuggestion();
+        });
+      },
+      onTouchCancel: clearHeldSuggestion,
+      delayLongPress: SUGGESTED_COMMAND_LONG_PRESS_MS,
+    });
   };
 
   return (
     <GestureDetector gesture={gesture}>
       <View style={styles.autocompleteArea}>
-        {heldSuggestion && heldSuggestion.type === 'token' ? (
+        {heldSuggestion && heldSuggestion.type !== 'input-hint' ? (
           <View
             pointerEvents="none"
             style={styles.explanationWorkspace}
@@ -222,24 +240,12 @@ export function AutocompleteArea({
           </View>
         ) : null}
 
-        <View style={[styles.autocompleteRow, { paddingTop: ergonomicStart }]}>
-          <Animated.View
-            key={suggestions.map((suggestion) => suggestion.id).join('|')}
-            entering={FadeIn.duration(GROUP_FADE_IN_MS)}
-            exiting={FadeOut.duration(GROUP_FADE_OUT_MS)}
-            style={styles.suggestionsWrap}>
-            <View style={styles.suggestionColumn}>
-              {suggestions
-                .slice(0, Math.ceil(suggestions.length / 2))
-                .map((suggestion) => renderSuggestion(suggestion, 'left'))}
-            </View>
-            <View style={styles.suggestionColumn}>
-              {suggestions
-                .slice(Math.ceil(suggestions.length / 2))
-                .map((suggestion) => renderSuggestion(suggestion, 'right'))}
-            </View>
-          </Animated.View>
-        </View>
+        <SvyrSuggestionGrid
+          items={gridItems}
+          contentKey={gridItems.map((item) => item.id).join('|')}
+          paddingTop={ergonomicStart}
+          renderItem={renderGridItem}
+        />
       </View>
     </GestureDetector>
   );
@@ -255,39 +261,12 @@ const styles = StyleSheet.create({
     width: '100%',
     paddingHorizontal: Spacing.xxl,
   },
-  autocompleteRow: {
-    flex: 1,
-    width: '100%',
-  },
-  suggestionsWrap: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-  },
-  suggestionColumn: {
-    width: '32%',
-    gap: Spacing.xs,
-  },
-  suggestionTouchTarget: {
-    minHeight: 44,
-    minWidth: 44,
-    justifyContent: 'center',
-    alignSelf: 'flex-start',
-    paddingHorizontal: Spacing.xs,
-  },
-  suggestionTouchTargetRight: {
-    alignSelf: 'flex-end',
-  },
-  hintTarget: {
-    minHeight: 44,
-    justifyContent: 'center',
-    paddingHorizontal: Spacing.xs,
-  },
   temporaryTarget: {
     position: 'absolute',
     top: 0,
     right: 0,
     left: 0,
+    zIndex: 1,
     minHeight: 44,
     justifyContent: 'center',
     paddingHorizontal: Spacing.xs,
@@ -297,24 +276,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: Spacing.xxl,
-  },
-  suggestionText: {
-    fontFamily: Fonts.mono,
-    fontSize: Type.mono,
-    color: Colors.text,
-  },
-  suggestionTextRight: {
-    textAlign: 'right',
-  },
-  suggestionTextUnavailable: {
-    color: Colors.textSecondary,
-    textDecorationLine: 'line-through',
-  },
-  hintText: {
-    fontFamily: Fonts.mono,
-    fontSize: Type.label,
-    color: Colors.textMuted,
-    letterSpacing: 0.8,
   },
   temporaryText: {
     fontFamily: Fonts.mono,
@@ -326,8 +287,5 @@ const styles = StyleSheet.create({
     fontSize: Type.mono,
     color: Colors.textSecondary,
     textAlign: 'center',
-  },
-  pressed: {
-    opacity: 0.7,
   },
 });

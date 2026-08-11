@@ -60,6 +60,10 @@ export type TokenSuggestion = {
   isTerminal: boolean;
   /** Needs a free-text value before it can execute */
   requiresValue?: boolean;
+  /** Navigable Level 2 coverage destination with no canonical write. */
+  workflowOnly?: boolean;
+  /** Opens grouped controlled capture for registered child fields. */
+  compoundCapture?: boolean;
   /** Visible but cannot be selected when the registry marks it unavailable. */
   available: boolean;
   pinnable?: boolean;
@@ -87,21 +91,34 @@ function writeCommand(path: string[], value: string): ParsedCommand {
   const normalizedValue = normalizeFieldInputValue(fieldDefinition, value);
 
   if (!normalizedValue) {
+    const prompt =
+      fieldDefinition?.valueType === 'number'
+        ? 'Enter a valid number'
+        : fieldDefinition?.valuePrompt ??
+          (node ? valuePromptFor(node) : INCOMPLETE_BRANCH_PROMPT);
     return {
       type: 'incomplete',
       path,
-      prompt: fieldDefinition?.valuePrompt ?? (node ? valuePromptFor(node) : INCOMPLETE_BRANCH_PROMPT),
+      prompt,
     };
   }
 
   const operationId = node?.operationId ?? fieldDefinition?.operationId;
   if (operationId) {
+    const operationArguments =
+      fieldDefinition?.valueType === 'controlledStatus'
+        ? {
+            fieldId: fieldDefinition.fieldId,
+            value: normalizedValue,
+          }
+        : { value: normalizedValue };
+
     return {
       type: 'operation',
       path,
       operation: {
         operationId,
-        arguments: { value: normalizedValue },
+        arguments: operationArguments,
       },
     };
   }
@@ -113,12 +130,19 @@ function readCommand(path: string[]): ParsedCommand {
   const fieldDefinition = findFieldDefinition(path);
   const operationId = node?.readOperationId ?? fieldDefinition?.readOperationId;
   if (operationId) {
+    const operationArguments =
+      fieldDefinition?.valueType === 'controlledStatus'
+        ? { fieldId: fieldDefinition.fieldId }
+        : fieldDefinition?.valueType === 'multiSelect'
+          ? { fieldId: fieldDefinition.fieldId }
+          : {};
+
     return {
       type: 'operation',
       path,
       operation: {
         operationId,
-        arguments: {},
+        arguments: operationArguments,
       },
     };
   }
@@ -216,6 +240,10 @@ export function parseCommand(rawCommand: string): ParsedCommand {
     };
   }
 
+  if (walk.node.workflowOnly || walk.node.available === false) {
+    return { type: 'placeholder', path: walk.path };
+  }
+
   return writeCommand(walk.path, '');
 }
 
@@ -279,6 +307,8 @@ function tokenSuggestion(
     commandPath,
     isTerminal: isTerminalNode(node),
     requiresValue: node.requiresValue,
+    workflowOnly: node.workflowOnly,
+    compoundCapture: node.compoundCapture,
     available: node.available !== false,
     pinnable: isPinnableNode(node),
     description: node.description,
@@ -408,6 +438,7 @@ export function getCommandAssistance(
         tokenSuggestion(completedPath, child, pinnedPrefix),
       );
     }
+    if (exact.workflowOnly) return [];
     // Exact terminal leaf — keep the match so tap-to-execute still works.
     return [tokenSuggestion(parentWalk.path, exact, pinnedPrefix)];
   }

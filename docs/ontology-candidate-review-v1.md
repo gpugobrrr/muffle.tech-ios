@@ -10,7 +10,12 @@ existing Muffle ontology
 + repository survey/report semantics
 + RICS-style terminology as source evidence
 → candidate register
-→ expert surveyor review
+→ deterministic candidate audit
+→ generated and frozen expert question set
+→ expert surveyor answers
+→ deterministic interpretation artifact
+→ ontology promotion proposal
+→ explicit human approval
 → separate controlled canonical ontology update
 ```
 
@@ -78,6 +83,33 @@ possible future semantic behavior only and do not claim current engine support.
 
 No record in v1 is automatically approved.
 
+## Frozen expert question sets
+
+`apps/ontology-review/data/ontology-review-v1.json` is frozen historical
+evidence because an expert surveyor has completed it. It must not be
+regenerated or rewritten: interpretation must remain reproducible against the
+exact wording the surveyor saw.
+
+The corrected future generator writes `ontology-review-v2`. It:
+
+- rejects normalized self-comparisons and comparisons that resolve to the same
+  candidate/concept target;
+- requires meaningful lexical overlap after generic modifiers such as
+  `internal`, `external`, `system`, and `installation` are removed;
+- falls back to manual review when audit metadata cannot support one sensible
+  binary question;
+- uses relationship-predicate templates to ask whether a relationship can
+  legitimately exist, rather than whether one concept is defined by another.
+
+Generate the future set with:
+
+```text
+npm run ontology:review:generate
+```
+
+This writes `apps/ontology-review/data/ontology-review-v2.json`. It does not
+change which frozen set the current review app loads.
+
 ## Deterministic candidate audit
 
 The candidate register can be mechanically audited before expert review:
@@ -115,6 +147,116 @@ AI draft
 Passing an audit means only that a draft is mechanically well-formed enough
 for human review. It is not a professional surveying decision and creates no
 automatic path to canonical truth.
+
+## Completed-review interpretation
+
+Completed answers are external expert-review evidence. They are not copied
+into the repository automatically. Interpret an external answer export
+against the frozen v1 question set with:
+
+```text
+npm run ontology:review:interpret -- --answers <answers.json>
+```
+
+With no output flags, authoritative JSON is written to stdout and a concise
+Markdown summary to stderr. To write both artifacts explicitly:
+
+```text
+npm run ontology:review:interpret -- \
+  --answers <answers.json> \
+  --json-output <interpretation.json> \
+  --markdown-output <interpretation.md>
+```
+
+The interpreter validates versions, reviewer IDs, answer values, duplicate
+and unknown question IDs, missing answers, and candidate/relationship
+references. Matching is by question ID, never array order. Output ordering is
+deterministic and no generated timestamp is added.
+
+The interpretation separates original human evidence from a proposed review
+disposition. A valid same-as `YES`, for example, means
+`merge-or-alias-review`; it never merges records. A canonical-independence
+`YES` means `approve-for-canonical-review`; it never promotes a concept.
+Publication wording remains noncanonical unless a later controlled process
+decides otherwise.
+
+Known defects in the completed v1 set remain visible for auditability:
+
+- normalized self-comparisons are `invalid-question`;
+- the v1 Internal wall/Internal door comparison is `reask-required`;
+- all seven v1 relationship questions are `reask-required` because their
+  wording tested definition-like phrasing rather than relationship validity.
+
+Those items retain the original question and answer but are marked
+`usableAsOntologyEvidence: false`. The six `manualQuestionReview` entries were
+not presented as normal questions; they are included without fabricated
+answers as `manual-review-required`.
+
+The intended lifecycle is:
+
+```text
+candidate register
+→ deterministic audit
+→ generated expert questions
+→ frozen question-set version
+→ expert answers
+→ deterministic interpretation artifact
+→ ontology promotion proposal
+→ explicit human approval
+→ later controlled ontology promotion
+```
+
+The interpreter uses no LLM and is not professional surveying authority.
+
+## Ontology promotion proposal
+
+The next deterministic stage converts an external interpretation artifact into
+a non-authoritative promotion proposal:
+
+```text
+candidate proposals
+→ audit
+→ expert questions
+→ expert answers
+→ interpretation
+→ promotion proposal
+→ explicit human approval
+→ controlled canonical ontology update
+```
+
+Build it from an external interpretation path:
+
+```text
+npm run ontology:promotion:propose -- \
+  --interpretation <interpretation.json> \
+  --out-dir <output-directory>
+```
+
+When `--out-dir` is supplied, the command writes
+`ontology-promotion-proposal-v1.json` and
+`ontology-promotion-proposal-v1.md` there. Without it, JSON is written to
+stdout and the concise Markdown review summary to stderr. The tool never
+copies the interpretation artifact into the repository automatically.
+
+The proposal compares candidate metadata with canonical ID/alias matches,
+explicit existing mappings, audit overlap warnings, hierarchy, kind, ownership,
+maturity, value type, bindings, and source traceability. It may recommend
+actions such as `add-canonical-concept`, `revise-kind`, `revise-parent`,
+`treat-as-publication`, `map-to-existing-canonical`, or
+`requires-semantic-review`.
+
+An expert `approve-for-canonical-review` result only supports that the
+candidate's meaning may survive report headings. It does not approve the
+candidate's proposed ID, kind, parent, runtime binding, alias scope, or
+relationship edges. The proposal deliberately keeps expert evidence separate
+from Muffle's schema recommendation.
+
+Every proposal item has `requiresHumanApproval: true` and
+`safeToAutoPromote: false`. No action edits `MUFFLE_ONTOLOGY_V1`, candidate
+data, engine records, report mappings, or FirmAdapters. Relationship endpoint
+concepts can be proposed independently, but relationship edges require their
+own valid expert review and are not promoted by this stage. Publication terms
+remain outside canonical truth unless separately justified and approved.
 
 ## Review export
 

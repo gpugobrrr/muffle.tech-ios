@@ -15,7 +15,7 @@ import { allFieldDefinitions } from '../src/lib/field-schema';
 test('muffle ontology v1 satisfies its structural and source contracts', () => {
   assert.deepEqual(validateMuffleOntologyV1(), []);
   assert.equal(MUFFLE_ONTOLOGY_V1.ontologyId, 'muffle-ontology');
-  assert.equal(MUFFLE_ONTOLOGY_V1.version, '1.1.0');
+  assert.equal(MUFFLE_ONTOLOGY_V1.version, '1.2.0');
 });
 
 test('concept identifiers are unique and parents resolve', () => {
@@ -121,6 +121,59 @@ test('inspection finding slice is canonical and engine-backed', () => {
   );
 });
 
+test('human-approved v1.2 concepts are canonical without fabricated runtime bindings', () => {
+  const buildingElements = [
+    'building_element.ceiling',
+    'building_element.chimney',
+    'building_element.damp_proof_course',
+    'building_element.fireplace',
+    'building_element.porch',
+    'building_element.rainwater_goods',
+    'building_element.staircase',
+    'building_element.window',
+  ];
+  const findingFields = [
+    'cause',
+    'further_investigation',
+    'implication',
+    'risk',
+    'significance',
+  ];
+  const approved = [...buildingElements, ...findingFields];
+
+  assert.equal(
+    MUFFLE_ONTOLOGY_V1.concepts.filter(
+      ({ introducedIn }) => introducedIn === '1.2.0',
+    ).length,
+    approved.length,
+  );
+  for (const id of approved) {
+    const concept = getOntologyConcept(id);
+    assert.ok(concept, id);
+    assert.equal(concept.canonical, true, id);
+    assert.equal(concept.introducedIn, '1.2.0', id);
+    assert.equal(concept.ownership, 'engine-record', id);
+    assert.equal(concept.maturity, 'type-only', id);
+    assert.equal(concept.bindings, undefined, id);
+    assert.equal(concept.completion, undefined, id);
+    assert.deepEqual(concept.source, [
+      { type: 'ontology-review', id: 'canonical-promotion-batch-1' },
+    ]);
+  }
+  for (const id of buildingElements) {
+    const concept = getOntologyConcept(id);
+    assert.equal(concept?.parentId, 'building_element', id);
+    assert.equal(concept?.kind, 'value', id);
+    assert.deepEqual(concept?.valueType, { kind: 'text' }, id);
+  }
+  for (const id of findingFields) {
+    const concept = getOntologyConcept(id);
+    assert.equal(concept?.parentId, 'inspection.finding', id);
+    assert.equal(concept?.kind, 'field', id);
+    assert.deepEqual(concept?.valueType, { kind: 'text', nullable: true }, id);
+  }
+});
+
 test('report concepts are derived rather than canonical survey truth', () => {
   for (const id of [
     'report_document',
@@ -134,26 +187,46 @@ test('report concepts are derived rather than canonical survey truth', () => {
   }
 });
 
-test('v1.0.0 concepts remain present in the additive v1.1.0 registry', () => {
+test('v1.0.0 concepts remain present in the additive v1.2.0 registry', () => {
   const originalConcepts = MUFFLE_ONTOLOGY_V1.concepts.filter(
     (concept) => concept.introducedIn === '1.0.0',
   );
   assert.equal(originalConcepts.length, 49);
 });
 
-test('unsupported survey semantics remain absent', () => {
+test('deferred and unapproved survey semantics remain absent', () => {
   for (const absentId of [
     'construction',
-    'cause',
-    'implication',
-    'significance',
-    'risk',
-    'further_investigation',
+    'building_element.floor',
+    'building_element.foundation',
+    'building_element.driveway',
+    'building_element.garage',
+    'measurement',
+    'limitation',
+    'building_element.balcony',
+    'building_element.boundary',
+    'building_element.external_drainage',
+    'building_element.external_finish',
+    'building_element.gas_installation',
+    'building_element.hot_water_system',
+    'building_element.internal_door',
+    'building_element.renewable_energy_system',
+    'building_element.retaining_wall',
+    'building_element.roof_structure',
+    'building_element.roof_void',
     'legal_matter',
     'summary',
   ]) {
     assert.equal(getOntologyConcept(absentId), undefined, absentId);
   }
+  assert.equal(findOntologyAliases('Main Walls').length, 0);
+  assert.equal(findOntologyAliases('D4 Main Walls').length, 0);
+  assert.equal(
+    MUFFLE_ONTOLOGY_V1.concepts.some(
+      ({ id }) => id.startsWith('candidate-relation.'),
+    ),
+    false,
+  );
 });
 
 test('serialization is deterministic JSON with no executable values', () => {

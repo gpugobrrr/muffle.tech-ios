@@ -12,17 +12,23 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureDetector } from 'react-native-gesture-handler';
 
 import { CommandDock } from '@/components/command-dock';
-import { AutocompleteArea } from '@/components/autocomplete-area';
+import { SvyrNavigationPage } from '@/components/svyr-navigation-page';
+import { CompoundCaptureEntryPage } from '@/components/controlled-group-entry-page';
 import { SvyrDataEntryPanel } from '@/components/svyr-data-entry-panel';
+import { inputInstructionForField } from '@/components/text-entry-page';
 import { WorkspaceHeader } from '@/components/workspace-header';
 import { Colors, Spacing } from '@/constants/theme';
 import { useSvyrHints } from '@/hooks/use-svyr-hints';
 import { useDataEntrySwipe } from '@/hooks/use-data-entry-swipe';
 import type { SvyrController } from '@/hooks/use-workspace';
-import type {
-  CommandSuggestion,
-  TokenSuggestion,
-} from '@/lib/command-parser';
+import type { CommandSuggestion } from '@/lib/command-parser';
+import { compoundGroupRows } from '@/lib/controlled-group';
+import {
+    findFieldDefinition,
+    resolveFieldSetValue,
+    resolveFieldValue,
+} from '@/lib/field-schema';
+import { HEATING_NOTES_PATH } from '@/lib/property-energy-heating';
 import {
     isBranchSuggestion,
     resolveActiveHint,
@@ -38,60 +44,10 @@ export type SvyrInterfaceProps = {
 };
 
 /**
- * The visible top-level workflow vocabulary is intentionally broader than
- * today's canonical command graph. Future entries are presentation-only until
- * their workflows have real registry/parser handlers.
- */
-const TOP_LEVEL_WORKFLOW_TOKENS = [
-  'prep',
-  'property',
-  'external',
-  'internal',
-  'services',
-  'structure',
-  'environment',
-  'grounds',
-  'evidence',
-  'summary',
-  'report',
-] as const;
-
-function topLevelWorkflowSuggestions(
-  suggestions: CommandSuggestion[],
-): CommandSuggestion[] {
-  const canonicalByToken = new Map(
-    suggestions
-      .filter(
-        (suggestion): suggestion is TokenSuggestion =>
-          suggestion.type === 'token',
-      )
-      .map((suggestion) => [suggestion.commandPath.at(-1), suggestion]),
-  );
-
-  return TOP_LEVEL_WORKFLOW_TOKENS.map((token) => {
-    const canonicalSuggestion = canonicalByToken.get(token);
-    if (canonicalSuggestion) return canonicalSuggestion;
-
-    return {
-      type: 'token',
-      id: `future-workflow-${token}`,
-      label: token,
-      insertion: token,
-      commandPath: [token],
-      isTerminal: true,
-      available: false,
-      pinnable: false,
-      description: 'Future workflow section — not currently available.',
-    } satisfies TokenSuggestion;
-  });
-}
-
-/**
  * The SVYR command console — landscape Power User only.
  *
- * The command dock remains mounted at the bottom of the workspace while
- * data entry is active; the dedicated entry panel sits above it without
- * overlaying the existing SVYR line.
+ * One shared bottom SvyrBar (via CommandDock) is mounted for every navigation
+ * and capture page. Central content changes; the bar position does not.
  */
 export function SvyrInterface({
   controller,
@@ -102,6 +58,9 @@ export function SvyrInterface({
   const hints = useSvyrHints();
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
+  const [heldCommandDescription, setHeldCommandDescription] = useState<
+    string | null
+  >(null);
   const isDataEntry = controller.inputMode === 'data-entry';
   const showPartyNotes =
     isPartyNotesPath(controller.fullCommandPath) ||
@@ -111,21 +70,46 @@ export function SvyrInterface({
     );
   const noteEditing = showPartyNotes && notesOpen;
   const noteValue = controller.notesByPath[PARTY_NOTES_PATH] ?? '';
-  const visibleSuggestions = useMemo(() => {
-    const isTopLevelWorkspace =
-      controller.inputMode === 'navigation' &&
-      controller.commandSuffix.trim() === '' &&
-      controller.pinnedCommandPrefix.length === 0;
-
-    return isTopLevelWorkspace
-      ? topLevelWorkflowSuggestions(controller.suggestions)
-      : controller.suggestions;
-  }, [
-    controller.commandSuffix,
-    controller.inputMode,
-    controller.pinnedCommandPrefix.length,
-    controller.suggestions,
-  ]);
+  const activeFieldDefinition = useMemo(
+    () =>
+      controller.activeEntryField
+        ? findFieldDefinition(controller.activeEntryField.path)
+        : null,
+    [controller.activeEntryField],
+  );
+  const isSingleChoiceEntry =
+    activeFieldDefinition?.valueType === 'singleSelect' ||
+    activeFieldDefinition?.valueType === 'controlledStatus';
+  const isMultiChoiceEntry =
+    activeFieldDefinition?.valueType === 'multiSelect';
+  const isChoiceCaptureEntry = isSingleChoiceEntry || isMultiChoiceEntry;
+  const activeStoredValue = useMemo(() => {
+    if (!activeFieldDefinition) return null;
+    return resolveFieldValue(
+      controller.inspectionBrief,
+      activeFieldDefinition.fieldId,
+    );
+  }, [activeFieldDefinition, controller.inspectionBrief]);
+  const compoundRows = useMemo(() => {
+    if (!controller.activeCompoundCapture) return [];
+    return compoundGroupRows(
+      controller.activeCompoundCapture.path,
+      controller.inspectionBrief,
+    );
+  }, [controller.activeCompoundCapture, controller.inspectionBrief]);
+  const compoundNotesPath =
+    controller.activeCompoundCapture?.path.join('/') === HEATING_NOTES_PATH
+      ? HEATING_NOTES_PATH
+      : undefined;
+  /** Canonical path fed to the shared SVYR bar on every page. */
+  const svyrBarPath =
+    controller.activeEntryField || controller.activeCompoundCapture
+      ? controller.dataEntryDirectory
+      : controller.editablePath;
+  const finalCommandDescription =
+    controller.activeEntryField && !isChoiceCaptureEntry
+      ? inputInstructionForField(controller.activeEntryField)
+      : undefined;
   const activeHint = useMemo(
     () =>
       resolveActiveHint({
@@ -161,6 +145,12 @@ export function SvyrInterface({
     if (showPartyNotes) return;
     setNotesOpen(false);
   }, [showPartyNotes]);
+
+  const svyrBarPathKey = svyrBarPath.join('/');
+
+  useEffect(() => {
+    setHeldCommandDescription(null);
+  }, [svyrBarPathKey]);
 
   useEffect(() => {
     const showEvent =
@@ -204,6 +194,28 @@ export function SvyrInterface({
     }
   }, [controller, hints]);
 
+  const handleSelectChoice = useCallback(
+    (canonicalValue: string) => {
+      const field = controller.activeEntryField;
+      if (!field) return;
+      if (controller.commitFieldValue(field.path, canonicalValue)) {
+        hints.completeHint('executeValue');
+      }
+    },
+    [controller, hints],
+  );
+
+  const handleToggleMultiChoice = useCallback(
+    (canonicalValue: string) => {
+      controller.toggleMultiChoiceDraft(canonicalValue);
+    },
+    [controller],
+  );
+
+  const handleCommitMultiChoice = useCallback(() => {
+    controller.commitMultiChoiceField();
+  }, [controller]);
+
   const handleTogglePin = useCallback(() => {
     if (controller.toggleCurrentPathPin()) {
       hints.completeHint('pinPath');
@@ -217,8 +229,7 @@ export function SvyrInterface({
   const handleNavigateUpDirectory = useCallback(() => {
     if (
       onNavigateBack &&
-      controller.fullCommandPath.length === 1 &&
-      controller.fullCommandPath[0] === 'prep'
+      controller.fullCommandPath.length === 0
     ) {
       onNavigateBack();
       return true;
@@ -297,21 +308,46 @@ export function SvyrInterface({
 
         {/* Party notes live in the active field content column. */}
         <View style={styles.stageSpacer}>
-          {controller.activeEntryField ? (
+          {controller.activeCompoundCapture ? (
+            <CompoundCaptureEntryPage
+              rows={compoundRows}
+              error={controller.entryError}
+              notesPath={compoundNotesPath}
+              notesValue={
+                compoundNotesPath
+                  ? controller.notesByPath[compoundNotesPath] ?? ''
+                  : undefined
+              }
+              onChangeNotes={
+                compoundNotesPath
+                  ? (value) => controller.setPathNote(compoundNotesPath, value)
+                  : undefined
+              }
+              resolveStoredValue={(field) =>
+                resolveFieldValue(controller.inspectionBrief, field.fieldId)
+              }
+              resolveStoredSet={(field) =>
+                resolveFieldSetValue(controller.inspectionBrief, field.fieldId)
+              }
+              onCommitScalar={controller.commitControlledFieldValue}
+              onCommitSet={controller.commitControlledSetFieldValue}
+              onNavigateUpDirectory={controller.cancelCurrentInteraction}
+            />
+          ) : controller.activeEntryField ? (
             <SvyrDataEntryPanel
               field={controller.activeEntryField}
               value={controller.entryValue}
+              storedValue={activeStoredValue}
+              multiChoiceValues={controller.activeMultiChoiceValues}
               error={controller.entryError}
               onChangeText={controller.setEntryValue}
               onSubmit={handleSubmitDataEntry}
+              onSelectChoice={handleSelectChoice}
+              onToggleMultiChoice={handleToggleMultiChoice}
+              onCommitMultiChoice={handleCommitMultiChoice}
               onCancelEntry={controller.cancelCurrentInteraction}
               focusToken={controller.focusToken}
-              pinnedCommandPrefix={controller.pinnedCommandPrefix}
-              svyrDirectory={controller.dataEntryDirectory}
-              canPinCurrentPath={controller.canPinCurrentPath}
-              isCurrentPathPinned={controller.isCurrentPathPinned}
-              onToggleCurrentPathPin={handleTogglePin}
-              onSegmentPress={controller.navigateToDataEntrySegment}
+              heldCommandDescription={heldCommandDescription}
               noteEditing={noteEditing}
               noteValue={noteValue}
               onChangeNote={(value) =>
@@ -324,8 +360,9 @@ export function SvyrInterface({
             />
           ) : null}
           {!isDataEntry ? (
-            <AutocompleteArea
-              suggestions={visibleSuggestions}
+            <SvyrNavigationPage
+              path={controller.editablePath}
+              suggestions={controller.suggestions}
               temporaryContent={controller.temporaryAutocompleteContent}
               onApplySuggestion={handleSelectSuggestion}
               onNavigateUpDirectory={handleNavigateUpDirectory}
@@ -338,15 +375,17 @@ export function SvyrInterface({
           <CommandDock
             infoBarText={controller.infoBarText}
             transientFeedbackText={controller.transientFeedbackText}
-            editablePath={controller.editablePath}
+            path={svyrBarPath}
             pinnedCommandPrefix={controller.pinnedCommandPrefix}
             canPinCurrentPath={controller.canPinCurrentPath}
             isCurrentPathPinned={controller.isCurrentPathPinned}
             onToggleCurrentPathPin={handleTogglePin}
+            onSegmentPress={controller.navigateToDataEntrySegment}
+            onRootPress={controller.navigateToSvyrRoot}
             onNavigateUpDirectory={handleNavigateUpDirectory}
             onSwipeBackCommitted={handleSwipeBackCommitted}
-            dataEntryActive={Boolean(controller.activeEntryField)}
-            showTerminal={!controller.activeEntryField}
+            finalCommandDescription={finalCommandDescription}
+            onFinalCommandHoldChange={setHeldCommandDescription}
             activeHintId={
               activeHint === 'selectBranch' ||
               activeHint === 'swipeBack' ||

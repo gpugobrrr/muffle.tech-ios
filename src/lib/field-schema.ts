@@ -1,12 +1,30 @@
+import { normalizeControlledStatusInput } from '@/lib/controlled-fact';
+import type { NumericFieldConstraints } from '@/lib/numeric-field';
+import { normalizeNumericFieldInput } from '@/lib/numeric-field';
+import { HEATING_FIELD_DEFINITIONS } from '@/lib/property-energy-heating';
+import { MAINS_SERVICE_FIELD_DEFINITIONS } from '@/lib/property-energy-mains-services';
+import { SERVICES_PRESENCE_FIELD_DEFINITIONS } from '@/lib/services-controlled-facts';
 import type { InspectionBrief } from '@/types/workspace';
-
 export type FieldOption = {
   value: string;
   label: string;
+  available?: boolean;
 };
 
-export type FieldValueType = 'text' | 'singleSelect';
-
+/**
+ * Capture value kinds declared by the field schema.
+ * `multiSelect` is a schema/UI contract only until Engine operations accept
+ * set-valued payloads — do not encode sets as scalar text.
+ * `number` is a validated scalar numeric string stored in the Engine as text.
+ * Structured measurements (`{ value, unit }`) are intentionally unsupported —
+ * do not encode them as `"4.2 m"` or JSON-in-string.
+ */
+export type FieldValueType =
+  | 'text'
+  | 'singleSelect'
+  | 'multiSelect'
+  | 'number'
+  | 'controlledStatus';
 export type FieldDefinition = {
   kind: 'field';
   path: string[];
@@ -19,6 +37,8 @@ export type FieldDefinition = {
   optional?: boolean;
   valueType?: FieldValueType;
   options?: FieldOption[];
+  /** Constraints for `valueType: 'number'` only. */
+  numeric?: NumericFieldConstraints;
   valuePrompt?: string;
   entryLabel?: string;
   valuePlaceholder?: string;
@@ -77,6 +97,86 @@ const DIRECTORY_DEFINITIONS: DirectoryDefinition[] = [
     token: 'instr',
     label: 'Instruction',
     description: 'Instruction details described in the brief.',
+  },
+  {
+    kind: 'directory',
+    path: ['property'],
+    pathKey: 'property',
+    token: 'property',
+    label: 'Property',
+    description: 'Property identity and description coverage.',
+  },
+  {
+    kind: 'directory',
+    path: ['property', 'energy'],
+    pathKey: 'property/energy',
+    token: 'energy',
+    label: 'Energy',
+    description: 'EPC, mains service and energy-source coverage.',
+  },
+  {
+    kind: 'directory',
+    path: ['property', 'energy', 'mains-services'],
+    pathKey: 'property/energy/mains-services',
+    token: 'mains-services',
+    label: 'Mains services',
+    description: 'Mains service presence coverage.',
+  },
+  {
+    kind: 'directory',
+    path: ['property', 'energy', 'heating'],
+    pathKey: 'property/energy/heating',
+    token: 'heating',
+    label: 'Heating',
+    description: 'Central heating and energy-source coverage.',
+  },
+  {
+    kind: 'directory',
+    path: ['services'],
+    pathKey: 'services',
+    token: 'services',
+    label: 'Services',
+    description: 'Visible services inspection coverage; no specialist testing.',
+  },
+  {
+    kind: 'directory',
+    path: ['services', 'electricity'],
+    pathKey: 'services/electricity',
+    token: 'electricity',
+    label: 'Electricity',
+    description: 'Mains electricity presence and inspection findings.',
+  },
+  {
+    kind: 'directory',
+    path: ['services', 'water'],
+    pathKey: 'services/water',
+    token: 'water',
+    label: 'Water',
+    description: 'Mains water presence and inspection findings.',
+  },
+  {
+    kind: 'directory',
+    path: ['services', 'drainage'],
+    pathKey: 'services/drainage',
+    token: 'drainage',
+    label: 'Drainage',
+    description: 'Mains drainage presence and inspection findings.',
+  },
+  {
+    kind: 'directory',
+    path: ['services', 'gas-oil'],
+    pathKey: 'services/gas-oil',
+    token: 'gas-oil',
+    label: 'Gas / oil',
+    description: 'Gas and oil installation coverage.',
+  },
+  {
+    kind: 'directory',
+    path: ['services', 'gas-oil', 'gas'],
+    pathKey: 'services/gas-oil/gas',
+    token: 'gas',
+    label: 'Gas',
+    description: 'Mains gas presence and installation findings.',
   },
 ];
 
@@ -192,6 +292,9 @@ const FIELD_DEFINITIONS: FieldDefinition[] = [
     valuePlaceholder: 'Enter limitation',
     notesEnabled: false,
   },
+  ...MAINS_SERVICE_FIELD_DEFINITIONS,
+  ...HEATING_FIELD_DEFINITIONS,
+  ...SERVICES_PRESENCE_FIELD_DEFINITIONS,
 ];
 
 const ALL_DEFINITIONS: SchemaNodeDefinition[] = [
@@ -235,9 +338,27 @@ export function findFieldDefinition(
   );
 }
 
+export function findFieldDefinitionByFieldId(
+  fieldId: string,
+): FieldDefinition | null {
+  return (
+    FIELD_DEFINITIONS.find((definition) => definition.fieldId === fieldId) ??
+    null
+  );
+}
+
 export function findFieldDefinitionForOperationId(
   operationId: string,
 ): FieldDefinition | null {
+  if (
+    operationId === 'survey.controlled_fact.set' ||
+    operationId === 'survey.controlled_fact.read' ||
+    operationId === 'survey.controlled_fact_set.set' ||
+    operationId === 'survey.controlled_fact_set.read'
+  ) {
+    return null;
+  }
+
   return (
     FIELD_DEFINITIONS.find(
       (definition) =>
@@ -272,11 +393,25 @@ export function normalizeFieldInputValue(
   if (field.valueType === 'singleSelect') {
     const normalizedInput = trimmed.toLowerCase().replace(/\s+/g, ' ');
     const matchedOption = field.options?.find((option) => {
+      if (option.available === false) return false;
       const normalizedValue = option.value.toLowerCase();
       const normalizedLabel = option.label.toLowerCase();
       return normalizedInput === normalizedValue || normalizedInput === normalizedLabel;
     });
-    return matchedOption?.value ?? trimmed;
+    return matchedOption?.value ?? null;
+  }
+
+  if (field.valueType === 'number') {
+    return normalizeNumericFieldInput(field, trimmed);
+  }
+
+  if (field.valueType === 'controlledStatus') {
+    return normalizeControlledStatusInput(field, trimmed);
+  }
+
+  if (field.valueType === 'multiSelect') {
+    // Multi-choice commits use prepareMultiChoiceCommit — never scalar text.
+    return null;
   }
 
   return trimmed;
@@ -286,6 +421,11 @@ export function resolveFieldValue(
   brief: InspectionBrief,
   fieldId: string,
 ): string | null {
+  const controlledValue = brief.controlledFacts?.[fieldId];
+  if (controlledValue !== undefined) {
+    return controlledValue;
+  }
+
   switch (fieldId) {
     case 'instruction.instructingParty':
       return brief.instruction.instructingParty;
@@ -306,11 +446,33 @@ export function resolveFieldValue(
   }
 }
 
+export function resolveFieldSetValue(
+  brief: InspectionBrief,
+  fieldId: string,
+): readonly string[] {
+  return brief.controlledFactSets?.[fieldId] ?? [];
+}
+
+function storesControlledFact(fieldDefinition: FieldDefinition | null): boolean {
+  return fieldDefinition?.operationId === 'survey.controlled_fact.set';
+}
+
 export function applyFieldValue(
   brief: InspectionBrief,
   fieldId: string,
   value: string,
 ): InspectionBrief {
+  const fieldDefinition = findFieldDefinitionByFieldId(fieldId);
+  if (storesControlledFact(fieldDefinition)) {
+    return {
+      ...brief,
+      controlledFacts: {
+        ...(brief.controlledFacts ?? {}),
+        [fieldId]: value,
+      },
+    };
+  }
+
   switch (fieldId) {
     case 'instruction.instructingParty':
       return {
@@ -362,4 +524,23 @@ export function applyFieldValue(
     default:
       return brief;
   }
+}
+
+export function applyFieldSetValue(
+  brief: InspectionBrief,
+  fieldId: string,
+  values: readonly string[],
+): InspectionBrief {
+  const fieldDefinition = findFieldDefinitionByFieldId(fieldId);
+  if (fieldDefinition?.valueType !== 'multiSelect') {
+    return brief;
+  }
+
+  return {
+    ...brief,
+    controlledFactSets: {
+      ...(brief.controlledFactSets ?? {}),
+      [fieldId]: [...values],
+    },
+  };
 }

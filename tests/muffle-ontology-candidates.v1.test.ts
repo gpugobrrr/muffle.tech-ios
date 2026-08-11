@@ -24,12 +24,6 @@ test('candidate ontology register validates without changing canonical ontology'
 
   assert.deepEqual(validateMuffleOntologyCandidatesV1(), []);
   assert.equal(serializeMuffleOntologyV1(), ontologyBefore);
-  assert.equal(
-    MUFFLE_ONTOLOGY_V1.concepts.some(
-      ({ id }) => id === 'building_element.window',
-    ),
-    false,
-  );
 });
 
 test('review candidate IDs and proposed canonical IDs are unique', () => {

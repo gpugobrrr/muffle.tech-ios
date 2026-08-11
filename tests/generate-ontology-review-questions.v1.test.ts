@@ -8,6 +8,11 @@ import {
   ONTOLOGY_REVIEW_QUESTION_SET_VERSION,
 } from '@/domain/ontology/review/generate-ontology-review-questions.v1';
 import {
+  generateOntologyReviewQuestionsV2,
+  normalizeOntologyReviewComparisonTerm,
+  ONTOLOGY_REVIEW_QUESTION_SET_V2_VERSION,
+} from '@/domain/ontology/review/generate-ontology-review-questions.v2';
+import {
   MUFFLE_ONTOLOGY_CANDIDATES_V1,
   MUFFLE_ONTOLOGY_CANDIDATE_RELATIONSHIPS_V1,
 } from '@/domain/ontology/review/muffle-ontology-candidates.v1';
@@ -59,5 +64,98 @@ test('manual review queue retains questions that cannot be phrased responsibly',
         MUFFLE_ONTOLOGY_CANDIDATE_RELATIONSHIPS_V1.some(({ id }) => id === relationshipId)),
     ),
     true,
+  );
+});
+
+test('v2 generation rejects normalized self-comparisons and weak modifier-only pairs', () => {
+  const generated = generateOntologyReviewQuestionsV2();
+  assert.equal(generated.version, ONTOLOGY_REVIEW_QUESTION_SET_V2_VERSION);
+  assert.equal(
+    generated.questions.some(
+      ({ id }) =>
+        id ===
+        'question.candidate.building_element.internal_wall.same-as.candidate.building_element.internal_door',
+    ),
+    false,
+  );
+  assert.equal(
+    generated.questions.some(
+      ({ id }) =>
+        id ===
+        'question.candidate.building_element.electrical_installation.same-as.candidate.building_element.gas_installation',
+    ),
+    false,
+  );
+
+  for (const question of generated.questions.filter(({ id }) =>
+    id.includes('.same-as.'),
+  )) {
+    assert.notEqual(
+      normalizeOntologyReviewComparisonTerm(question.context?.sourceTerm ?? ''),
+      normalizeOntologyReviewComparisonTerm(question.context?.proposedTerm ?? ''),
+    );
+    assert.equal(
+      question.relatedCandidateIds?.includes(question.candidateId ?? '') ?? false,
+      false,
+    );
+  }
+});
+
+test('v2 comparison selection retains meaningful lexical comparisons deterministically', () => {
+  const first = generateOntologyReviewQuestionsV2();
+  const second = generateOntologyReviewQuestionsV2();
+  assert.deepEqual(first, second);
+  assert.equal(
+    first.questions.some(
+      ({ id }) =>
+        id ===
+        'question.candidate.building_element.drainage.same-as.candidate.building_element.external_drainage',
+    ),
+    true,
+  );
+  assert.equal(
+    first.questions.some(
+      ({ id }) =>
+        id ===
+        'question.candidate.building_element.roof_covering.same-as.candidate.building_element.roof_structure',
+    ),
+    true,
+  );
+});
+
+test('v2 relationship questions test whether the relationship can exist', () => {
+  const questions = new Map(
+    generateOntologyReviewQuestionsV2().questions.map((question) => [
+      question.relationshipId,
+      question.question,
+    ]),
+  );
+  assert.equal(
+    questions.get('candidate-relation.cause-explains-defect'),
+    'Can a recorded defect have a likely cause?',
+  );
+  assert.equal(
+    questions.get('candidate-relation.defect-supported-by-observation'),
+    'Can an observation provide support for identifying a defect?',
+  );
+  assert.equal(
+    questions.get('candidate-relation.evidence-supports-observation'),
+    'Can evidence support an observation?',
+  );
+  assert.equal(
+    questions.get('candidate-relation.implication-results-from-defect'),
+    'Can a defect have an implication?',
+  );
+  assert.equal(
+    questions.get('candidate-relation.investigation-investigates-limitation'),
+    'Can further investigation be recommended because inspection was limited?',
+  );
+  assert.equal(
+    questions.get('candidate-relation.recommendation-addresses-defect'),
+    'Can a recommendation be made in response to a defect?',
+  );
+  assert.equal(
+    questions.get('candidate-relation.risk-arises-from-implication'),
+    'Can an identified implication give rise to a risk?',
   );
 });

@@ -2,6 +2,8 @@
  * Structured address data suitable for publication. Provider identifiers and
  * map coordinates intentionally remain outside the report model.
  */
+import type { InspectionElementConceptId } from '@/lib/inspection-finding-elements';
+
 export type ReportAddress = {
   formattedAddress: string;
   line1?: string;
@@ -36,9 +38,9 @@ export type FindingBlock = {
   kind: 'finding';
   findingId: string;
   /** Stable canonical semantic ID; firm adapters must preserve this value. */
-  elementConceptId: 'building_element.external_wall';
+  elementConceptId: InspectionElementConceptId;
   /** Neutral ontology label, before any firm terminology is applied. */
-  elementLabel: 'External wall';
+  elementLabel: string;
   observation: string;
   condition?: string;
   defect?: string;

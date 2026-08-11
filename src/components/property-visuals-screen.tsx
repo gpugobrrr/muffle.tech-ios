@@ -327,7 +327,7 @@ export function PropertyVisualsScreen({
 
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Open PREP"
+        accessibilityLabel="Start survey"
         onPress={onContinue}
         style={({ pressed }) => [
           styles.continueButton,
@@ -337,7 +337,7 @@ export function PropertyVisualsScreen({
           },
           pressed ? styles.continueButtonPressed : null,
         ]}>
-        <Text style={styles.continueLabel}>PREP</Text>
+        <Text style={styles.continueLabel}>START</Text>
       </Pressable>
     </View>
   );

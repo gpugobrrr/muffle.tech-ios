@@ -1,3 +1,5 @@
+import type { InspectionElementConceptId } from '@/lib/inspection-finding-elements';
+
 export type BriefInstruction = {
   instructingParty: string | null;
   client: string | null;
@@ -22,6 +24,16 @@ export type InspectionBrief = {
   deliverable: string | null;
   limitation: string | null;
   fieldMeta?: Record<string, FieldCompletionMeta>;
+  /**
+   * Registered scalar controlled facts keyed by canonical field ID.
+   * Values are validated option IDs — never presentation labels.
+   */
+  controlledFacts?: Readonly<Record<string, string>>;
+  /**
+   * Registered set-valued controlled facts keyed by canonical field ID.
+   * Values are schema-ordered canonical option IDs.
+   */
+  controlledFactSets?: Readonly<Record<string, readonly string[]>>;
 };
 
 /** Active survey site shown in the workspace header — never product branding. */
@@ -55,7 +67,8 @@ export type ActiveProperty = {
   instructionType?: string;
 };
 
-export type BuildingElementConceptId = 'building_element.external_wall';
+/** @deprecated Use InspectionElementConceptId */
+export type BuildingElementConceptId = InspectionElementConceptId;
 
 /** Stable reference only; media storage and metadata remain out of scope. */
 export type InspectionEvidenceReference = {
@@ -68,7 +81,7 @@ export type InspectionEvidenceReference = {
  */
 export type InspectionFinding = {
   id: string;
-  elementConceptId: BuildingElementConceptId;
+  elementConceptId: InspectionElementConceptId;
   observation: string;
   condition?: string;
   defect?: string;

@@ -33,16 +33,8 @@ export default function HomeScreen() {
     setScreen('visuals');
   };
 
-  const handlePrepContinue = () => {
-    const prepSuggestion = svyr.suggestions.find(
-      (suggestion) =>
-        suggestion.type === 'token' &&
-        suggestion.commandPath.length === 1 &&
-        suggestion.commandPath[0] === 'prep',
-    );
-    if (!prepSuggestion) return;
-
-    svyr.selectSuggestion(prepSuggestion);
+  const handleStartSurvey = () => {
+    svyr.openRootNavigation();
     setScreen('workspace');
   };
 
@@ -95,7 +87,7 @@ export default function HomeScreen() {
                 address: selectedProperty,
               }}
               onBack={() => setScreen('address')}
-              onContinue={handlePrepContinue}
+              onContinue={handleStartSurvey}
             />
           ) : null}
         </>

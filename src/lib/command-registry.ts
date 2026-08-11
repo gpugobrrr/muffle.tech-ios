@@ -1,3 +1,31 @@
+import { LEVEL_2_COMMAND_NODES } from '@/lib/level-2-capture';
+import type {
+  InspectionElementConceptId,
+  InspectionFindingField,
+} from '@/lib/inspection-finding-elements';
+
+export type Level2CaptureStatus =
+  | 'interactive'
+  | 'navigation-only'
+  | 'pre-populated'
+  | 'derived-publication'
+  | 'blocked';
+
+export type Level2CaptureCoverage = {
+  requirement: string;
+  status: Level2CaptureStatus;
+  canonicalConceptId?: string;
+  engineBinding?: string;
+  blocker?: string;
+  recommendedLaterWork: string;
+};
+
+export type InspectionFindingCaptureTarget = {
+  findingId: string;
+  elementConceptId: InspectionElementConceptId;
+  field: InspectionFindingField;
+};
+
 export type CommandNode = {
   /** Keyword as typed in SVYR > (always lowercase). */
   token: string;
@@ -30,6 +58,17 @@ export type CommandNode = {
   operationId?: string;
   /** Canonical Muffle read operation applied when the path is submitted alone. */
   readOperationId?: string;
+  /**
+   * A terminal workflow destination with no canonical write. It remains
+   * navigable so coverage gaps are visible without pretending to be a field.
+   */
+  workflowOnly?: boolean;
+  /** Grouped controlled capture surface for registered child fields. */
+  compoundCapture?: boolean;
+  /** Level 2 requirements traceability; never a canonical record binding. */
+  coverage?: Level2CaptureCoverage;
+  /** Existing finding-field context resolved by the controller at commit. */
+  findingTarget?: InspectionFindingCaptureTarget;
   /**
    * Counts toward directory completion. Defaults to `requiresValue` when
    * omitted. Explicit `false` / `optional: true` excludes the field.
@@ -197,6 +236,7 @@ export const COMMAND_REGISTRY: CommandNode[] = [
       },
     ],
   },
+  ...LEVEL_2_COMMAND_NODES,
 ];
 
 /**

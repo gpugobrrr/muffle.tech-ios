@@ -295,11 +295,11 @@ test('property and external navigation containers use the same route-tree source
 
 test('root assistance matches the canonical route tree', () => {
   assert.deepEqual(
-    suggestionTokens(getCommandAssistance('', [])),
+    suggestionTokens(getCommandAssistance('')),
     rootNavigationTokens(),
   );
   assert.deepEqual(
-    suggestionTokens(getCommandAssistance('services/', [])),
+    suggestionTokens(getCommandAssistance('services/')),
     navigationChildTokens(['services']),
   );
 });
@@ -357,7 +357,7 @@ test('blocked descendants do not hide the services navigation container', () => 
 });
 
 test('more than eight navigation items remain fully represented for scrolling', () => {
-  const root = getCommandAssistance('', []);
+  const root = getCommandAssistance('');
   assert.ok(root.length > 8);
   assert.equal(
     root.filter((suggestion) => suggestion.type === 'token').length,

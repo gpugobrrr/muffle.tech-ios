@@ -181,7 +181,6 @@ test('successful commit clears that field transient draft', () => {
   assert.equal(result!.brief.instruction.instructingParty, 'Smith & Co');
   const restored = suffixForDataEntryReentry({
     path: party,
-    pinnedPrefix: [],
     draft: readEntryDraft(drafts, party),
     defaultInsertion: 'prep/brief/instr/party ',
     suffixForPath,

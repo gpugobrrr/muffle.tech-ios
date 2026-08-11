@@ -11,22 +11,15 @@ import { SVYR_BAR_LAYOUT } from '@/lib/svyr-bar-navigation';
 
 export { SVYR_BAR_LAYOUT } from '@/lib/svyr-bar-navigation';
 
-/** Deliberate hold before the invisible pin action fires. */
-const PIN_LONG_PRESS_MS = 450;
 const FINAL_COMMAND_LONG_PRESS_MS = 350;
 
 export type SvyrBarProps = {
-  pinnedCommandPrefix?: string[];
   /** Recognised structural segments — never free-text values. */
   path: string[];
-  /** Long-press on the structural path — the only pin affordance. */
-  onToggleCurrentPathPin: () => void;
-  canPinCurrentPath?: boolean;
-  isCurrentPathPinned?: boolean;
   /** Temporary input guidance for the final data-entry directory token. */
   finalCommandDescription?: string;
   onFinalCommandHoldChange?: (description: string | null) => void;
-  /** Editable segment index relative to the unpinned path. */
+  /** Editable segment index. */
   onSegmentPress?: (index: number) => void;
   /** Navigate to the editable SVYR root (never below root). */
   onRootPress?: () => void;
@@ -39,11 +32,7 @@ export type SvyrBarProps = {
  * geometry. Pages supply path state and navigation handlers only.
  */
 export function SvyrBar({
-  pinnedCommandPrefix = [],
   path,
-  onToggleCurrentPathPin,
-  canPinCurrentPath = false,
-  isCurrentPathPinned = false,
   finalCommandDescription,
   onFinalCommandHoldChange,
   onSegmentPress,
@@ -52,14 +41,10 @@ export function SvyrBar({
   const finalLongPressRef = useRef(false);
   const finalPressStartXRef = useRef<number | null>(null);
   const pathKey = path.join('/');
-  const commandLabel =
-    formatCommandPath([...pinnedCommandPrefix, ...path]) || 'empty';
-  const displayTokens = [...pinnedCommandPrefix, ...path]
-    .map((token, index) => ({
-      token: formatSvyrPathForDisplay(token.trim()),
-      pinned: index < pinnedCommandPrefix.length,
-    }))
-    .filter(({ token }) => Boolean(token));
+  const commandLabel = formatCommandPath(path) || 'empty';
+  const displayTokens = path
+    .map((token) => formatSvyrPathForDisplay(token.trim()))
+    .filter(Boolean);
 
   useEffect(() => {
     finalLongPressRef.current = false;
@@ -69,38 +54,12 @@ export function SvyrBar({
   return (
     <View style={styles.bar} testID="svyr-bar">
       <View style={styles.commandRow}>
-        <Pressable
+        <View
           style={styles.commandPathContainer}
           pointerEvents={onSegmentPress || onRootPress ? 'box-none' : 'auto'}
-          onLongPress={
-            canPinCurrentPath
-              ? () => {
-                  if (!finalLongPressRef.current) onToggleCurrentPathPin();
-                }
-              : undefined
-          }
-          delayLongPress={PIN_LONG_PRESS_MS}
-          disabled={!canPinCurrentPath && !onSegmentPress && !onRootPress}
           accessible={!onSegmentPress && !onRootPress}
           accessibilityRole="text"
-          accessibilityLabel={`Survey command ${commandLabel}`}
-          accessibilityActions={
-            canPinCurrentPath
-              ? [
-                  {
-                    name: 'activate',
-                    label: isCurrentPathPinned
-                      ? 'Unpin current path'
-                      : 'Pin current path',
-                  },
-                ]
-              : undefined
-          }
-          onAccessibilityAction={(event) => {
-            if (event.nativeEvent.actionName === 'activate') {
-              onToggleCurrentPathPin();
-            }
-          }}>
+          accessibilityLabel={`Survey command ${commandLabel}`}>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Return to SVYR root"
@@ -112,30 +71,27 @@ export function SvyrBar({
           </Pressable>
           <View style={styles.field}>
             <View style={styles.visibleLine}>
-              {displayTokens.map(({ token, pinned }, index) => {
-                const isEditableSegment = index >= pinnedCommandPrefix.length;
-                const editableIndex = index - pinnedCommandPrefix.length;
+              {displayTokens.map((token, index) => {
                 const isFinalEditableSegment =
-                  isEditableSegment && index === displayTokens.length - 1;
-                const segmentStyle = pinned
-                  ? styles.pinnedPrefix
-                  : styles.commandText;
+                  index === displayTokens.length - 1;
                 const content = (
                   <View style={styles.segmentContent}>
                     {index === 0 ? null : (
-                      <Text style={segmentStyle}>{DISPLAY_SEPARATOR}</Text>
+                      <Text style={styles.commandText}>{DISPLAY_SEPARATOR}</Text>
                     )}
-                    <Text style={segmentStyle}>{token}</Text>
+                    <Text style={styles.commandText}>{token}</Text>
                   </View>
                 );
 
-                if (!isEditableSegment || !onSegmentPress) {
+                if (!onSegmentPress) {
                   return (
                     <View key={`${token}:${index}`} style={styles.segmentContent}>
                       {index === 0 ? null : (
-                        <Text style={segmentStyle}>{DISPLAY_SEPARATOR}</Text>
+                        <Text style={styles.commandText}>
+                          {DISPLAY_SEPARATOR}
+                        </Text>
                       )}
-                      <Text style={segmentStyle}>{token}</Text>
+                      <Text style={styles.commandText}>{token}</Text>
                     </View>
                   );
                 }
@@ -156,7 +112,7 @@ export function SvyrBar({
                     }}
                     onPress={() => {
                       if (!finalLongPressRef.current) {
-                        onSegmentPress(editableIndex);
+                        onSegmentPress(index);
                       }
                     }}
                     onLongPress={
@@ -196,7 +152,7 @@ export function SvyrBar({
               })}
             </View>
           </View>
-        </Pressable>
+        </View>
       </View>
     </View>
   );
@@ -249,11 +205,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
-  },
-  pinnedPrefix: {
-    fontFamily: Fonts.mono,
-    fontSize: Type.mono,
-    color: Colors.textSecondary,
   },
   commandText: {
     fontFamily: Fonts.mono,

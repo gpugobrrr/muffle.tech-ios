@@ -25,13 +25,10 @@ export const commands = {
   setInstructingParty: (value: string) =>
     `prep/brief/instr/party ${value.trim()}`,
 
-  pin: (path: string) => `${path.trim()} pin`,
-  unpin: () => 'unpin',
-
   lookup: (path: string) => `lookup ${path.trim()}`,
   lookupInstructingParty: () => 'lookup instr party',
 
-  /** Format a token path for display / pin commands. */
+  /** Format a token path for display. */
   path: (tokens: string[]) => formatCommandPath(tokens),
 } as const;
 

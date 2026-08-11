@@ -15,12 +15,9 @@ export type HintContext = {
   inputMode: SvyrInputMode;
   fullCommandPath: string[];
   editablePath: string[];
-  pinnedCommandPrefix: string[];
   commandSuffix: string;
   suggestions: CommandSuggestion[];
   temporaryAutocompleteContent: string | null;
-  canPinCurrentPath: boolean;
-  isCurrentPathPinned: boolean;
   /** Party notes editor is open. */
   notesOpen: boolean;
   isHintIncomplete: (id: SvyrHintId) => boolean;
@@ -59,24 +56,11 @@ function isEligible(id: SvyrHintId, ctx: HintContext): boolean {
       return (
         ctx.inputMode === 'navigation' &&
         ctx.editablePath.length >= 2 &&
-        canRemoveLastEditableCommandSegment(
-          ctx.commandSuffix,
-          ctx.pinnedCommandPrefix,
-        )
+        canRemoveLastEditableCommandSegment(ctx.commandSuffix)
       );
 
     case 'openNotes':
-      return (
-        isPartyNotesPath(ctx.fullCommandPath) &&
-        !ctx.notesOpen
-      );
-
-    case 'pinPath':
-      return (
-        ctx.inputMode === 'navigation' &&
-        ctx.canPinCurrentPath &&
-        !ctx.isCurrentPathPinned
-      );
+      return isPartyNotesPath(ctx.fullCommandPath) && !ctx.notesOpen;
 
     default:
       return false;

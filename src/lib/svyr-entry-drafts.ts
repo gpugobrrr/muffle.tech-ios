@@ -93,13 +93,12 @@ export function readMultiChoiceEntryDraft(
  */
 export function suffixForDataEntryReentry(options: {
   path: string[];
-  pinnedPrefix: string[];
   draft: string | undefined;
   defaultInsertion: string;
-  suffixForPath: (path: string[], pinnedPrefix: string[]) => string;
+  suffixForPath: (path: string[]) => string;
 }): string {
-  const { path, pinnedPrefix, draft, defaultInsertion, suffixForPath } = options;
+  const { path, draft, defaultInsertion, suffixForPath } = options;
   if (!draft) return defaultInsertion;
-  const base = suffixForPath(path, pinnedPrefix).replace(/\s+$/, '');
+  const base = suffixForPath(path).replace(/\s+$/, '');
   return `${base} ${draft}`;
 }

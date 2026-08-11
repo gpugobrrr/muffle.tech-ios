@@ -70,24 +70,24 @@ export function verifyCommandContract(): string[] {
   expect('openPlan', commands.openPlan(), 'placeholder');
   expect('openReady', commands.openReady(), 'placeholder');
 
-  expect('prep/brief pin', commands.pin('prep/brief'), 'pin-context');
-  expect(
-    'prep/brief/instr pin',
-    commands.pin('prep/brief/instr'),
-    'pin-context',
-  );
-  expect('unpin', commands.unpin(), 'unpin-context');
-  expect(
-    'value pin rejected',
-    'prep/brief/instr/party North & Co pin',
-    'cannot-pin',
-  );
+  const pinAttempt = parseCommand('prep/brief pin');
+  if (pinAttempt.type !== 'unknown') {
+    failures.push(
+      `pin commands must be removed; got "${pinAttempt.type}" for "prep/brief pin"`,
+    );
+  }
+  const unpinAttempt = parseCommand('unpin');
+  if (unpinAttempt.type !== 'unknown') {
+    failures.push(
+      `unpin commands must be removed; got "${unpinAttempt.type}" for "unpin"`,
+    );
+  }
 
   const expectSuggestionLabels = (
     command: string,
     expectedLabels: string[],
   ) => {
-    const labels = tokenSuggestions(getCommandAssistance(command, [])).map(
+    const labels = tokenSuggestions(getCommandAssistance(command)).map(
       (suggestion) => suggestion.label,
     );
     if (labels.join(',') !== expectedLabels.join(',')) {
@@ -149,7 +149,7 @@ export function verifySuggestionParity(): string[] {
   const failures: string[] = [];
 
   for (const commandSuffix of PARITY_PATHS) {
-    const suggestions = getCommandAssistance(commandSuffix, []);
+    const suggestions = getCommandAssistance(commandSuffix);
     const resolvedTokens = suggestionTokens(suggestions);
     const { path } = parseSvyrInput(commandSuffix);
     const registered = childNodes(path).map((node) => node.token);

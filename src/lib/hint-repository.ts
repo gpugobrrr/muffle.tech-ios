@@ -4,8 +4,7 @@ export type SvyrHintId =
   | 'selectBranch'
   | 'swipeBack'
   | 'executeValue'
-  | 'openNotes'
-  | 'pinPath';
+  | 'openNotes';
 
 /**
  * `true` means the hint has been completed or dismissed and must not reappear
@@ -18,7 +17,6 @@ export const SVYR_HINT_IDS: readonly SvyrHintId[] = [
   'executeValue',
   'swipeBack',
   'openNotes',
-  'pinPath',
 ] as const;
 
 /** Display priority — only the first eligible incomplete hint is shown. */
@@ -27,7 +25,6 @@ export const SVYR_HINT_PRIORITY: readonly SvyrHintId[] = [
   'executeValue',
   'swipeBack',
   'openNotes',
-  'pinPath',
 ] as const;
 
 export const SVYR_HINT_COPY: Record<SvyrHintId, string> = {
@@ -35,7 +32,6 @@ export const SVYR_HINT_COPY: Record<SvyrHintId, string> = {
   executeValue: 'Type a value, then press Return',
   swipeBack: 'Swipe right to go up one level',
   openNotes: 'Add note',
-  pinPath: 'Pin this path for repeated entry',
 };
 
 const STORAGE_KEY = 'muffle.svyr.interactionHints.v1';
@@ -46,7 +42,6 @@ export function createEmptyHintState(): SvyrHintState {
     swipeBack: false,
     executeValue: false,
     openNotes: false,
-    pinPath: false,
   };
 }
 
@@ -63,6 +58,7 @@ function normalizeHintState(raw: unknown): SvyrHintState {
 /**
  * Tiny local repository for interaction-hint completion.
  * Device preference only — never written into the job record.
+ * Legacy keys such as `pinPath` are ignored on load.
  */
 export const hintRepository = {
   async load(): Promise<SvyrHintState> {

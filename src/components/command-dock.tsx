@@ -10,22 +10,13 @@ import { Colors } from '@/constants/theme';
 import { useDirectorySwipe } from '@/hooks/use-directory-swipe';
 import type { SvyrHintId } from '@/lib/hint-repository';
 
-type DockHintId = Extract<
-  SvyrHintId,
-  'selectBranch' | 'swipeBack' | 'pinPath'
->;
+type DockHintId = Extract<SvyrHintId, 'selectBranch' | 'swipeBack'>;
 
 type Props = {
   infoBarText: string | null;
-  /** Brief pin acknowledgement — takes the line only while it lives. */
-  transientFeedbackText: string | null;
   /** Structural SVYR path shown in the shared bar (no free-text value). */
   path: string[];
-  pinnedCommandPrefix: string[];
-  canPinCurrentPath: boolean;
-  isCurrentPathPinned: boolean;
-  onToggleCurrentPathPin: () => void;
-  /** Editable segment index relative to the unpinned path. */
+  /** Editable segment index. */
   onSegmentPress?: (index: number) => void;
   /** Navigate to the editable SVYR root. */
   onRootPress?: () => void;
@@ -47,12 +38,7 @@ type Props = {
  */
 export function CommandDock({
   infoBarText,
-  transientFeedbackText,
   path,
-  pinnedCommandPrefix,
-  canPinCurrentPath,
-  isCurrentPathPinned,
-  onToggleCurrentPathPin,
   onSegmentPress,
   onRootPress,
   onNavigateUpDirectory,
@@ -73,37 +59,31 @@ export function CommandDock({
   const { gesture, commandLineStyle } = useDirectorySwipe(
     handleSwipeNavigateUp,
   );
-  // Pin acknowledgement is transient and outranks the last execution result.
-  const lineText = transientFeedbackText ?? infoBarText;
   const dismiss = onDismissHint ?? (() => undefined);
 
   return (
     <View style={styles.dock}>
-      {lineText ? <SvyrOutputLine text={lineText} /> : null}
+      {infoBarText ? <SvyrOutputLine text={infoBarText} /> : null}
 
       <GestureDetector gesture={gesture}>
         <View style={styles.svyrGestureRegion}>
           {/*
             Path-adjacent tips sit above the command line and never claim
             permanent layout when absent. pointerEvents box-none keeps
-            swipe + long-press pin available through empty regions.
+            swipe available through empty regions.
           */}
-          {(activeHintId === 'swipeBack' || activeHintId === 'pinPath') && (
+          {activeHintId === 'swipeBack' ? (
             <View pointerEvents="box-none">
               <SvyrHint id={activeHintId} onDismiss={dismiss} />
             </View>
-          )}
+          ) : null}
 
           {/* Only the command line carries the swipe transform. */}
           <Animated.View style={commandLineStyle}>
             <SvyrBar
               path={path}
-              pinnedCommandPrefix={pinnedCommandPrefix}
-              onToggleCurrentPathPin={onToggleCurrentPathPin}
               onSegmentPress={onSegmentPress}
               onRootPress={onRootPress}
-              canPinCurrentPath={canPinCurrentPath}
-              isCurrentPathPinned={isCurrentPathPinned}
               finalCommandDescription={finalCommandDescription}
               onFinalCommandHoldChange={onFinalCommandHoldChange}
             />

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo } from 'react-native';
 
 import { verifyCommandContract } from '@/lib/command-contract';
@@ -18,7 +18,6 @@ import {
 import {
     findCommandNode,
     formatCommandPath,
-    formatSvyrPathForDisplay,
     type CommandNode,
 } from '@/lib/command-registry';
 import {
@@ -35,13 +34,7 @@ import {
 import { createEmptyInspectionRecord } from '@/lib/inspection-record';
 import { commitInspectionFindingField, resolveFindingFieldValue } from '@/lib/level-2-finding-capture';
 import { resolveLookup } from '@/lib/lookup';
-import {
-    composeFullCommand,
-    isPinnablePath,
-    pathKey,
-    pinCommandForPath,
-    suffixForPath,
-} from '@/lib/pin-context';
+import { suffixForPath } from '@/lib/pin-context';
 import { executeSurveyOperation } from '@/lib/survey-operations';
 import {
   clearEntryDraft,
@@ -101,18 +94,6 @@ function formatLookupTemporary(label: string, value: string): string {
   return `${label.toUpperCase()} · ${value}`;
 }
 
-/** Pin acknowledgement lifetime — long enough to read, short enough to forget. */
-const TRANSIENT_FEEDBACK_MS = 1000;
-
-/**
- * Interaction acknowledgement (pinning), kept apart from execution results
- * so a pin can never look like a command output.
- */
-export type SvyrTransientFeedback = {
-  message: string;
-  expiresAt: number;
-} | null;
-
 /**
  * Structural navigation versus free-text entry. Only a value-bearing command
  * opens data entry, so the keyboard and caret never appear while browsing
@@ -141,7 +122,6 @@ export type ActiveCompoundCapture = {
  */
 export type SvyrController = {
   commandSuffix: string;
-  pinnedCommandPrefix: string[];
   /** Recognised structural segments of the editable suffix. */
   editablePath: string[];
   /** Data-entry SVYR directory, updated only by accepted navigation changes. */
@@ -165,14 +145,8 @@ export type SvyrController = {
   setActiveProperty: (property: ActiveProperty) => void;
   /** Derived from lastExecutionResult only — never from the live path. */
   infoBarText: string | null;
-  /** Brief pin acknowledgement — expires on its own. */
-  transientFeedbackText: string | null;
   temporaryAutocompleteContent: string | null;
   focusToken: number;
-  /** Long-press eligibility for the currently visible structural path. */
-  canPinCurrentPath: boolean;
-  /** True when the visible path is exactly what is already pinned. */
-  isCurrentPathPinned: boolean;
   setCommandSuffix: (value: string) => void;
   /** Open root SVYR navigation without changing canonical survey state. */
   openRootNavigation: () => void;
@@ -209,8 +183,6 @@ export type SvyrController = {
   navigateToSvyrRoot: () => boolean;
   deletePreviousPart: () => void;
   moveUpDirectory: () => boolean;
-  /** Returns true only when the current path is newly pinned. */
-  toggleCurrentPathPin: () => boolean;
   requestTerminalFocus: () => void;
   /**
    * Freeform notes keyed by ASCII command path. Separate from job-record
@@ -228,11 +200,8 @@ export type SvyrController = {
 export function useSvyrController(): SvyrController {
   const [commandSuffix, setCommandSuffix] = useState('');
   const [dataEntryDirectory, setDataEntryDirectory] = useState<string[]>([]);
-  const [pinnedCommandPrefix, setPinnedCommandPrefix] = useState<string[]>([]);
   const [temporaryAutocompleteContent, setTemporaryAutocompleteContent] =
     useState<string | null>(null);
-  const [transientFeedback, setTransientFeedback] =
-    useState<SvyrTransientFeedback>(null);
   const [lastExecutionResult, setLastExecutionResult] =
     useState<SvyrExecutionResult>(null);
   const [focusToken, setFocusToken] = useState(0);
@@ -251,7 +220,6 @@ export function useSvyrController(): SvyrController {
   const [inspectionBrief, setInspectionBrief] =
     useState<InspectionBrief>(INITIAL_BRIEF);
   const [activeJob, setActiveJobState] = useState<ActiveJob>(INITIAL_JOB);
-  const pinnedRef = useRef<string[]>([]);
   const suffixRef = useRef('');
   const briefRef = useRef<InspectionBrief>(INITIAL_BRIEF);
   const activeJobRef = useRef<ActiveJob>(INITIAL_JOB);
@@ -259,12 +227,10 @@ export function useSvyrController(): SvyrController {
   const activeCompoundCaptureRef = useRef<ActiveCompoundCapture | null>(null);
   const dataEntryDirectoryRef = useRef<string[]>([]);
   const entryDraftsByPathRef = useRef<SvyrEntryDraftsByPath>({});
-  const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Kept in sync during render, not in an effect: gesture and native-input
   // callbacks fire outside React's commit order and must never act on a
   // stale command path.
-  pinnedRef.current = pinnedCommandPrefix;
   suffixRef.current = commandSuffix;
   briefRef.current = inspectionBrief;
   activeJobRef.current = activeJob;
@@ -273,51 +239,26 @@ export function useSvyrController(): SvyrController {
   dataEntryDirectoryRef.current = dataEntryDirectory;
   entryDraftsByPathRef.current = entryDraftsByPath;
 
-  useEffect(
-    () => () => {
-      if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
-    },
-    [],
-  );
-
-  /** Acknowledge an interaction without leaving anything on screen. */
-  const showTransientFeedback = useCallback((message: string) => {
-    if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
-    setTransientFeedback({
-      message,
-      expiresAt: Date.now() + TRANSIENT_FEEDBACK_MS,
-    });
-    feedbackTimer.current = setTimeout(
-      () => setTransientFeedback(null),
-      TRANSIENT_FEEDBACK_MS,
-    );
-    announce(message);
-  }, []);
-
   const suggestions = useMemo(
-    () => getCommandAssistance(commandSuffix, pinnedCommandPrefix),
-    [commandSuffix, pinnedCommandPrefix],
+    () => getCommandAssistance(commandSuffix),
+    [commandSuffix],
   );
 
   /**
-   * Shared structural directory for autocomplete, completion, and pinning
+   * Shared structural directory for autocomplete and completion
    * (free-text values ignored).
    */
   const fullCommandPath = useMemo(
-    () =>
-      structuredCommandPathFromInput(commandSuffix, pinnedCommandPrefix),
-    [commandSuffix, pinnedCommandPrefix],
+    () => structuredCommandPathFromInput(commandSuffix),
+    [commandSuffix],
   );
 
-  const fullCommandText = useMemo(
-    () => composeFullCommand(pinnedCommandPrefix, commandSuffix),
-    [commandSuffix, pinnedCommandPrefix],
-  );
+  const fullCommandText = commandSuffix;
 
   /** Grammar-based split of the editable suffix into path and free text. */
   const editableCommand = useMemo(
-    () => parseEditableCommand(commandSuffix, pinnedCommandPrefix),
-    [commandSuffix, pinnedCommandPrefix],
+    () => parseEditableCommand(commandSuffix),
+    [commandSuffix],
   );
   const editablePath = editableCommand.structuredTokens;
   const entryValue = editableCommand.valueText;
@@ -341,7 +282,6 @@ export function useSvyrController(): SvyrController {
   }, []);
 
   const openRootNavigation = useCallback(() => {
-    setPinnedCommandPrefix([]);
     setCommandSuffix('');
     setDataEntryDirectory([]);
     setTemporaryAutocompleteContent(null);
@@ -351,11 +291,7 @@ export function useSvyrController(): SvyrController {
   }, [clearActiveEntry]);
 
   const setDataEntryDirectoryForPath = useCallback((path: string[]) => {
-    const pinned = pinnedRef.current;
-    const isPinnedPrefix = pinned.every(
-      (segment, index) => path[index] === segment,
-    );
-    const nextPath = isPinnedPrefix ? path.slice(pinned.length) : [...path];
+    const nextPath = [...path];
     setDataEntryDirectory((current) => {
       const sharesCurrentPrefix =
         current.length + 1 === nextPath.length &&
@@ -387,34 +323,9 @@ export function useSvyrController(): SvyrController {
     setLastExecutionResult(null);
     setTemporaryAutocompleteContent(null);
     setCommandSuffix(
-      `${suffixForPath(field.path, pinnedRef.current).replace(/\s+$/, '')} ${value}`,
+      `${suffixForPath(field.path).replace(/\s+$/, '')} ${value}`,
     );
   }, []);
-
-  const applyPinContext = useCallback(
-    (path: string[]) => {
-      setPinnedCommandPrefix(path);
-      setDataEntryDirectory([]);
-      setCommandSuffix('');
-      clearActiveEntry();
-      setLastExecutionResult(null);
-      setTemporaryAutocompleteContent(null);
-      showTransientFeedback(
-        `${formatSvyrPathForDisplay(formatCommandPath(path))} pinned`,
-      );
-    },
-    [clearActiveEntry, showTransientFeedback],
-  );
-
-  const applyUnpinContext = useCallback(() => {
-    setPinnedCommandPrefix([]);
-    setDataEntryDirectory([]);
-    setCommandSuffix('');
-    clearActiveEntry();
-    setLastExecutionResult(null);
-    setTemporaryAutocompleteContent(null);
-    showTransientFeedback('context released');
-  }, [clearActiveEntry, showTransientFeedback]);
 
   // ── Command execution ─────────────────────────────────────────────
 
@@ -424,25 +335,6 @@ export function useSvyrController(): SvyrController {
       const parsed = parseCommand(rawCommand);
 
       switch (parsed.type) {
-        case 'pin-context':
-          applyPinContext(parsed.path);
-          return true;
-
-        case 'unpin-context':
-          applyUnpinContext();
-          return true;
-
-        case 'cannot-pin':
-          setLastExecutionResult(null);
-          if (fromDataEntry) {
-            setEntryError('Cannot pin value command');
-            setFocusToken((n) => n + 1);
-          } else {
-            setTemporaryAutocompleteContent('CANNOT PIN VALUE COMMAND');
-          }
-          announce('Cannot pin that command');
-          return false;
-
         case 'operation': {
           const result = executeSurveyOperation(
             briefRef.current,
@@ -487,7 +379,7 @@ export function useSvyrController(): SvyrController {
           setTemporaryAutocompleteContent(null);
           if (entryParent && entryParent.length > 0) {
             setDataEntryDirectoryForPath(entryParent);
-            setCommandSuffix(suffixForPath(entryParent, pinnedRef.current));
+            setCommandSuffix(suffixForPath(entryParent));
           } else {
             setDataEntryDirectory([]);
             setCommandSuffix('');
@@ -515,7 +407,7 @@ export function useSvyrController(): SvyrController {
 
           // Stay on the parent branch so sibling commands remain available.
           setCommandSuffix(
-            suffixForPath(parsed.path.slice(0, -1), pinnedRef.current),
+            suffixForPath(parsed.path.slice(0, -1)),
           );
           clearActiveEntry();
           setLastExecutionResult(null);
@@ -584,14 +476,13 @@ export function useSvyrController(): SvyrController {
           return false;
       }
     },
-    [applyPinContext, applyUnpinContext, clearActiveEntry, setDataEntryDirectoryForPath],
+    [clearActiveEntry, setDataEntryDirectoryForPath],
   );
 
   const executeTerminalInput = useCallback(
     (raw: string) => {
-      const full = composeFullCommand(pinnedRef.current, raw);
-      if (!full.trim()) return false;
-      return executeCommand(full);
+      if (!raw.trim()) return false;
+      return executeCommand(raw);
     },
     [executeCommand],
   );
@@ -759,7 +650,7 @@ export function useSvyrController(): SvyrController {
       setTemporaryAutocompleteContent(null);
       if (entryParent.length > 0) {
         setDataEntryDirectoryForPath(entryParent);
-        setCommandSuffix(suffixForPath(entryParent, pinnedRef.current));
+        setCommandSuffix(suffixForPath(entryParent));
       } else {
         setDataEntryDirectory([]);
         setCommandSuffix('');
@@ -825,8 +716,7 @@ export function useSvyrController(): SvyrController {
     setCommandSuffix(
       suffixForDataEntryReentry({
         path: suggestion.commandPath,
-        pinnedPrefix: pinnedRef.current,
-        draft: stashedDraft ?? canonicalFindingValue,
+        draft: stashedDraft ?? canonicalFindingValue ?? undefined,
         defaultInsertion: suggestion.insertion,
         suffixForPath,
       }),
@@ -865,7 +755,7 @@ export function useSvyrController(): SvyrController {
     const path = field?.path ?? compound?.path ?? [];
     setDataEntryDirectory((current) => current.slice(0, -1));
     setCommandSuffix(
-      suffixForPath(path.slice(0, -1), pinnedRef.current),
+      suffixForPath(path.slice(0, -1)),
     );
   }, []);
 
@@ -879,10 +769,7 @@ export function useSvyrController(): SvyrController {
     if (!field) return;
     const fieldDefinition = findFieldDefinition(field.path);
     if (fieldDefinition?.valueType === 'multiSelect') return;
-    const draft = parseEditableCommand(
-      suffixRef.current,
-      pinnedRef.current,
-    ).valueText;
+    const draft = parseEditableCommand(suffixRef.current).valueText;
     setEntryDraftsByPath((current) =>
       stashEntryDraft(current, field.path, draft),
     );
@@ -973,7 +860,7 @@ export function useSvyrController(): SvyrController {
     const entryParent = field.path.slice(0, -1);
     if (entryParent.length > 0) {
       setDataEntryDirectoryForPath(entryParent);
-      setCommandSuffix(suffixForPath(entryParent, pinnedRef.current));
+      setCommandSuffix(suffixForPath(entryParent));
     } else {
       setDataEntryDirectory([]);
       setCommandSuffix('');
@@ -1000,8 +887,7 @@ export function useSvyrController(): SvyrController {
     if (activeCompoundCaptureRef.current) {
       return dataEntryDirectoryRef.current;
     }
-    return parseEditableCommand(suffixRef.current, pinnedRef.current)
-      .structuredTokens;
+    return parseEditableCommand(suffixRef.current).structuredTokens;
   }, []);
 
   /**
@@ -1018,7 +904,7 @@ export function useSvyrController(): SvyrController {
       setActiveEntryField(null);
       setActiveCompoundCapture(null);
       setDataEntryDirectory(targetDirectory);
-      setCommandSuffix(suffixForPath(targetDirectory, pinnedRef.current));
+      setCommandSuffix(suffixForPath(targetDirectory));
       setFocusToken((token) => token + 1);
       return true;
     },
@@ -1104,8 +990,7 @@ export function useSvyrController(): SvyrController {
 
   /**
    * Right-swipe / directory-up: remove one editable structural segment.
-   * Same path result as atomic Backspace. Ignores free-text values and
-   * never mutates the pinned prefix.
+   * Same path result as atomic Backspace. Ignores free-text values.
    */
   const moveUpDirectory = useCallback(() => {
     // Dedicated entry: stash any uncommitted draft, then leave without commit.
@@ -1119,11 +1004,11 @@ export function useSvyrController(): SvyrController {
     }
 
     const current = suffixRef.current;
-    if (!canRemoveLastEditableCommandSegment(current, pinnedRef.current)) {
+    if (!canRemoveLastEditableCommandSegment(current)) {
       return false;
     }
 
-    const next = removeLastEditableCommandSegment(current, pinnedRef.current);
+    const next = removeLastEditableCommandSegment(current);
     if (next === current) {
       return false;
     }
@@ -1143,10 +1028,7 @@ export function useSvyrController(): SvyrController {
    */
   const deletePreviousPart = useCallback(() => {
     if (activeEntryRef.current) {
-      const parsed = parseEditableCommand(
-        suffixRef.current,
-        pinnedRef.current,
-      );
+      const parsed = parseEditableCommand(suffixRef.current);
       if (parsed.valueText.length > 0) return;
       stashActiveEntryDraft();
       cancelDataEntry();
@@ -1157,7 +1039,7 @@ export function useSvyrController(): SvyrController {
     const current = suffixRef.current;
     if (!current) return;
 
-    const next = deletePreviousCommandPart(current, pinnedRef.current);
+    const next = deletePreviousCommandPart(current);
     if (next === current) return;
 
     setTemporaryAutocompleteContent(null);
@@ -1174,7 +1056,7 @@ export function useSvyrController(): SvyrController {
     const field = activeEntryRef.current;
     if (!field) return false;
 
-    const parsed = parseEditableCommand(suffixRef.current, pinnedRef.current);
+    const parsed = parseEditableCommand(suffixRef.current);
     const value = parsed.valueText.trim();
     if (!value) {
       setEntryError('Value is required');
@@ -1204,38 +1086,6 @@ export function useSvyrController(): SvyrController {
     cancelDataEntry();
     return true;
   }, [cancelDataEntry, stashActiveEntryDraft]);
-
-  const isCurrentPathPinned =
-    pinnedCommandPrefix.length > 0 &&
-    pathKey(pinnedCommandPrefix) === pathKey(fullCommandPath);
-
-  /**
-   * Long-press eligibility. Structural navigation only: no free text, no
-   * value-bearing leaf awaiting input, and the path must resolve through the
-   * registry's own pinnability rule rather than any hard-coded token.
-   */
-  const canPinCurrentPath =
-    inputMode === 'navigation' &&
-    fullCommandPath.length > 0 &&
-    !editableCommand.valueText &&
-    !editableCommand.expectsValue &&
-    !editableCommand.trailingPartial &&
-    (isCurrentPathPinned || isPinnablePath(fullCommandPath));
-
-  /**
-   * Long-press on the visible path: pin it, release it when it is already the
-   * pinned context, or replace a shallower pin. There is no visible control.
-   */
-  const toggleCurrentPathPin = useCallback((): boolean => {
-    if (!canPinCurrentPath) return false;
-
-    if (isCurrentPathPinned) {
-      executeCommand('unpin');
-      return false;
-    }
-
-    return Boolean(executeCommand(pinCommandForPath(fullCommandPath)));
-  }, [canPinCurrentPath, executeCommand, fullCommandPath, isCurrentPathPinned]);
 
   const setPathNote = useCallback((pathKey: string, note: string) => {
     setNotesByPath((current) => {
@@ -1274,15 +1124,10 @@ export function useSvyrController(): SvyrController {
     setEntryValue,
     beginDataEntry,
     cancelCurrentInteraction,
-    pinnedCommandPrefix,
-    canPinCurrentPath,
-    isCurrentPathPinned,
-    toggleCurrentPathPin,
     suggestions,
     lastExecutionResult,
     temporaryAutocompleteContent,
     infoBarText,
-    transientFeedbackText: transientFeedback?.message ?? null,
     focusToken,
     requestTerminalFocus,
     submitCommand,

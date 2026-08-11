@@ -4,7 +4,6 @@ import {
     findCommandNode,
     formatCommandPath,
     isBranchNode,
-    isPinnableNode,
     isTerminalNode,
     normalizeCommandToken,
     parseSvyrInput,
@@ -23,16 +22,6 @@ export type ParsedCommand =
   | {
       type: 'placeholder';
       path: string[];
-    }
-  | {
-      type: 'pin-context';
-      path: string[];
-    }
-  | {
-      type: 'unpin-context';
-    }
-  | {
-      type: 'cannot-pin';
     }
   | {
       type: 'lookup';
@@ -66,7 +55,6 @@ export type TokenSuggestion = {
   compoundCapture?: boolean;
   /** Visible but cannot be selected when the registry marks it unavailable. */
   available: boolean;
-  pinnable?: boolean;
   description: string;
 };
 
@@ -153,29 +141,13 @@ function readCommand(path: string[]): ParsedCommand {
   };
 }
 
-function stripTrailingPin(rawCommand: string): {
-  remainder: string;
-  isPin: boolean;
-} {
-  const trimmed = rawCommand.trim();
-  const match = trimmed.match(/^(.*)\spin$/i);
-  if (!match) {
-    return { remainder: trimmed, isPin: false };
-  }
-  return { remainder: match[1].trimEnd(), isPin: true };
-}
-
 /**
- * Parse a full SVYR command (pinned prefix already merged in).
+ * Parse a full SVYR command.
  * Structural segments are slash-separated; free text follows one space.
  */
 export function parseCommand(rawCommand: string): ParsedCommand {
   const trimmed = rawCommand.trim();
   if (!trimmed) return { type: 'unknown' };
-
-  if (trimmed.toLowerCase() === 'unpin') {
-    return { type: 'unpin-context' };
-  }
 
   if (/^lookup(?:\s|$)/i.test(trimmed)) {
     const query = trimmed.replace(/^lookup\s*/i, '').trim();
@@ -187,26 +159,6 @@ export function parseCommand(rawCommand: string): ParsedCommand {
       };
     }
     return { type: 'lookup', query };
-  }
-
-  const { remainder, isPin } = stripTrailingPin(trimmed);
-  if (isPin) {
-    if (!remainder) {
-      return { type: 'cannot-pin' };
-    }
-    const { path, value } = parseSvyrInput(remainder);
-    if (value.trim()) {
-      return { type: 'cannot-pin' };
-    }
-    const walk = walkCommandPath(path);
-    if (
-      walk.consumed === path.length &&
-      walk.node &&
-      isPinnableNode(walk.node)
-    ) {
-      return { type: 'pin-context', path: walk.path };
-    }
-    return { type: 'cannot-pin' };
   }
 
   const { path, value } = parseSvyrInput(trimmed);
@@ -247,36 +199,6 @@ export function parseCommand(rawCommand: string): ParsedCommand {
   return writeCommand(walk.path, '');
 }
 
-/**
- * Strip a pinned structural prefix from an absolute insertion,
- * leaving a suffix-relative fragment (no leading `/`).
- */
-function relativeInsertion(
-  absoluteInsertion: string,
-  pinnedPrefix: string[],
-): string {
-  if (pinnedPrefix.length === 0) return absoluteInsertion;
-
-  const prefix = formatCommandPath(pinnedPrefix);
-  const lowerAbsolute = absoluteInsertion.toLowerCase();
-  const lowerPrefix = prefix.toLowerCase();
-
-  if (lowerAbsolute === lowerPrefix) {
-    return '';
-  }
-
-  if (lowerAbsolute.startsWith(`${lowerPrefix}/`)) {
-    return absoluteInsertion.slice(prefix.length + 1);
-  }
-
-  // Value-bearing absolute ends with a trailing space after the path.
-  if (lowerAbsolute.startsWith(`${lowerPrefix} `)) {
-    return absoluteInsertion.slice(prefix.length);
-  }
-
-  return absoluteInsertion;
-}
-
 function absoluteInsertionFor(
   commandPath: string[],
   node: CommandNode,
@@ -292,7 +214,6 @@ function absoluteInsertionFor(
 function tokenSuggestion(
   parentPath: string[],
   node: CommandNode,
-  pinnedPrefix: string[],
 ): TokenSuggestion {
   const commandPath = [...parentPath, node.token];
 
@@ -300,17 +221,13 @@ function tokenSuggestion(
     type: 'token',
     id: `cmd-${commandPath.join('-')}`,
     label: node.label,
-    insertion: relativeInsertion(
-      absoluteInsertionFor(commandPath, node),
-      pinnedPrefix,
-    ),
+    insertion: absoluteInsertionFor(commandPath, node),
     commandPath,
     isTerminal: isTerminalNode(node),
     requiresValue: node.requiresValue,
     workflowOnly: node.workflowOnly,
     compoundCapture: node.compoundCapture,
     available: node.available !== false,
-    pinnable: isPinnableNode(node),
     description: node.description,
   };
 }
@@ -325,34 +242,15 @@ function inputHintSuggestion(node: CommandNode): InputHintSuggestion {
 }
 
 /**
- * Compose the absolute visible command from pin + editable suffix.
- */
-export function composeAssistanceInput(
-  commandSuffix: string,
-  pinnedPrefix: string[],
-): string {
-  if (pinnedPrefix.length === 0) return commandSuffix;
-  const prefix = formatCommandPath(pinnedPrefix);
-  if (!commandSuffix) return prefix;
-  if (commandSuffix.startsWith(' ') || commandSuffix.startsWith('/')) {
-    return `${prefix}${commandSuffix}`;
-  }
-  return `${prefix}/${commandSuffix}`;
-}
-
-/**
  * Contextual autocomplete beneath SVYR >.
- * Resolves slash-separated paths from the pinned prefix + editable suffix.
+ * Resolves slash-separated paths from the editable command suffix.
  */
 export function getCommandAssistance(
   commandSuffix: string,
-  pinnedPrefix: string[] = [],
 ): CommandSuggestion[] {
-  const assistInput = composeAssistanceInput(commandSuffix, pinnedPrefix);
+  const assistInput = commandSuffix;
   if (!assistInput.trim()) {
-    return childNodes([]).map((child) =>
-      tokenSuggestion([], child, pinnedPrefix),
-    );
+    return childNodes([]).map((child) => tokenSuggestion([], child));
   }
 
   const firstSpaceIndex = assistInput.indexOf(' ');
@@ -384,9 +282,7 @@ export function getCommandAssistance(
   }
 
   if (segments.length === 0) {
-    return childNodes([]).map((child) =>
-      tokenSuggestion([], child, pinnedPrefix),
-    );
+    return childNodes([]).map((child) => tokenSuggestion([], child));
   }
 
   // Trailing `/` → empty partial after a complete path.
@@ -398,7 +294,7 @@ export function getCommandAssistance(
     }
     if (walk.node && !isBranchNode(walk.node)) return [];
     return childNodes(walk.path).map((child) =>
-      tokenSuggestion(walk.path, child, pinnedPrefix),
+      tokenSuggestion(walk.path, child),
     );
   }
 
@@ -424,7 +320,7 @@ export function getCommandAssistance(
   // A complete legacy alias remains selectable as its canonical short token.
   // This migrates the visible input without ever advertising aliases.
   if (exact && lowerLast !== normalizedLast) {
-    return [tokenSuggestion(parentWalk.path, exact, pinnedPrefix)];
+    return [tokenSuggestion(parentWalk.path, exact)];
   }
 
   // Exact complete segment → reveal its children (or value hint).
@@ -435,17 +331,17 @@ export function getCommandAssistance(
     }
     if (isBranchNode(exact)) {
       return childNodes(completedPath).map((child) =>
-        tokenSuggestion(completedPath, child, pinnedPrefix),
+        tokenSuggestion(completedPath, child),
       );
     }
     if (exact.workflowOnly) return [];
     // Exact terminal leaf — keep the match so tap-to-execute still works.
-    return [tokenSuggestion(parentWalk.path, exact, pinnedPrefix)];
+    return [tokenSuggestion(parentWalk.path, exact)];
   }
 
   return candidates
     .filter((child) => child.token.startsWith(lowerLast))
-    .map((child) => tokenSuggestion(parentWalk.path, child, pinnedPrefix));
+    .map((child) => tokenSuggestion(parentWalk.path, child));
 }
 
 /**
@@ -484,11 +380,8 @@ export function insertionForSuggestionToken(
 }
 
 /** TAB helper — apply the first token suggestion insertion when available. */
-export function completeAssistance(
-  commandSuffix: string,
-  pinnedPrefix: string[] = [],
-): string | null {
-  const suggestions = getCommandAssistance(commandSuffix, pinnedPrefix);
+export function completeAssistance(commandSuffix: string): string | null {
+  const suggestions = getCommandAssistance(commandSuffix);
   const token = suggestions.find((item) => item.type === 'token');
   return token && token.type === 'token' ? token.insertion : null;
 }

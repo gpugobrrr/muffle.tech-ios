@@ -97,16 +97,12 @@ export function resolveStoredFieldInformation(
 }
 
 /**
- * Build the absolute structured command path from pin + editable suffix,
+ * Build the absolute structured command path from the editable suffix,
  * ignoring any free-text value currently being typed.
  */
 export function structuredCommandPathFromInput(
   commandSuffix: string,
-  pinnedPrefix: string[],
 ): string[] {
-  const parsed = parseEditableCommand(commandSuffix, pinnedPrefix);
-  return [
-    ...pinnedPrefix.map((token) => token.toLowerCase()),
-    ...parsed.structuredTokens.map((token) => token.toLowerCase()),
-  ];
+  const parsed = parseEditableCommand(commandSuffix);
+  return parsed.structuredTokens.map((token) => token.toLowerCase());
 }

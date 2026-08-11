@@ -116,23 +116,17 @@ export function SvyrInterface({
         inputMode: controller.inputMode,
         fullCommandPath: controller.fullCommandPath,
         editablePath: controller.editablePath,
-        pinnedCommandPrefix: controller.pinnedCommandPrefix,
         commandSuffix: controller.commandSuffix,
         suggestions: controller.suggestions,
         temporaryAutocompleteContent: controller.temporaryAutocompleteContent,
-        canPinCurrentPath: controller.canPinCurrentPath,
-        isCurrentPathPinned: controller.isCurrentPathPinned,
         notesOpen: showPartyNotes && notesOpen,
         isHintIncomplete: hints.isHintVisible,
       }),
     [
-      controller.canPinCurrentPath,
       controller.commandSuffix,
       controller.editablePath,
       controller.fullCommandPath,
       controller.inputMode,
-      controller.isCurrentPathPinned,
-      controller.pinnedCommandPrefix,
       controller.suggestions,
       controller.temporaryAutocompleteContent,
       hints.isHintVisible,
@@ -215,12 +209,6 @@ export function SvyrInterface({
   const handleCommitMultiChoice = useCallback(() => {
     controller.commitMultiChoiceField();
   }, [controller]);
-
-  const handleTogglePin = useCallback(() => {
-    if (controller.toggleCurrentPathPin()) {
-      hints.completeHint('pinPath');
-    }
-  }, [controller, hints]);
 
   const handleSwipeBackCommitted = useCallback(() => {
     hints.completeHint('swipeBack');
@@ -374,12 +362,7 @@ export function SvyrInterface({
         <View style={[styles.commandDock, { paddingBottom: dockBottomPad }]}>
           <CommandDock
             infoBarText={controller.infoBarText}
-            transientFeedbackText={controller.transientFeedbackText}
             path={svyrBarPath}
-            pinnedCommandPrefix={controller.pinnedCommandPrefix}
-            canPinCurrentPath={controller.canPinCurrentPath}
-            isCurrentPathPinned={controller.isCurrentPathPinned}
-            onToggleCurrentPathPin={handleTogglePin}
             onSegmentPress={controller.navigateToDataEntrySegment}
             onRootPress={controller.navigateToSvyrRoot}
             onNavigateUpDirectory={handleNavigateUpDirectory}
@@ -387,9 +370,7 @@ export function SvyrInterface({
             finalCommandDescription={finalCommandDescription}
             onFinalCommandHoldChange={setHeldCommandDescription}
             activeHintId={
-              activeHint === 'selectBranch' ||
-              activeHint === 'swipeBack' ||
-              activeHint === 'pinPath'
+              activeHint === 'selectBranch' || activeHint === 'swipeBack'
                 ? activeHint
                 : null
             }

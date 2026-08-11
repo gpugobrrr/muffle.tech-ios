@@ -45,13 +45,11 @@ function formatStructuredSuffix(tokens: string[]): string {
 
 /**
  * Parse the editable suffix against the slash-separated command grammar.
- * `pinnedPrefix` is absolute context and is never part of the returned tokens.
  */
 export function parseEditableCommand(
   commandSuffix: string,
-  pinnedPrefix: string[] = [],
 ): ParsedEditableCommand {
-  const pathBase = pinnedPrefix.map(normalizeCommandToken);
+  const pathBase: string[] = [];
 
   if (!commandSuffix) {
     const step = nextEditableStep(pathBase);
@@ -186,9 +184,8 @@ function removeLastCharacterFromValue(parsed: ParsedEditableCommand): string {
  */
 export function deletePreviousCommandPart(
   commandSuffix: string,
-  pinnedPrefix: string[] = [],
 ): string {
-  const parsed = parseEditableCommand(commandSuffix, pinnedPrefix);
+  const parsed = parseEditableCommand(commandSuffix);
 
   if (parsed.valueText.length > 0) {
     return removeLastCharacterFromValue(parsed);
@@ -218,13 +215,12 @@ export function deletePreviousCommandPart(
  */
 export function shouldAtomicallyDeleteOnBackspace(
   commandSuffix: string,
-  pinnedPrefix: string[] = [],
 ): boolean {
   if (!commandSuffix) {
     return false;
   }
 
-  const parsed = parseEditableCommand(commandSuffix, pinnedPrefix);
+  const parsed = parseEditableCommand(commandSuffix);
 
   if (parsed.valueText.length > 0) {
     return false;
@@ -239,27 +235,25 @@ export function shouldAtomicallyDeleteOnBackspace(
 
 /**
  * Whether one editable structural segment may be removed atomically.
- * False when a free-text value is present, or when only the pinned prefix
- * remains. Shared by atomic Backspace and the directory-up swipe.
+ * False when a free-text value is present. Shared by atomic Backspace and
+ * the directory-up swipe.
  */
 export function canRemoveLastEditableCommandSegment(
   commandSuffix: string,
-  pinnedPrefix: string[] = [],
 ): boolean {
-  return shouldAtomicallyDeleteOnBackspace(commandSuffix, pinnedPrefix);
+  return shouldAtomicallyDeleteOnBackspace(commandSuffix);
 }
 
 /**
  * Remove the final editable structural directory — the single structural
  * helper behind both atomic Backspace and swipe-right, so both always
- * produce the same path. Free-text values and pinned prefixes are untouched.
+ * produce the same path. Free-text values are untouched.
  */
 export function removeLastEditableCommandSegment(
   commandSuffix: string,
-  pinnedPrefix: string[] = [],
 ): string {
-  if (!canRemoveLastEditableCommandSegment(commandSuffix, pinnedPrefix)) {
+  if (!canRemoveLastEditableCommandSegment(commandSuffix)) {
     return commandSuffix;
   }
-  return deletePreviousCommandPart(commandSuffix, pinnedPrefix);
+  return deletePreviousCommandPart(commandSuffix);
 }

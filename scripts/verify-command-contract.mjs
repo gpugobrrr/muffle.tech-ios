@@ -110,15 +110,8 @@ assert.deepEqual(
   ['prep/brief/instr', 'prep/brief', 'prep', ''],
 );
 
-// Pinned prefixes are protected, and unsaved free text is never discarded.
-assert.equal(
-  canRemoveLastEditableCommandSegment('', ['prep', 'brief']),
-  false,
-);
-assert.equal(
-  removeLastEditableCommandSegment('instr/party', ['prep', 'brief']),
-  'instr',
-);
+// Empty suffix and free-text values are never discarded by structural delete.
+assert.equal(canRemoveLastEditableCommandSegment(''), false);
 assert.equal(
   removeLastEditableCommandSegment('prep/brief/instr/party North & Co'),
   'prep/brief/instr/party North & Co',

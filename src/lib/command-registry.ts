@@ -90,7 +90,7 @@ export function learnerDisplayLabel(node: CommandNode): string {
 
 /**
  * The single SVYR command graph. Parsing, autocomplete, atomic Backspace,
- * pinning, and stored-value resolution all derive from this hierarchy.
+ * autocomplete, and stored-value resolution all derive from this hierarchy.
  * Availability is owned here alone: neither renderer may filter, truncate,
  * or extend what this graph offers for a given path.
  */
@@ -265,11 +265,6 @@ export function isBranchNode(node: CommandNode): boolean {
 /** Final executable step in its chain. */
 export function isTerminalNode(node: CommandNode): boolean {
   return !isBranchNode(node);
-}
-
-/** Only branches may become a pinned prefix — never a value-bearing path. */
-export function isPinnableNode(node: CommandNode): boolean {
-  return isBranchNode(node) && !node.requiresValue;
 }
 
 export function findCommandNode(path: string[]): CommandNode | null {

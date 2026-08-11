@@ -50,7 +50,7 @@ function emptyBrief(): InspectionBrief {
 }
 
 test('PREP remains reachable and its established route tree is unchanged', () => {
-  const rootSuggestions = getCommandAssistance('', []);
+  const rootSuggestions = getCommandAssistance('');
   assert.deepEqual(suggestionTokens(rootSuggestions), [
     'prep',
     'property',
@@ -244,7 +244,7 @@ test('interactive Level 2 routes remain explicitly bounded', () => {
     assert.equal(node?.operationId, undefined, route.join('/'));
     assert.equal(node?.findingTarget, undefined, route.join('/'));
   }
-  assert.deepEqual(getCommandAssistance('external/windows', []), []);
+  assert.deepEqual(getCommandAssistance('external/windows'), []);
 });
 
 test('supported finding leaves commit through the existing finding operation', () => {

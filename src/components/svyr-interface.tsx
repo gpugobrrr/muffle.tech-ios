@@ -23,7 +23,7 @@ import { useDataEntrySwipe } from '@/hooks/use-data-entry-swipe';
 import type { SvyrController } from '@/hooks/use-workspace';
 import type { CommandSuggestion } from '@/lib/command-parser';
 import { usesSingleChoicePresentation } from '@/lib/data-entry-types';
-import { compoundGroupRows } from '@/lib/controlled-group';
+import { compoundCaptureChildren } from '@/lib/compound-capture';
 import {
     findFieldDefinition,
     resolveFieldSetValue,
@@ -91,7 +91,7 @@ export function SvyrInterface({
   }, [activeFieldDefinition, controller.inspectionBrief]);
   const compoundRows = useMemo(() => {
     if (!controller.activeCompoundCapture) return [];
-    return compoundGroupRows(
+    return compoundCaptureChildren(
       controller.activeCompoundCapture.path,
       controller.inspectionBrief,
     );

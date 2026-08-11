@@ -13,6 +13,7 @@ import {
   SvyrSuggestionGrid,
   type SvyrSuggestionGridItem,
 } from '@/components/svyr-suggestion-grid';
+import { SvyrChoiceItem } from '@/components/svyr-choice-item';
 import {
   HORIZONTAL_HOLD_CANCEL_DISTANCE,
   SvyrNavigationItem,
@@ -65,7 +66,7 @@ function toGridItem(suggestion: AutocompleteSuggestion): SvyrSuggestionGridItem 
       description: suggestion.description,
       available: suggestion.available,
       selected: suggestion.selected,
-      kind: 'navigation',
+      kind: 'choice',
     };
   }
 
@@ -172,6 +173,54 @@ export function AutocompleteArea<Suggestion extends AutocompleteSuggestion>({
     const suggestion = suggestionById.get(item.id);
     if (!suggestion || suggestion.type === 'input-hint') {
       return null;
+    }
+
+    if (item.kind === 'choice') {
+      return (
+        <SvyrChoiceItem
+          key={item.id}
+          id={item.id}
+          label={item.label}
+          description={item.description}
+          available={item.available}
+          selected={item.selected}
+          align={align}
+          onPress={() => {
+            if (holdSelectSuppressRef.current) return;
+            onApplySuggestion(suggestion);
+          }}
+          onPressIn={(event: GestureResponderEvent) => {
+            holdSelectSuppressRef.current = false;
+            longPressCancelledRef.current = false;
+            pressStartRef.current = {
+              x: event.nativeEvent.pageX,
+              y: event.nativeEvent.pageY,
+            };
+          }}
+          onTouchMove={(event: GestureResponderEvent) => {
+            const start = pressStartRef.current;
+            if (
+              start &&
+              Math.abs(event.nativeEvent.pageX - start.x) >=
+                HORIZONTAL_HOLD_CANCEL_DISTANCE
+            ) {
+              cancelLongPressForSwipe();
+            }
+          }}
+          onLongPress={() => {
+            if (longPressCancelledRef.current) return;
+            holdSelectSuppressRef.current = true;
+            setHeldSuggestionId(item.id);
+          }}
+          onPressOut={() => {
+            requestAnimationFrame(() => {
+              clearHeldSuggestion();
+            });
+          }}
+          onTouchCancel={clearHeldSuggestion}
+          delayLongPress={SUGGESTED_COMMAND_LONG_PRESS_MS}
+        />
+      );
     }
 
     return defaultSuggestionGridItem(item, align, {

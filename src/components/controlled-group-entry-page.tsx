@@ -10,6 +10,7 @@ import type { ActiveEntryField } from '@/hooks/use-workspace';
 import type { CompoundGroupRow } from '@/lib/controlled-group';
 import type { FieldDefinition } from '@/lib/field-schema';
 import { orderMultiChoiceValues, toggleMultiChoiceValue } from '@/lib/multi-choice';
+import { formatSvyrDisplayedLabel } from '@/lib/svyr-label-presentation';
 import {
   buildSingleChoiceSuggestions,
   type SingleChoiceSuggestion,
@@ -257,7 +258,7 @@ export function CompoundCaptureEntryPage({
             ]}>
             <View style={styles.rowText}>
               <Text style={styles.rowLabel}>
-                {row.field.label}
+                {formatSvyrDisplayedLabel(row.field.label, 'navigation')}
                 {row.required ? ' *' : ''}
               </Text>
             </View>

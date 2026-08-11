@@ -2,23 +2,22 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  View,
   type GestureResponderEvent,
+  type StyleProp,
+  type TextStyle,
+  type ViewStyle,
 } from 'react-native';
 
 import { Colors, Fonts, Spacing, Type } from '@/constants/theme';
 import { formatSvyrDisplayedLabel } from '@/lib/svyr-label-presentation';
 
-const HORIZONTAL_HOLD_CANCEL_DISTANCE = 12;
-
-export type SvyrNavigationItemProps = {
+export type SvyrChoiceItemProps = {
   id: string;
   label: string;
   description: string;
   available: boolean;
   selected?: boolean;
   align: 'left' | 'right';
-  kind?: 'navigation' | 'hint' | 'choice';
   onPress?: () => void;
   onLongPress?: () => void;
   onPressIn?: (event: GestureResponderEvent) => void;
@@ -26,14 +25,19 @@ export type SvyrNavigationItemProps = {
   onPressOut?: () => void;
   onTouchCancel?: () => void;
   delayLongPress?: number;
+  style?: StyleProp<ViewStyle>;
+  textStyle?: StyleProp<TextStyle>;
 };
 
-export function SvyrNavigationItem({
+/**
+ * Data-entry choice row — renders `<label>` for both selected and unselected
+ * states. Selection is conveyed through color/weight, not punctuation.
+ */
+export function SvyrChoiceItem({
   label,
   available,
   selected = false,
   align,
-  kind = 'navigation',
   onPress,
   onLongPress,
   onPressIn,
@@ -41,19 +45,9 @@ export function SvyrNavigationItem({
   onPressOut,
   onTouchCancel,
   delayLongPress,
-}: SvyrNavigationItemProps) {
-  if (kind === 'hint') {
-    return (
-      <View
-        style={styles.hintTarget}
-        accessible
-        accessibilityRole="text"
-        accessibilityLabel={label}>
-        <Text style={styles.hintText}>{label}</Text>
-      </View>
-    );
-  }
-
+  style,
+  textStyle,
+}: SvyrChoiceItemProps) {
   return (
     <Pressable
       disabled={!available}
@@ -69,13 +63,14 @@ export function SvyrNavigationItem({
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityHint={
-        available ? 'Tap to use. Hold for command details.' : undefined
+        available ? 'Tap to choose this value. Hold for details.' : undefined
       }
       accessibilityState={{ disabled: !available, selected }}
       style={({ pressed }) => [
         styles.touchTarget,
         align === 'right' ? styles.touchTargetRight : null,
         available && pressed ? styles.pressed : null,
+        style,
       ]}>
       <Text
         style={[
@@ -83,14 +78,13 @@ export function SvyrNavigationItem({
           !available ? styles.labelTextUnavailable : null,
           selected ? styles.labelTextSelected : null,
           align === 'right' ? styles.labelTextRight : null,
+          textStyle,
         ]}>
-        {formatSvyrDisplayedLabel(label, 'navigation')}
+        {formatSvyrDisplayedLabel(label, 'choice')}
       </Text>
     </Pressable>
   );
 }
-
-export { HORIZONTAL_HOLD_CANCEL_DISTANCE };
 
 const styles = StyleSheet.create({
   touchTarget: {
@@ -102,11 +96,6 @@ const styles = StyleSheet.create({
   },
   touchTargetRight: {
     alignSelf: 'flex-end',
-  },
-  hintTarget: {
-    minHeight: 44,
-    justifyContent: 'center',
-    paddingHorizontal: Spacing.xs,
   },
   labelText: {
     fontFamily: Fonts.mono,
@@ -123,12 +112,6 @@ const styles = StyleSheet.create({
   labelTextSelected: {
     color: Colors.accent,
     fontWeight: '600',
-  },
-  hintText: {
-    fontFamily: Fonts.mono,
-    fontSize: Type.label,
-    color: Colors.textMuted,
-    letterSpacing: 0.8,
   },
   pressed: {
     opacity: 0.7,

@@ -1,4 +1,5 @@
-import { labelForControlledStatus } from '@/lib/controlled-fact';
+import { labelForControlledFactScalar } from '@/lib/controlled-fact';
+import { usesSingleChoicePresentation } from '@/lib/data-entry-types';
 import type { FieldDefinition } from '@/lib/field-schema';
 import {
   childSchemaDefinitions,
@@ -29,8 +30,8 @@ export function labelForCompoundFieldValue(
   const value = resolveFieldValue(brief, field.fieldId);
   if (!value) return 'Not recorded';
 
-  if (field.valueType === 'singleSelect' || field.valueType === 'controlledStatus') {
-    return labelForControlledStatus(field, value);
+  if (usesSingleChoicePresentation(field)) {
+    return labelForControlledFactScalar(field, value);
   }
 
   return value;

@@ -1,3 +1,4 @@
+import { usesSingleChoicePresentation } from '@/lib/data-entry-types';
 import {
   normalizeFieldInputValue,
   type FieldDefinition,
@@ -18,7 +19,7 @@ export function buildSingleChoiceSuggestions(
   field: FieldDefinition,
   currentValue: string | null | undefined,
 ): SingleChoiceSuggestion[] {
-  if (field.valueType !== 'singleSelect' && field.valueType !== 'controlledStatus') {
+  if (!usesSingleChoicePresentation(field)) {
     return [];
   }
 

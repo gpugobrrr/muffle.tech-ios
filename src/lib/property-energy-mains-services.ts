@@ -1,5 +1,7 @@
-import type { FieldDefinition } from '@/lib/field-schema';
-import { CONTROLLED_PRESENCE_STATUS_OPTIONS } from '@/lib/controlled-fact';
+import {
+  CONTROLLED_PRESENCE_STATUS_OPTIONS,
+  defineControlledStatusField,
+} from '@/lib/controlled-fact';
 
 /** Canonical field IDs for mains-service presence facts. */
 export const MAINS_SERVICE_IDS = [
@@ -32,37 +34,32 @@ export function mainsServiceFieldPath(serviceId: MainsServiceId): string[] {
 export function buildMainsServiceFieldDefinition(
   serviceId: MainsServiceId,
   label: string,
-): FieldDefinition {
+): ReturnType<typeof defineControlledStatusField> {
   const path = mainsServiceFieldPath(serviceId);
-  return {
-    kind: 'field',
+  return defineControlledStatusField({
     path,
-    pathKey: path.join('/'),
     token: serviceId,
     label,
     description: `Mains ${label.toLowerCase()} service presence.`,
     fieldId: MAINS_SERVICE_FIELD_IDS[serviceId],
     required: true,
-    valueType: 'controlledStatus',
-    options: [...CONTROLLED_PRESENCE_STATUS_OPTIONS],
+    options: CONTROLLED_PRESENCE_STATUS_OPTIONS,
     valuePrompt: `ENTER ${label.toUpperCase()} STATUS`,
     entryLabel: label.toUpperCase(),
-    operationId: 'survey.controlled_fact.set',
-    readOperationId: 'survey.controlled_fact.read',
-    notesEnabled: false,
-  };
+  });
 }
 
-export const MAINS_SERVICE_FIELD_DEFINITIONS: readonly FieldDefinition[] =
-  MAINS_SERVICE_IDS.map((serviceId) =>
-    buildMainsServiceFieldDefinition(
-      serviceId,
-      serviceId === 'gas'
-        ? 'Gas'
-        : serviceId === 'electricity'
-          ? 'Electricity'
-          : serviceId === 'water'
-            ? 'Water'
-            : 'Drainage',
-    ),
-  );
+export const MAINS_SERVICE_FIELD_DEFINITIONS: readonly ReturnType<
+  typeof defineControlledStatusField
+>[] = MAINS_SERVICE_IDS.map((serviceId) =>
+  buildMainsServiceFieldDefinition(
+    serviceId,
+    serviceId === 'gas'
+      ? 'Gas'
+      : serviceId === 'electricity'
+        ? 'Electricity'
+        : serviceId === 'water'
+          ? 'Water'
+          : 'Drainage',
+  ),
+);

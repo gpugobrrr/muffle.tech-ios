@@ -10,6 +10,7 @@ import {
     walkCommandPath,
     type CommandNode,
 } from '@/lib/command-registry';
+import { isControlledScalarField } from '@/lib/controlled-fact';
 import { findFieldDefinition, normalizeFieldInputValue } from '@/lib/field-schema';
 import type { SurveyOperation } from '@/lib/survey-operations';
 
@@ -94,7 +95,7 @@ function writeCommand(path: string[], value: string): ParsedCommand {
   const operationId = node?.operationId ?? fieldDefinition?.operationId;
   if (operationId) {
     const operationArguments =
-      fieldDefinition?.valueType === 'controlledStatus'
+      fieldDefinition && isControlledScalarField(fieldDefinition)
         ? {
             fieldId: fieldDefinition.fieldId,
             value: normalizedValue,
@@ -119,11 +120,11 @@ function readCommand(path: string[]): ParsedCommand {
   const operationId = node?.readOperationId ?? fieldDefinition?.readOperationId;
   if (operationId) {
     const operationArguments =
-      fieldDefinition?.valueType === 'controlledStatus'
+      fieldDefinition &&
+      (isControlledScalarField(fieldDefinition) ||
+        fieldDefinition.valueType === 'multiSelect')
         ? { fieldId: fieldDefinition.fieldId }
-        : fieldDefinition?.valueType === 'multiSelect'
-          ? { fieldId: fieldDefinition.fieldId }
-          : {};
+        : {};
 
     return {
       type: 'operation',

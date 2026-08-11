@@ -1,4 +1,7 @@
-import { normalizeControlledStatusInput } from '@/lib/controlled-fact';
+import {
+  isControlledScalarField,
+  normalizeControlledFactScalarInput,
+} from '@/lib/controlled-fact';
 import type { NumericFieldConstraints } from '@/lib/numeric-field';
 import { normalizeNumericFieldInput } from '@/lib/numeric-field';
 import { HEATING_FIELD_DEFINITIONS } from '@/lib/property-energy-heating';
@@ -406,7 +409,7 @@ export function normalizeFieldInputValue(
   }
 
   if (field.valueType === 'controlledStatus') {
-    return normalizeControlledStatusInput(field, trimmed);
+    return normalizeControlledFactScalarInput(field, trimmed);
   }
 
   if (field.valueType === 'multiSelect') {
@@ -453,17 +456,13 @@ export function resolveFieldSetValue(
   return brief.controlledFactSets?.[fieldId] ?? [];
 }
 
-function storesControlledFact(fieldDefinition: FieldDefinition | null): boolean {
-  return fieldDefinition?.operationId === 'survey.controlled_fact.set';
-}
-
 export function applyFieldValue(
   brief: InspectionBrief,
   fieldId: string,
   value: string,
 ): InspectionBrief {
   const fieldDefinition = findFieldDefinitionByFieldId(fieldId);
-  if (storesControlledFact(fieldDefinition)) {
+  if (isControlledScalarField(fieldDefinition)) {
     return {
       ...brief,
       controlledFacts: {

@@ -22,6 +22,7 @@ import { useSvyrHints } from '@/hooks/use-svyr-hints';
 import { useDataEntrySwipe } from '@/hooks/use-data-entry-swipe';
 import type { SvyrController } from '@/hooks/use-workspace';
 import type { CommandSuggestion } from '@/lib/command-parser';
+import { usesSingleChoicePresentation } from '@/lib/data-entry-types';
 import { compoundGroupRows } from '@/lib/controlled-group';
 import {
     findFieldDefinition,
@@ -77,9 +78,7 @@ export function SvyrInterface({
         : null,
     [controller.activeEntryField],
   );
-  const isSingleChoiceEntry =
-    activeFieldDefinition?.valueType === 'singleSelect' ||
-    activeFieldDefinition?.valueType === 'controlledStatus';
+  const isSingleChoiceEntry = usesSingleChoicePresentation(activeFieldDefinition);
   const isMultiChoiceEntry =
     activeFieldDefinition?.valueType === 'multiSelect';
   const isChoiceCaptureEntry = isSingleChoiceEntry || isMultiChoiceEntry;

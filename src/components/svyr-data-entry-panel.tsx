@@ -5,6 +5,7 @@ import { NumericEntryPage } from '@/components/numeric-entry-page';
 import { SingleChoiceEntryPage } from '@/components/single-choice-entry-page';
 import { TextEntryPage } from '@/components/text-entry-page';
 import type { ActiveEntryField } from '@/hooks/use-workspace';
+import { usesSingleChoicePresentation } from '@/lib/data-entry-types';
 import { findFieldDefinition } from '@/lib/field-schema';
 import type { SvyrHintId } from '@/lib/hint-repository';
 
@@ -54,7 +55,7 @@ export function SvyrDataEntryPanel({
 }: Props) {
   const fieldDefinition = findFieldDefinition(field.path);
 
-  if (fieldDefinition?.valueType === 'singleSelect' || fieldDefinition?.valueType === 'controlledStatus') {
+  if (usesSingleChoicePresentation(fieldDefinition)) {
     return (
       <SingleChoiceEntryPage
         fieldDefinition={fieldDefinition}

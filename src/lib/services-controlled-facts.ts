@@ -1,5 +1,7 @@
-import { CONTROLLED_PRESENCE_STATUS_OPTIONS } from '@/lib/controlled-fact';
-import type { FieldDefinition } from '@/lib/field-schema';
+import {
+  CONTROLLED_PRESENCE_STATUS_OPTIONS,
+  defineControlledStatusField,
+} from '@/lib/controlled-fact';
 import {
   MAINS_SERVICE_FIELD_IDS,
   type MainsServiceId,
@@ -56,37 +58,32 @@ export const SERVICES_PRESENCE_ROUTES = Object.fromEntries(
 
 function buildServicesPresenceFieldDefinition(
   config: ServicesPresenceConfig,
-): FieldDefinition {
+): ReturnType<typeof defineControlledStatusField> {
   const path = [...config.route];
-  return {
-    kind: 'field',
+  return defineControlledStatusField({
     path,
-    pathKey: path.join('/'),
     token: config.token,
     label: config.label,
     description: config.description,
     fieldId: MAINS_SERVICE_FIELD_IDS[config.serviceId],
     required: true,
-    valueType: 'controlledStatus',
-    options: [...CONTROLLED_PRESENCE_STATUS_OPTIONS],
+    options: CONTROLLED_PRESENCE_STATUS_OPTIONS,
     valuePrompt: `ENTER ${config.label.toUpperCase()}`,
     entryLabel: config.label.toUpperCase(),
-    operationId: 'survey.controlled_fact.set',
-    readOperationId: 'survey.controlled_fact.read',
-    notesEnabled: false,
-  };
+  });
 }
 
 /**
  * Navigation aliases for already-canonical mains-service presence facts.
  * These definitions intentionally reuse the property/energy field IDs.
  */
-export const SERVICES_PRESENCE_FIELD_DEFINITIONS: readonly FieldDefinition[] =
-  SERVICES_PRESENCE_CONFIGS.map(buildServicesPresenceFieldDefinition);
+export const SERVICES_PRESENCE_FIELD_DEFINITIONS: readonly ReturnType<
+  typeof defineControlledStatusField
+>[] = SERVICES_PRESENCE_CONFIGS.map(buildServicesPresenceFieldDefinition);
 
 export function servicesPresenceFieldDefinition(
   serviceId: ServicesPresenceRouteId,
-): FieldDefinition {
+): ReturnType<typeof defineControlledStatusField> {
   const definition = SERVICES_PRESENCE_FIELD_DEFINITIONS.find(
     (field) => field.fieldId === MAINS_SERVICE_FIELD_IDS[serviceId],
   );

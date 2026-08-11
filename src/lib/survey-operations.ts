@@ -1,4 +1,4 @@
-import { labelForControlledStatus } from '@/lib/controlled-fact';
+import { labelForControlledFactScalar } from '@/lib/controlled-fact';
 import { isInspectionElementConceptId } from '@/lib/inspection-finding-elements';
 import {
   applyFieldSetValue,
@@ -134,8 +134,8 @@ function displayValueForField(
   }
 
   const value = resolveFieldValue(brief, fieldDefinition.fieldId);
-  if (fieldDefinition.valueType === 'controlledStatus') {
-    return labelForControlledStatus(fieldDefinition, value);
+  if (fieldDefinition.options?.length) {
+    return labelForControlledFactScalar(fieldDefinition, value);
   }
   return recordedOrPlaceholder(value);
 }

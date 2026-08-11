@@ -11,6 +11,7 @@ import type { CompoundGroupRow } from '@/lib/controlled-group';
 import type { FieldDefinition } from '@/lib/field-schema';
 import { orderMultiChoiceValues, toggleMultiChoiceValue } from '@/lib/multi-choice';
 import { formatSvyrDisplayedLabel } from '@/lib/svyr-label-presentation';
+import { usesSingleChoicePresentation } from '@/lib/data-entry-types';
 import {
   buildSingleChoiceSuggestions,
   type SingleChoiceSuggestion,
@@ -75,11 +76,7 @@ export function CompoundCaptureEntryPage({
   const activeField = activeRow?.field ?? null;
 
   const choiceSuggestions = useMemo(() => {
-    if (!activeField) return [];
-    if (
-      activeField.valueType !== 'singleSelect' &&
-      activeField.valueType !== 'controlledStatus'
-    ) {
+    if (!activeField || !usesSingleChoicePresentation(activeField)) {
       return [];
     }
     return buildSingleChoiceSuggestions(
@@ -201,11 +198,7 @@ export function CompoundCaptureEntryPage({
     );
   }
 
-  if (
-    activeField &&
-    (activeField.valueType === 'singleSelect' ||
-      activeField.valueType === 'controlledStatus')
-  ) {
+  if (activeField && usesSingleChoicePresentation(activeField)) {
     return (
       <View style={styles.page}>
         {error ? (

@@ -322,12 +322,50 @@ test('expo evidence file store uses File/Directory API not legacy filesystem hel
   );
   assert.match(source, /\{ Directory, File, Paths \}/);
   assert.match(source, /directory\.create\(\{ intermediates: true/);
+  assert.match(source, /source\.bytes\(\)/);
+  assert.match(source, /destination\.write\(bytes\)/);
   assert.match(source, /source\.copy\(destination\)/);
   assert.doesNotMatch(source, /\.makeDirectoryAsync\b/);
   assert.doesNotMatch(source, /\.copyAsync\b/);
   assert.doesNotMatch(source, /\.deleteAsync\b/);
   assert.doesNotMatch(source, /expo-file-system\/legacy/);
   assert.doesNotMatch(source, /\.documentDirectory\b/);
+});
+
+test('photo save failure keeps generic UI message after file store throws', async () => {
+  const errors: unknown[] = [];
+  const originalError = console.error;
+  console.error = (...args: unknown[]) => {
+    errors.push(args);
+  };
+  try {
+    const electricity = servicesFindingConfig('electricity');
+    const result = await captureAndCommitInspectionEvidencePhoto({
+      inspection: createEmptyInspectionRecord(),
+      target: photoTarget(electricity.findingId, electricity.elementConceptId),
+      jobId: 'job.test.evidence',
+      temporaryUri: 'file:///tmp/missing.jpg',
+      fileStore: mockFileStore({
+        async copyPhotoToEvidenceDirectory() {
+          throw new Error('simulated filesystem failure');
+        },
+      }),
+      createId: () => 'evidence.photo.fail',
+    });
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.equal(result.message, 'Photo could not be saved');
+    }
+    assert.ok(
+      errors.some(
+        (entry) =>
+          Array.isArray(entry) &&
+          entry[0] === '[evidence-photo] Failed to save photo',
+      ),
+    );
+  } finally {
+    console.error = originalError;
+  }
 });
 
 function photoTarget(

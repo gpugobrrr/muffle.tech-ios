@@ -124,7 +124,8 @@ export async function captureAndCommitInspectionEvidencePhoto(input: {
       evidenceId,
       input.temporaryUri,
     );
-  } catch {
+  } catch (error) {
+    console.error('[evidence-photo] Failed to save photo', error);
     return { ok: false, message: 'Photo could not be saved' };
   }
 

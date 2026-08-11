@@ -20,6 +20,7 @@ import {
   type FieldDefinition,
 } from '@/lib/field-schema';
 import type { SvyrHintId } from '@/lib/hint-repository';
+import { formatSvyrDisplayedLabel } from '@/lib/svyr-label-presentation';
 
 const SWIPE_THRESHOLD = 24;
 const SOURCE_OPTIONS = [
@@ -334,7 +335,10 @@ function SourceEntryPage({
             onTouchCancel={handlePickerTouchEnd}
             style={styles.sourcePickerShell}>
             <Text style={styles.sourcePickerText}>
-              {activeSourceOption?.label ?? 'Email'}
+              {formatSvyrDisplayedLabel(
+                activeSourceOption?.label ?? 'Email',
+                'choice',
+              )}
             </Text>
           </Pressable>
         ) : (

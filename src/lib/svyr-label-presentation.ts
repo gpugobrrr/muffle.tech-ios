@@ -4,11 +4,13 @@ import type { TokenSuggestion } from '@/lib/command-parser';
 /**
  * Visual grammar for SVYR selectable labels.
  *
- * - navigation → [label] — opens another menu/container
- * - entry → (label) — opens a data-entry/capture surface
- * - choice → <label> — selects/commits a canonical value
+ * - navigation → delimited menu/container target
+ * - entry → delimited data-entry/capture destination
+ * - choice → delimited selectable canonical value
  *
  * Formatting is presentation-only — canonical values and route tokens stay plain.
+ * Punctuation pairs are owned by `SVYR_LABEL_DELIMITERS` so the grammar can be
+ * retuned in one place without touching classification or renderers.
  */
 export type SvyrLabelPresentation = 'navigation' | 'entry' | 'choice';
 
@@ -18,28 +20,45 @@ export type SvyrCommandLabelPresentation = Extract<
   'navigation' | 'entry'
 >;
 
+export type SvyrLabelDelimiterPair = {
+  open: string;
+  close: string;
+};
+
+/**
+ * Central visual-language punctuation for SVYR labels.
+ * Change these pairs to retune the grammar; do not hardcode punctuation in UI.
+ */
+export const SVYR_LABEL_DELIMITERS = {
+  navigation: {
+    open: '[',
+    close: ']',
+  },
+  entry: {
+    open: '(',
+    close: ')',
+  },
+  choice: {
+    open: '<',
+    close: '>',
+  },
+} as const satisfies Record<SvyrLabelPresentation, SvyrLabelDelimiterPair>;
+
 export function formatSvyrDisplayedLabel(
   label: string,
   presentation: SvyrLabelPresentation,
 ): string {
   const trimmed = label.trim();
   if (!trimmed) return trimmed;
-  switch (presentation) {
-    case 'choice':
-      return `<${trimmed}>`;
-    case 'entry':
-      return `(${trimmed})`;
-    case 'navigation':
-    default:
-      return `[${trimmed}]`;
-  }
+  const delimiters = SVYR_LABEL_DELIMITERS[presentation];
+  return `${delimiters.open}${trimmed}${delimiters.close}`;
 }
 
 /**
  * Derive punctuation from registry node capabilities.
  * Value-bearing and compound-capture destinations are entry; everything else
- * (including blocked workflow-only leaves) stays navigation so `( )` never
- * implies a writable capture surface.
+ * (including blocked workflow-only leaves) stays navigation so entry delimiters
+ * never imply a writable capture surface for unsupported leaves.
  */
 export function resolveSvyrNodeLabelPresentation(
   node: Pick<CommandNode, 'requiresValue' | 'compoundCapture'>,

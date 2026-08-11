@@ -18,6 +18,7 @@ import {
   formatSvyrDisplayedLabel,
   resolveSvyrNodeLabelPresentation,
   resolveSvyrTokenLabelPresentation,
+  SVYR_LABEL_DELIMITERS,
 } from '../src/lib/svyr-label-presentation';
 import { navigationItemsFromSuggestions } from '../src/lib/svyr-navigation';
 
@@ -220,11 +221,45 @@ test('multi-choice option labels still use angle brackets at render time', () =>
   assert.equal(formatSvyrDisplayedLabel(radiator.label, 'choice'), '<Radiators>');
 });
 
-test('shared formatter owns all three punctuation forms', () => {
+test('shared formatter owns all three punctuation forms via central delimiters', () => {
   const formatter = readSrc('src/lib/svyr-label-presentation.ts');
-  assert.match(formatter, /`\[\$\{trimmed\}\]`/);
-  assert.match(formatter, /\(\$\{trimmed\}\)/);
-  assert.match(formatter, /`<\$\{trimmed\}>`/);
+  assert.match(formatter, /export const SVYR_LABEL_DELIMITERS/);
+  assert.match(formatter, /SVYR_LABEL_DELIMITERS\[presentation\]/);
+  assert.doesNotMatch(formatter, /`\[\$\{trimmed\}\]`/);
+  assert.doesNotMatch(formatter, /`\(\$\{trimmed\}\)`/);
+  assert.doesNotMatch(formatter, /`<\$\{trimmed\}>`/);
+
+  assert.deepEqual(SVYR_LABEL_DELIMITERS.navigation, { open: '[', close: ']' });
+  assert.deepEqual(SVYR_LABEL_DELIMITERS.entry, { open: '(', close: ')' });
+  assert.deepEqual(SVYR_LABEL_DELIMITERS.choice, { open: '<', close: '>' });
+
+  for (const presentation of ['navigation', 'entry', 'choice'] as const) {
+    const { open, close } = SVYR_LABEL_DELIMITERS[presentation];
+    assert.equal(
+      formatSvyrDisplayedLabel('sample', presentation),
+      `${open}sample${close}`,
+    );
+  }
+
   const nav = readSrc('src/components/svyr-navigation-item.tsx');
+  const choice = readSrc('src/components/svyr-choice-item.tsx');
   assert.match(nav, /formatSvyrDisplayedLabel\(label, presentation\)/);
+  assert.match(choice, /formatSvyrDisplayedLabel\(label, 'choice'\)/);
+  assert.doesNotMatch(nav, /`\[\$\{label\}\]`/);
+  assert.doesNotMatch(choice, /`<\s*\$\{label\}>/);
+});
+
+test('delimiter config is the single presentation punctuation source', () => {
+  const sources = [
+    'src/components/svyr-navigation-item.tsx',
+    'src/components/svyr-choice-item.tsx',
+    'src/components/autocomplete-area.tsx',
+    'src/components/controlled-group-entry-page.tsx',
+  ];
+  for (const relative of sources) {
+    const source = readSrc(relative);
+    assert.doesNotMatch(source, /`\[\$\{/);
+    assert.doesNotMatch(source, /`\(\$\{/);
+    assert.doesNotMatch(source, /`<\$\{/);
+  }
 });

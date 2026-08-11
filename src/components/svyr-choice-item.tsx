@@ -30,8 +30,9 @@ export type SvyrChoiceItemProps = {
 };
 
 /**
- * Data-entry choice row — renders `<label>` for both selected and unselected
- * states. Selection is conveyed through color/weight, not punctuation.
+ * Data-entry choice row — renders choice-delimited labels for both selected
+ * and unselected states. Selection is conveyed through color/weight, not
+ * punctuation.
  */
 export function SvyrChoiceItem({
   label,

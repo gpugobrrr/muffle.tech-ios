@@ -137,6 +137,45 @@ test('evidence commit rejects unknown finding and missing observation', () => {
   assert.equal(Object.keys(inspection.evidence ?? {}).length, 0);
 });
 
+test('evidence commit logs diagnostic target snapshot before engine call', () => {
+  const logs: unknown[] = [];
+  const originalLog = console.log;
+  console.log = (...args: unknown[]) => {
+    logs.push(args);
+  };
+  try {
+    const electricity = servicesFindingConfig('electricity');
+    const inspection = createEmptyInspectionRecord();
+    commitInspectionEvidencePhoto(
+      inspection,
+      photoTarget(electricity.findingId, electricity.elementConceptId),
+      {
+        id: 'evidence.photo.diagnostic',
+        kind: 'photo',
+        uri: '/persistent/photo.jpg',
+      },
+    );
+    const attempt = logs.find(
+      (entry) =>
+        Array.isArray(entry) &&
+        entry[0] === '[evidence-photo] commit attempt',
+    );
+    assert.ok(attempt);
+    assert.deepEqual((attempt as unknown[])[1], {
+      targetFindingId: electricity.findingId,
+      targetElementConceptId: electricity.elementConceptId,
+      availableFindingIds: [],
+      findingExists: false,
+      observation: null,
+      evidenceId: 'evidence.photo.diagnostic',
+      evidenceKind: 'photo',
+      evidenceUri: '/persistent/photo.jpg',
+    });
+  } finally {
+    console.log = originalLog;
+  }
+});
+
 test('multiple photos create multiple evidence records on one finding', async () => {
   const electricity = servicesFindingConfig('electricity');
   const observe = findCommandNode(['services', 'electricity', 'observe'])!

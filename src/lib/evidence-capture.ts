@@ -88,6 +88,18 @@ export function commitInspectionEvidencePhoto(
   target: InspectionEvidenceCaptureTarget,
   evidence: InspectionEvidence,
 ): EvidencePhotoCommitResult {
+  console.log('[evidence-photo] commit attempt', {
+    targetFindingId: target.findingId,
+    targetElementConceptId: target.elementConceptId,
+    availableFindingIds: Object.keys(inspection.findings),
+    findingExists: Boolean(inspection.findings[target.findingId]),
+    observation:
+      inspection.findings[target.findingId]?.observation ?? null,
+    evidenceId: evidence.id,
+    evidenceKind: evidence.kind,
+    evidenceUri: evidence.uri,
+  });
+
   const result = executeInspectionOperation(inspection, {
     operationId: SURVEY_EVIDENCE_ADD,
     arguments: {

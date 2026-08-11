@@ -32,7 +32,6 @@ import {
   prepareMultiChoiceCommit,
   toggleMultiChoiceValue,
 } from '@/lib/multi-choice';
-import { createEmptyInspectionRecord } from '@/lib/inspection-record';
 import { commitInspectionFindingField, resolveFindingFieldValue } from '@/lib/finding-capture';
 import { captureAndCommitInspectionEvidencePhoto } from '@/lib/evidence-capture';
 import { createExpoEvidenceFileStore } from '@/lib/evidence-files';

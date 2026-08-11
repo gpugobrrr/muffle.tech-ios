@@ -70,6 +70,7 @@
     "test:multi-choice": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/multi-choice.test.ts",
     "test:numeric-field": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/numeric-field.test.ts",
     "test:controlled-fact": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/controlled-fact.test.ts",
+    "test:data-entry-types": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/data-entry-types.test.ts",
     "test:compound-capture": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/compound-capture.test.ts",
     "test:svyr-bar": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/svyr-bar-navigation.test.ts tests/svyr-entry-drafts.test.ts",
     "test:semantic-fragments": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/semantic-fragment-extractor.test.ts tests/semantic-fragment-extractor-cli.test.ts tests/semantic-fragment-retrieval.test.ts",

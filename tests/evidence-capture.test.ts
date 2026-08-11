@@ -309,6 +309,27 @@ test('createEvidencePhotoId uses stable evidence prefix', () => {
   assert.match(createEvidencePhotoId(123), /^evidence\.photo\./);
 });
 
+test('expo evidence file store uses File/Directory API not legacy filesystem helpers', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { fileURLToPath } = await import('node:url');
+  const path = await import('node:path');
+  const source = readFileSync(
+    path.join(
+      path.dirname(fileURLToPath(import.meta.url)),
+      '../src/lib/evidence-files.ts',
+    ),
+    'utf8',
+  );
+  assert.match(source, /\{ Directory, File, Paths \}/);
+  assert.match(source, /directory\.create\(\{ intermediates: true/);
+  assert.match(source, /source\.copy\(destination\)/);
+  assert.doesNotMatch(source, /\.makeDirectoryAsync\b/);
+  assert.doesNotMatch(source, /\.copyAsync\b/);
+  assert.doesNotMatch(source, /\.deleteAsync\b/);
+  assert.doesNotMatch(source, /expo-file-system\/legacy/);
+  assert.doesNotMatch(source, /\.documentDirectory\b/);
+});
+
 function photoTarget(
   findingId: string,
   elementConceptId: InspectionElementConceptId,

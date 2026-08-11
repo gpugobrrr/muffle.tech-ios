@@ -25,6 +25,11 @@ export function evidencePhotoRelativePath(jobId: string, evidenceId: string): st
   return `${evidenceJobDirectory(jobId)}/${evidencePhotoFilename(evidenceId)}`;
 }
 
+/**
+ * Expo SDK 54+ filesystem store using the new File/Directory/Paths API.
+ * Do not call deprecated filesystem helpers from the main expo-file-system
+ * entry — they warn and throw at runtime. Use File/Directory/Paths instead.
+ */
 export function createExpoEvidenceFileStore(): EvidenceFileStore {
   // Lazy import keeps Node unit tests free of native module resolution.
   return createExpoEvidenceFileStoreSync();
@@ -32,27 +37,52 @@ export function createExpoEvidenceFileStore(): EvidenceFileStore {
 
 function createExpoEvidenceFileStoreSync(): EvidenceFileStore {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const FileSystem = require('expo-file-system') as typeof import('expo-file-system');
+  const { Directory, File, Paths } = require('expo-file-system') as typeof import('expo-file-system');
+
+  function jobEvidenceDirectory(jobId: string): InstanceType<typeof Directory> {
+    const safeJobId = sanitizeSegment(jobId);
+    return new Directory(Paths.document, 'muffle', 'jobs', safeJobId, 'evidence');
+  }
 
   return {
     async ensureJobEvidenceDirectory(jobId: string): Promise<string> {
-      const directory = `${FileSystem.documentDirectory}${evidenceJobDirectory(jobId)}/`;
-      await FileSystem.makeDirectoryAsync(directory, { intermediates: true });
-      return directory;
+      const directory = jobEvidenceDirectory(jobId);
+      directory.create({ intermediates: true, idempotent: true });
+      return directory.uri;
     },
+
     async copyPhotoToEvidenceDirectory(
       jobId: string,
       evidenceId: string,
       temporaryUri: string,
     ): Promise<string> {
-      const directory = await this.ensureJobEvidenceDirectory(jobId);
-      const destination = `${directory}/${evidencePhotoFilename(evidenceId)}`;
-      await FileSystem.copyAsync({ from: temporaryUri, to: destination });
-      return destination;
+      const directory = jobEvidenceDirectory(jobId);
+      directory.create({ intermediates: true, idempotent: true });
+
+      const source = new File(temporaryUri);
+      if (!source.exists) {
+        throw new Error('Captured photo file is missing');
+      }
+
+      const destination = new File(directory, evidencePhotoFilename(evidenceId));
+      if (destination.exists) {
+        destination.delete();
+      }
+
+      source.copy(destination);
+      if (!destination.exists) {
+        throw new Error('Photo copy did not produce a destination file');
+      }
+
+      return destination.uri;
     },
+
     async deleteEvidenceFile(uri: string): Promise<void> {
       try {
-        await FileSystem.deleteAsync(uri, { idempotent: true });
+        const file = new File(uri);
+        if (file.exists) {
+          file.delete();
+        }
       } catch {
         // Best-effort cleanup when canonical commit fails after copy.
       }

@@ -258,7 +258,7 @@ export function CompoundCaptureEntryPage({
             ]}>
             <View style={styles.rowText}>
               <Text style={styles.rowLabel}>
-                {formatSvyrDisplayedLabel(row.field.label, 'navigation')}
+                {formatSvyrDisplayedLabel(row.field.label, 'entry')}
                 {row.required ? ' *' : ''}
               </Text>
             </View>

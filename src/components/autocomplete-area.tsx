@@ -77,6 +77,7 @@ function toGridItem(suggestion: AutocompleteSuggestion): SvyrSuggestionGridItem 
       description: suggestion.description,
       available: suggestion.available,
       kind: 'navigation',
+      presentation: 'entry',
     };
   }
 

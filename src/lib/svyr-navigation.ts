@@ -3,6 +3,7 @@ import type {
   CommandSuggestion,
   TokenSuggestion,
 } from '@/lib/command-parser';
+import { resolveSvyrTokenLabelPresentation } from '@/lib/svyr-label-presentation';
 
 export type SvyrNavigationItemModel = {
   id: string;
@@ -11,6 +12,8 @@ export type SvyrNavigationItemModel = {
   available: boolean;
   selected?: boolean;
   kind: 'navigation' | 'hint';
+  /** Destination punctuation for command rows; ignored for hints. */
+  presentation?: 'navigation' | 'entry';
 };
 
 export type NavigationRow<T> = readonly [T] | readonly [T, T];
@@ -140,8 +143,8 @@ export function navigationItemsFromSuggestions(
       label: suggestion.label,
       description: suggestion.description,
       available: suggestion.available,
-      selected: suggestion.type === 'choice' ? suggestion.selected : undefined,
       kind: 'navigation',
+      presentation: resolveSvyrTokenLabelPresentation(suggestion),
     };
   });
 }

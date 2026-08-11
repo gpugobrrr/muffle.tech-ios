@@ -19,6 +19,11 @@ export type SvyrNavigationItemProps = {
   selected?: boolean;
   align: 'left' | 'right';
   kind?: 'navigation' | 'hint' | 'choice';
+  /**
+   * Destination punctuation for command rows.
+   * Navigation containers use square brackets; capture destinations use parentheses.
+   */
+  presentation?: 'navigation' | 'entry';
   onPress?: () => void;
   onLongPress?: () => void;
   onPressIn?: (event: GestureResponderEvent) => void;
@@ -34,6 +39,7 @@ export function SvyrNavigationItem({
   selected = false,
   align,
   kind = 'navigation',
+  presentation = 'navigation',
   onPress,
   onLongPress,
   onPressIn,
@@ -84,7 +90,7 @@ export function SvyrNavigationItem({
           selected ? styles.labelTextSelected : null,
           align === 'right' ? styles.labelTextRight : null,
         ]}>
-        {formatSvyrDisplayedLabel(label, 'navigation')}
+        {formatSvyrDisplayedLabel(label, presentation)}
       </Text>
     </Pressable>
   );

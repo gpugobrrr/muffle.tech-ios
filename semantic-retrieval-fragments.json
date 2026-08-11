@@ -1,0 +1,260 @@
+{
+  "schemaVersion": 1,
+  "pagesInSource": 6,
+  "parsedPages": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+  ],
+  "fragmentCount": 16,
+  "fragments": [
+    {
+      "id": "sf-3-p3-b4",
+      "page": 3,
+      "type": "paragraph",
+      "text": "The main walls are of traditional masonry construction and are approximately 300mm thick. No significant distortion was observed to the principal elevations. Moisture was recorded at 18% to a localised internal area adjacent to the front wall. Condition rating 2",
+      "sectionHeading": "Outside the property",
+      "elementHeading": "D4 Main walls",
+      "headingPath": [
+        "Outside the property",
+        "D4 Main walls"
+      ],
+      "sourceBlockIds": [
+        "p3-b2",
+        "p3-b3",
+        "p3-b4"
+      ]
+    },
+    {
+      "id": "sf-3-p3-b6",
+      "page": 3,
+      "type": "paragraph",
+      "text": "The windows are predominantly double-glazed units. The frames require routine maintenance. Further investigation is not currently recommended.",
+      "sectionHeading": "Outside the property",
+      "elementHeading": "D5 Windows",
+      "headingPath": [
+        "Outside the property",
+        "D5 Windows"
+      ],
+      "sourceBlockIds": [
+        "p3-b2",
+        "p3-b5",
+        "p3-b6"
+      ]
+    },
+    {
+      "id": "sf-3-p3-b8",
+      "page": 3,
+      "type": "paragraph",
+      "text": "The entrance door appears serviceable for its age and type.",
+      "sectionHeading": "Outside the property",
+      "elementHeading": "D6 Outside doors (including patio doors)",
+      "headingPath": [
+        "Outside the property",
+        "D6 Outside doors (including patio doors)"
+      ],
+      "sourceBlockIds": [
+        "p3-b2",
+        "p3-b7",
+        "p3-b8"
+      ]
+    },
+    {
+      "id": "sf-4-p4-b4",
+      "page": 4,
+      "type": "paragraph",
+      "text": "The roof structure was inspected from the accessible roof space. The property was reportedly constructed in 1930. A section of roof covering was renewed in 2021. The ceiling height is approximately 2.4m.",
+      "sectionHeading": "Inside the property",
+      "elementHeading": "E1 Roof structure",
+      "headingPath": [
+        "Inside the property",
+        "E1 Roof structure"
+      ],
+      "sourceBlockIds": [
+        "p4-b2",
+        "p4-b3",
+        "p4-b4"
+      ]
+    },
+    {
+      "id": "sf-4-p4-b6",
+      "page": 4,
+      "type": "paragraph",
+      "text": "Internal partitions are a mixture of solid and lightweight construction. The rear extension measures approximately 4.2m by 3.1m. Condition rating 1.",
+      "sectionHeading": "Inside the property",
+      "elementHeading": "E3 Walls and partitions",
+      "headingPath": [
+        "Inside the property",
+        "E3 Walls and partitions"
+      ],
+      "sourceBlockIds": [
+        "p4-b2",
+        "p4-b5",
+        "p4-b6"
+      ]
+    },
+    {
+      "id": "sf-4-p4-b8",
+      "page": 4,
+      "type": "paragraph",
+      "text": "No testing was undertaken. The installation appears dated but no immediate safety conclusion is drawn.",
+      "sectionHeading": "Inside the property",
+      "elementHeading": "F1 Electricity",
+      "headingPath": [
+        "Inside the property",
+        "F1 Electricity"
+      ],
+      "sourceBlockIds": [
+        "p4-b2",
+        "p4-b7",
+        "p4-b8"
+      ]
+    },
+    {
+      "id": "sf-4-p4-b10",
+      "page": 4,
+      "type": "paragraph",
+      "text": "The heating installation was operating at the time of inspection.",
+      "sectionHeading": "Inside the property",
+      "elementHeading": "F4 Heating",
+      "headingPath": [
+        "Inside the property",
+        "F4 Heating"
+      ],
+      "sourceBlockIds": [
+        "p4-b2",
+        "p4-b9",
+        "p4-b10"
+      ]
+    },
+    {
+      "id": "sf-5-p5-b3",
+      "page": 5,
+      "type": "paragraph",
+      "text": "The surveyor does not act as a legal adviser. Further investigation may be recommended where parts of the building are concealed or inaccessible.",
+      "sectionHeading": "Issues for your legal advisers",
+      "headingPath": [
+        "Issues for your legal advisers"
+      ],
+      "sourceBlockIds": [
+        "p5-b2",
+        "p5-b3"
+      ]
+    },
+    {
+      "id": "sf-5-p5-b4",
+      "page": 5,
+      "type": "paragraph",
+      "text": "Public organisation and terminology",
+      "sectionHeading": "Issues for your legal advisers",
+      "headingPath": [
+        "Issues for your legal advisers"
+      ],
+      "sourceBlockIds": [
+        "p5-b2",
+        "p5-b4"
+      ]
+    },
+    {
+      "id": "sf-5-p5-b5",
+      "page": 5,
+      "type": "paragraph",
+      "text": "Royal Institution of Chartered Surveyors RICS Home Survey - Level 2 https://www.rics.org",
+      "sectionHeading": "Issues for your legal advisers",
+      "headingPath": [
+        "Issues for your legal advisers"
+      ],
+      "sourceBlockIds": [
+        "p5-b2",
+        "p5-b5"
+      ]
+    },
+    {
+      "id": "sf-5-p5-b6",
+      "page": 5,
+      "type": "paragraph",
+      "text": "Ordinary values that should remain unchanged",
+      "sectionHeading": "Issues for your legal advisers",
+      "headingPath": [
+        "Issues for your legal advisers"
+      ],
+      "sourceBlockIds": [
+        "p5-b2",
+        "p5-b6"
+      ]
+    },
+    {
+      "id": "sf-5-p5-b7",
+      "page": 5,
+      "type": "paragraph",
+      "text": "2 3 12 300 2021 12.5% 300mm 18% D4 Main walls E8 Bathroom fittings F1 Electricity NI",
+      "sectionHeading": "Issues for your legal advisers",
+      "headingPath": [
+        "Issues for your legal advisers"
+      ],
+      "sourceBlockIds": [
+        "p5-b2",
+        "p5-b7"
+      ]
+    },
+    {
+      "id": "sf-6-p6-b3",
+      "page": 6,
+      "type": "paragraph",
+      "text": "Jane advised that the loft was inspected. This ambiguous free-prose name is intentionally included to test conservative person-name handling.",
+      "sectionHeading": "Adversarial / ambiguous cases",
+      "headingPath": [
+        "Adversarial / ambiguous cases"
+      ],
+      "sourceBlockIds": [
+        "p6-b2",
+        "p6-b3"
+      ]
+    },
+    {
+      "id": "sf-6-p6-b4",
+      "page": 6,
+      "type": "paragraph",
+      "text": "The property is near Example Park and fronts Example High Street. This location-like prose is intentionally ambiguous and should not be aggressively redacted solely because it looks like a place.",
+      "sectionHeading": "Adversarial / ambiguous cases",
+      "headingPath": [
+        "Adversarial / ambiguous cases"
+      ],
+      "sourceBlockIds": [
+        "p6-b2",
+        "p6-b4"
+      ]
+    },
+    {
+      "id": "sf-6-p6-b5",
+      "page": 6,
+      "type": "paragraph",
+      "text": "Contact [EMAIL] on [PHONE] regarding [POSTCODE].",
+      "sectionHeading": "Adversarial / ambiguous cases",
+      "headingPath": [
+        "Adversarial / ambiguous cases"
+      ],
+      "sourceBlockIds": [
+        "p6-b2",
+        "p6-b5"
+      ]
+    },
+    {
+      "id": "sf-6-p6-b6",
+      "page": 6,
+      "type": "paragraph",
+      "text": "Inline labelled values",
+      "sectionHeading": "Adversarial / ambiguous cases",
+      "headingPath": [
+        "Adversarial / ambiguous cases"
+      ],
+      "sourceBlockIds": [
+        "p6-b2",
+        "p6-b6"
+      ]
+    }
+  ]
+}

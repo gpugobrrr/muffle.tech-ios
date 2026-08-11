@@ -1,0 +1,316 @@
+{
+  "parserVersion": 1,
+  "sourceFile": "rhs_level_two.pdf",
+  "pageCount": 47,
+  "parsedPages": [
+    40
+  ],
+  "blocks": [
+    {
+      "id": "p40-b1",
+      "page": 40,
+      "type": "heading",
+      "text": "L Description of the RICS Home Survey – Level 2",
+      "bounds": {
+        "x": 11.76,
+        "y": 704.39,
+        "width": 520.05,
+        "height": 54
+      },
+      "font": {
+        "size": 54,
+        "family": "serif"
+      },
+      "sourceItemCount": 2
+    },
+    {
+      "id": "p40-b2",
+      "page": 40,
+      "type": "heading",
+      "text": "service (survey only) and terms of engagement",
+      "bounds": {
+        "x": 84.96,
+        "y": 692.76,
+        "width": 448.04,
+        "height": 20.04
+      },
+      "font": {
+        "size": 20.04,
+        "family": "serif"
+      },
+      "sourceItemCount": 1
+    },
+    {
+      "id": "p40-b3",
+      "page": 40,
+      "type": "heading",
+      "text": "Dangerous materials, contamination and environmental issues",
+      "bounds": {
+        "x": 84.96,
+        "y": 647.64,
+        "width": 417.95,
+        "height": 14.04
+      },
+      "font": {
+        "size": 14.04,
+        "family": "serif"
+      },
+      "sourceItemCount": 1
+    },
+    {
+      "id": "p40-b4",
+      "page": 40,
+      "type": "paragraph",
+      "text": "The surveyor does not make any enquiries about contamination or other environmental dangers. However, if the surveyor suspects a problem, they should recommend further investigation.",
+      "bounds": {
+        "x": 84.96,
+        "y": 619.56,
+        "width": 453.7,
+        "height": 24
+      },
+      "font": {
+        "size": 9.96,
+        "family": "serif"
+      },
+      "sourceItemCount": 2
+    },
+    {
+      "id": "p40-b5",
+      "page": 40,
+      "type": "paragraph",
+      "text": "The surveyor may assume that no harmful or dangerous materials have been used in the construction, and does not have a duty to justify making this assumption. However, if the inspection shows that such materials have been used, the surveyor must report this and ask for further instructions.",
+      "bounds": {
+        "x": 84.96,
+        "y": 563.64,
+        "width": 453.65,
+        "height": 37.92
+      },
+      "font": {
+        "size": 9.96,
+        "family": "serif"
+      },
+      "sourceItemCount": 3
+    },
+    {
+      "id": "p40-b6",
+      "page": 40,
+      "type": "paragraph",
+      "text": "The surveyor does not carry out an asbestos inspection and does not act as an asbestos inspector when inspecting properties that may fall within The Control of Asbestos Regulations 2012 (‘CAR 2012’). However, the report should properly emphasise the suspected presence of asbestos containing materials if the inspection identifies that possibility. With flats, the surveyor assumes that there is a ‘dutyholder’ (as defined in CAR 2012), and that there is an asbestos register and an effective management plan in place, which does not present a significant risk to health or need any immediate payment. The surveyor does not consult the dutyholder.",
+      "bounds": {
+        "x": 84.96,
+        "y": 451.8,
+        "width": 453.63,
+        "height": 93.96
+      },
+      "font": {
+        "size": 9.96,
+        "family": "serif"
+      },
+      "sourceItemCount": 9
+    },
+    {
+      "id": "p40-b7",
+      "page": 40,
+      "type": "heading",
+      "text": "The report",
+      "bounds": {
+        "x": 84.96,
+        "y": 410.04,
+        "width": 69.32,
+        "height": 14.04
+      },
+      "font": {
+        "size": 14.04,
+        "family": "serif"
+      },
+      "sourceItemCount": 1
+    },
+    {
+      "id": "p40-b8",
+      "page": 40,
+      "type": "paragraph",
+      "text": "The surveyor produces a report of the inspection results for you to use, but cannot accept any liability if it is used by anyone else. If you decide not to act on the advice in the report, you do this at your own risk. The report objectively describes the condition of the elements and provides an assessment of the relative importance of the defects/problems. Although it is concise, the RICS Home Survey – Level 2 (survey only) report does include advice about repairs or any ongoing maintenance issues. Where the surveyor is unable to reach a conclusion with reasonable confidence, a recommendation for further investigation should be made.",
+      "bounds": {
+        "x": 84.96,
+        "y": 312,
+        "width": 453.64,
+        "height": 93.96
+      },
+      "font": {
+        "size": 9.96,
+        "family": "serif"
+      },
+      "sourceItemCount": 7
+    },
+    {
+      "id": "p40-b9",
+      "page": 40,
+      "type": "heading",
+      "text": "Condition ratings",
+      "bounds": {
+        "x": 84.96,
+        "y": 267.96,
+        "width": 116.06,
+        "height": 14.04
+      },
+      "font": {
+        "size": 14.04,
+        "family": "serif"
+      },
+      "sourceItemCount": 1
+    },
+    {
+      "id": "p40-b10",
+      "page": 40,
+      "type": "paragraph",
+      "text": "The surveyor gives condition ratings to the main parts (the ‘elements’) of the main building, garage and some outside elements. The condition ratings are described as follows:",
+      "bounds": {
+        "x": 84.96,
+        "y": 240,
+        "width": 453.65,
+        "height": 23.88
+      },
+      "font": {
+        "size": 9.96,
+        "family": "serif"
+      },
+      "sourceItemCount": 2
+    },
+    {
+      "id": "p40-b11",
+      "page": 40,
+      "type": "list",
+      "text": "• R – Documents we may suggest you request before you sign contracts.",
+      "bounds": {
+        "x": 102.96,
+        "y": 212.04,
+        "width": 334.28,
+        "height": 9.96
+      },
+      "font": {
+        "size": 9.96,
+        "family": "serif"
+      },
+      "sourceItemCount": 3
+    },
+    {
+      "id": "p40-b12",
+      "page": 40,
+      "type": "list",
+      "text": "• Condition rating 3 – Defects that are serious and/or need to be repaired, replaced or investigated urgently. Failure to do so could risk serious safety issues or severe long-term damage to your property.",
+      "bounds": {
+        "x": 102.96,
+        "y": 170.16,
+        "width": 435.63,
+        "height": 37.92
+      },
+      "font": {
+        "size": 9.96,
+        "family": "serif"
+      },
+      "sourceItemCount": 5
+    },
+    {
+      "id": "p40-b13",
+      "page": 40,
+      "type": "list",
+      "text": "• Condition rating 2 – Defects that need repairing or replacing, but are not considered to be either serious or urgent. The property must be maintained in the normal way.",
+      "bounds": {
+        "x": 102.96,
+        "y": 142.08,
+        "width": 435.62,
+        "height": 24
+      },
+      "font": {
+        "size": 9.96,
+        "family": "serif"
+      },
+      "sourceItemCount": 4
+    },
+    {
+      "id": "p40-b14",
+      "page": 40,
+      "type": "list",
+      "text": "• Condition rating 1 – No repair is currently needed. The property must be maintained in the normal way.",
+      "bounds": {
+        "x": 102.96,
+        "y": 117,
+        "width": 435.61,
+        "height": 21.36
+      },
+      "font": {
+        "size": 9.96,
+        "family": "serif"
+      },
+      "sourceItemCount": 4
+    },
+    {
+      "id": "p40-b15",
+      "page": 40,
+      "type": "list",
+      "text": "• NI – Elements not inspected.",
+      "bounds": {
+        "x": 102.96,
+        "y": 102.84,
+        "width": 145.8,
+        "height": 9.96
+      },
+      "font": {
+        "size": 9.96,
+        "family": "serif"
+      },
+      "sourceItemCount": 3
+    },
+    {
+      "id": "p40-b16",
+      "page": 40,
+      "type": "paragraph",
+      "text": "The surveyor notes in the report if it was not possible to check any parts of the property that the inspection would normally cover. If the surveyor is concerned about these parts, the report tells you",
+      "bounds": {
+        "x": 84.96,
+        "y": 60.84,
+        "width": 453.62,
+        "height": 24
+      },
+      "font": {
+        "size": 9.96,
+        "family": "serif"
+      },
+      "sourceItemCount": 2
+    },
+    {
+      "id": "p40-b17",
+      "page": 40,
+      "type": "paragraph",
+      "text": "RICS Home Survey – Level 2 (survey only)",
+      "bounds": {
+        "x": 85.56,
+        "y": 27.84,
+        "width": 190.51,
+        "height": 9.96
+      },
+      "font": {
+        "size": 9.96,
+        "family": "serif"
+      },
+      "sourceItemCount": 1
+    },
+    {
+      "id": "p40-b18",
+      "page": 40,
+      "type": "paragraph",
+      "text": "39",
+      "bounds": {
+        "x": 550.2,
+        "y": 27.96,
+        "width": 11.02,
+        "height": 9.96
+      },
+      "font": {
+        "size": 9.96,
+        "family": "serif"
+      },
+      "sourceItemCount": 1
+    }
+  ]
+}

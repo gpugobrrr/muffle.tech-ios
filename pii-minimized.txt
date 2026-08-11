@@ -1,0 +1,276 @@
+PII-minimised document
+Pages in source: 47
+Parsed pages: 1, 2, 3, 4, 5, 6
+Blocks: 86
+Minimisation actions: 1
+  person_name: 1
+
+Page 1
+
+[paragraph]
+ener
+
+[heading]
+LEVEL 2
+
+[heading]
+Your survey
+
+[heading]
+report
+
+[paragraph]
+Property address
+
+[paragraph]
+Client’s name
+
+[paragraph]
+[PERSON]
+
+[paragraph]
+Inspection date
+
+[paragraph; repeated]
+Surveyor’s RICS number
+
+[paragraph; repeated, page-furniture]
+RICS Home Survey – Level 2 (survey only)
+
+Page 2
+
+[heading]
+Contents
+
+[heading; repeated]
+A About the inspection and report
+
+[paragraph; repeated]
+3
+
+[heading]
+B Overall opinion
+
+[paragraph; repeated]
+6
+
+[heading]
+C About the property
+
+[paragraph; repeated]
+14
+
+[heading]
+D Outside the property
+
+[paragraph; repeated]
+19
+
+[marker]
+E
+
+[paragraph]
+Inside the property
+
+[paragraph; repeated]
+23
+
+[marker]
+F
+
+[paragraph]
+Services
+
+[paragraph; repeated]
+26
+
+[heading]
+G Grounds
+
+[paragraph; repeated]
+28
+
+[heading]
+H Issues for your legal advisers
+
+[paragraph; repeated]
+29
+
+[heading]
+I Risks
+
+[paragraph; repeated]
+30
+
+[marker]
+J
+
+[paragraph]
+Surveyor’s declaration
+
+[paragraph; repeated]
+30
+
+[heading]
+K What to do now
+
+[paragraph; repeated]
+30
+
+[marker]
+L
+
+[paragraph]
+Description of the RICS Home Survey – Level 2 (survey only) service and terms of engagement
+
+[paragraph; repeated]
+30
+
+[heading]
+M Typical house diagram
+
+[paragraph; repeated]
+30
+
+[paragraph]
+The RICS Home Survey Level 2 is reproduced with the permission of the Royal Institution of Chartered Surveyors, which owns the copyright. 2021 RICS ©
+
+[paragraph; repeated, page-furniture]
+RICS Home Survey – Level 2 (survey only)
+
+Page 3
+
+[heading]
+H Futher investigations and getting quotes
+
+[heading]
+About the inspection and report
+
+[paragraph]
+This RICS Home Survey – Level 2 has been produced by a surveyor, who has written this report for you to use. If you decide not to act on the advice in this report, you do so at your own risk.
+
+[paragraph]
+RICS Home Survey Report – Level 2
+
+[paragraph; repeated, page-furniture]
+6
+
+[paragraph; repeated, page-furniture]
+RICS Home Survey – Level 2 (survey only)
+
+Page 4
+
+[heading; repeated, page-furniture]
+A About the inspection and report
+
+[paragraph]
+As agreed, this report will contain the following:
+
+[list]
+• a physical inspection of the property (see ‘The inspection’ in section L) and
+
+[list]
+• a report based on the inspection (see ‘The report’ in section L).
+
+[heading]
+About the report
+
+[paragraph]
+We aim to give you professional advice to:
+
+[list]
+• make a reasoned and informed decision on whether to go ahead with buying the property
+
+[list]
+• take into account any repairs or replacements the property needs, and
+
+[list]
+• consider what further advice you should take before committing to purchasing the property.
+
+[paragraph]
+Any extra services we provide that are not covered by the terms and conditions of this report must be covered by a separate contract.
+
+[heading; repeated]
+About the inspection
+
+[list]
+• We only carry out a visual inspection.
+
+[list]
+• We inspect roofs, chimneys and other surfaces on the outside of the building from ground level and, if necessary, from neighbouring public property and with the help of binoculars.
+
+[list]
+• We inspect the roof structure from inside the roof space if there is access (although we do not move or lift insulation material, stored goods or other contents). We examine floor surfaces and underfloor spaces so far as there is safe access to these (although we do not move or lift furniture, floor coverings or other contents). We do not remove the contents of cupboards. We are not able to assess the condition of the inside of any chimney, boiler or other flues. Also, we do not remove secured panels or undo electrical fittings.
+
+[list]
+• We note in our report if we are not able to check any parts of the property that the inspection would normally cover. If we are concerned about these parts, the report will tell you about any further investigations that are needed.
+
+[list]
+• We do not report on the cost of any work to put right defects or make recommendations on how these repairs should be carried out. Some maintenance and repairs we suggest may be expensive.
+
+[list]
+• We inspect the inside and outside of the main building and all permanent outbuildings, but we do not force or open up the fabric of the building. We also inspect the parts of the electricity, gas/oil, water, heating and drainage services that can be seen, but we do not test them. To help describe the condition of the home, we give condition ratings to the main parts (the ‘elements’) of the building, garage and some parts outside. Some elements can be made up of several different parts.
+
+[list]
+• In the element boxes in sections D, E, F and G, we describe the part that has the worst condition rating first and then briefly outline the condition of the other parts. The condition ratings are described in section B of this report. The report covers matters that, in the surveyor’s opinion, need to be dealt with or may affect the value of the property.
+
+[paragraph; repeated, page-furniture]
+RICS Home Survey – Level 2 (survey only)
+
+[paragraph; repeated, page-furniture]
+3
+
+Page 5
+
+[heading]
+! Reminder
+
+[paragraph]
+Please refer to your Terms and Conditions report received on the for a full list of exclusions.
+
+[paragraph; repeated, page-furniture]
+RICS Home Survey – Level 2 (survey only)
+
+[paragraph; repeated, page-furniture]
+4
+
+Page 6
+
+[heading; repeated, page-furniture]
+About the inspection
+
+[heading]
+A
+
+[paragraph]
+Surveyor’s name
+
+[paragraph; repeated]
+Surveyor’s RICS number
+
+[paragraph]
+Company name
+
+[paragraph]
+Date of the inspection
+
+[paragraph]
+Report reference number
+
+[paragraph]
+Related party disclosure
+
+[paragraph]
+Full address and postcode of the property
+
+[paragraph]
+Weather conditions when the inspection took place
+
+[paragraph]
+Status of the property when the inspection took place
+
+[paragraph; repeated, page-furniture]
+RICS Home Survey – Level 2 (survey only)
+
+[paragraph; repeated, page-furniture]
+5

@@ -1,0 +1,1355 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "pagesInSource": 6,
+    "parsedPages": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ]
+  },
+  "summary": {
+    "completeFragments": 38,
+    "retrievalEligibleFragments": 16,
+    "mappingAttempts": 16,
+    "successfulProposals": 16,
+    "resolved": 1,
+    "unresolved": 15,
+    "retrievalEmpty": 0,
+    "errors": 0,
+    "totalLatencyMs": 146908.6945,
+    "meanLatencyMs": 9181.79340625,
+    "medianLatencyMs": 8600.635950000004
+  },
+  "results": [
+    {
+      "fragment": {
+        "id": "sf-3-p3-b4",
+        "page": 3,
+        "type": "paragraph",
+        "text": "The main walls are of traditional masonry construction and are approximately 300mm thick. No significant distortion was observed to the principal elevations. Moisture was recorded at 18% to a localised internal area adjacent to the front wall. Condition rating 2",
+        "sectionHeading": "Outside the property",
+        "elementHeading": "D4 Main walls",
+        "headingPath": [
+          "Outside the property",
+          "D4 Main walls"
+        ],
+        "sourceBlockIds": [
+          "p3-b2",
+          "p3-b3",
+          "p3-b4"
+        ]
+      },
+      "retrievalInput": {
+        "firmTerm": "D4 Main walls",
+        "nearbyHeading": "Outside the property",
+        "representativeText": "The main walls are of traditional masonry construction and are approximately 300mm thick. No significant distortion was observed to the principal elevations. Moisture was recorded at 18% to a localised internal area adjacent to the front wall. Condition rating 2"
+      },
+      "candidates": [
+        {
+          "conceptId": "property.address.administrative_area",
+          "label": "Administrative area",
+          "aliases": [],
+          "description": "The administrative area associated with the address.",
+          "score": 0.06896551724137931,
+          "matchedTerms": [
+            "property",
+            "area"
+          ]
+        },
+        {
+          "conceptId": "building_element.external_wall",
+          "label": "External wall",
+          "aliases": [],
+          "description": "An external wall inspected as the subject of a finding.",
+          "score": 0.034482758620689655,
+          "matchedTerms": [
+            "wall"
+          ]
+        },
+        {
+          "conceptId": "condition",
+          "label": "Condition",
+          "aliases": [],
+          "description": "A project-neutral free-text assessment of current condition.",
+          "score": 0.034482758620689655,
+          "matchedTerms": [
+            "condition"
+          ]
+        },
+        {
+          "conceptId": "defect",
+          "label": "Defect",
+          "aliases": [],
+          "description": "An identified defect or adverse condition associated with a finding.",
+          "score": 0.034482758620689655,
+          "matchedTerms": [
+            "condition"
+          ]
+        },
+        {
+          "conceptId": "inspection_brief.instruction.source",
+          "label": "Source",
+          "aliases": [],
+          "description": "The channel or source through which the instruction was received.",
+          "score": 0.034482758620689655,
+          "matchedTerms": [
+            "was"
+          ]
+        }
+      ],
+      "status": "resolved",
+      "proposal": {
+        "firmTerm": "D4 Main walls",
+        "selectedConceptId": "building_element.external_wall",
+        "confidence": 0.8,
+        "alternatives": [
+          "condition",
+          "defect"
+        ],
+        "rationale": "The term 'Main walls' refers to an external structure of the building, aligning with 'External wall' as the most relevant concept."
+      },
+      "latencyMs": 15123.5787
+    },
+    {
+      "fragment": {
+        "id": "sf-3-p3-b6",
+        "page": 3,
+        "type": "paragraph",
+        "text": "The windows are predominantly double-glazed units. The frames require routine maintenance. Further investigation is not currently recommended.",
+        "sectionHeading": "Outside the property",
+        "elementHeading": "D5 Windows",
+        "headingPath": [
+          "Outside the property",
+          "D5 Windows"
+        ],
+        "sourceBlockIds": [
+          "p3-b2",
+          "p3-b5",
+          "p3-b6"
+        ]
+      },
+      "retrievalInput": {
+        "firmTerm": "D5 Windows",
+        "nearbyHeading": "Outside the property",
+        "representativeText": "The windows are predominantly double-glazed units. The frames require routine maintenance. Further investigation is not currently recommended."
+      },
+      "candidates": [
+        {
+          "conceptId": "property.address.route",
+          "label": "Street",
+          "aliases": [],
+          "description": "The street or route on which the property is located.",
+          "score": 0.1111111111111111,
+          "matchedTerms": [
+            "property",
+            "is"
+          ]
+        },
+        {
+          "conceptId": "property.address.sub_building_name",
+          "label": "Sub-building name",
+          "aliases": [],
+          "description": "The named flat, unit, or other sub-building.",
+          "score": 0.1111111111111111,
+          "matchedTerms": [
+            "property",
+            "unit"
+          ]
+        },
+        {
+          "conceptId": "property.address.sub_building_number",
+          "label": "Sub-building number",
+          "aliases": [],
+          "description": "The number identifying a flat, unit, or other sub-building.",
+          "score": 0.1111111111111111,
+          "matchedTerms": [
+            "property",
+            "unit"
+          ]
+        },
+        {
+          "conceptId": "field_completion_metadata.invalid",
+          "label": "Invalid",
+          "aliases": [],
+          "description": "Marks a populated field as not acceptable for completion.",
+          "score": 0.05555555555555555,
+          "matchedTerms": [
+            "not"
+          ]
+        },
+        {
+          "conceptId": "field_completion_metadata.not_applicable",
+          "label": "Not applicable",
+          "aliases": [],
+          "description": "Marks a field as excluded from completion totals.",
+          "score": 0.05555555555555555,
+          "matchedTerms": [
+            "not"
+          ]
+        }
+      ],
+      "status": "unresolved",
+      "proposal": {
+        "firmTerm": "D5 Windows",
+        "selectedConceptId": null,
+        "confidence": 0,
+        "alternatives": [],
+        "rationale": "No candidate concept matches the firm term 'D5 Windows' based on provided data."
+      },
+      "latencyMs": 9154.183099999998
+    },
+    {
+      "fragment": {
+        "id": "sf-3-p3-b8",
+        "page": 3,
+        "type": "paragraph",
+        "text": "The entrance door appears serviceable for its age and type.",
+        "sectionHeading": "Outside the property",
+        "elementHeading": "D6 Outside doors (including patio doors)",
+        "headingPath": [
+          "Outside the property",
+          "D6 Outside doors (including patio doors)"
+        ],
+        "sourceBlockIds": [
+          "p3-b2",
+          "p3-b7",
+          "p3-b8"
+        ]
+      },
+      "retrievalInput": {
+        "firmTerm": "D6 Outside doors (including patio doors)",
+        "nearbyHeading": "Outside the property",
+        "representativeText": "The entrance door appears serviceable for its age and type."
+      },
+      "candidates": [
+        {
+          "conceptId": "property.address.street_number",
+          "label": "Street number",
+          "aliases": [],
+          "description": "The number identifying the property on its street.",
+          "score": 0.16666666666666666,
+          "matchedTerms": [
+            "property",
+            "its"
+          ]
+        },
+        {
+          "conceptId": "property.instruction_type",
+          "label": "Instruction type",
+          "aliases": [],
+          "description": "An optional type label associated with the property instruction.",
+          "score": 0.16666666666666666,
+          "matchedTerms": [
+            "property",
+            "type"
+          ]
+        },
+        {
+          "conceptId": "inspection.finding",
+          "label": "Inspection finding",
+          "aliases": [],
+          "description": "A canonical observation and its associated inspection assessment.",
+          "score": 0.08333333333333333,
+          "matchedTerms": [
+            "its"
+          ]
+        },
+        {
+          "conceptId": "property",
+          "label": "Property",
+          "aliases": [],
+          "description": "The selected property to which the survey relates.",
+          "score": 0.08333333333333333,
+          "matchedTerms": [
+            "property"
+          ]
+        },
+        {
+          "conceptId": "property.address",
+          "label": "Structured address",
+          "aliases": [],
+          "description": "The provider-normalized structured address of the property.",
+          "score": 0.08333333333333333,
+          "matchedTerms": [
+            "property"
+          ]
+        }
+      ],
+      "status": "unresolved",
+      "proposal": {
+        "firmTerm": "D6 Outside doors (including patio doors)",
+        "selectedConceptId": null,
+        "confidence": 0,
+        "alternatives": [],
+        "rationale": "No candidate concept matches the firm term or its context."
+      },
+      "latencyMs": 8374.533899999999
+    },
+    {
+      "fragment": {
+        "id": "sf-4-p4-b4",
+        "page": 4,
+        "type": "paragraph",
+        "text": "The roof structure was inspected from the accessible roof space. The property was reportedly constructed in 1930. A section of roof covering was renewed in 2021. The ceiling height is approximately 2.4m.",
+        "sectionHeading": "Inside the property",
+        "elementHeading": "E1 Roof structure",
+        "headingPath": [
+          "Inside the property",
+          "E1 Roof structure"
+        ],
+        "sourceBlockIds": [
+          "p4-b2",
+          "p4-b3",
+          "p4-b4"
+        ]
+      },
+      "retrievalInput": {
+        "firmTerm": "E1 Roof structure",
+        "nearbyHeading": "Inside the property",
+        "representativeText": "The roof structure was inspected from the accessible roof space. The property was reportedly constructed in 1930. A section of roof covering was renewed in 2021. The ceiling height is approximately 2.4m."
+      },
+      "candidates": [
+        {
+          "conceptId": "property.address.route",
+          "label": "Street",
+          "aliases": [],
+          "description": "The street or route on which the property is located.",
+          "score": 0.09090909090909091,
+          "matchedTerms": [
+            "property",
+            "is"
+          ]
+        },
+        {
+          "conceptId": "building_element.external_wall",
+          "label": "External wall",
+          "aliases": [],
+          "description": "An external wall inspected as the subject of a finding.",
+          "score": 0.045454545454545456,
+          "matchedTerms": [
+            "inspected"
+          ]
+        },
+        {
+          "conceptId": "field_completion_metadata.not_applicable",
+          "label": "Not applicable",
+          "aliases": [],
+          "description": "Marks a field as excluded from completion totals.",
+          "score": 0.045454545454545456,
+          "matchedTerms": [
+            "from"
+          ]
+        },
+        {
+          "conceptId": "inspection_brief.instruction.client",
+          "label": "Client",
+          "aliases": [],
+          "description": "The person or organisation for whom the instruction is undertaken.",
+          "score": 0.045454545454545456,
+          "matchedTerms": [
+            "is"
+          ]
+        },
+        {
+          "conceptId": "inspection_brief.instruction.source",
+          "label": "Source",
+          "aliases": [],
+          "description": "The channel or source through which the instruction was received.",
+          "score": 0.045454545454545456,
+          "matchedTerms": [
+            "was"
+          ]
+        }
+      ],
+      "status": "unresolved",
+      "proposal": {
+        "firmTerm": "E1 Roof structure",
+        "selectedConceptId": null,
+        "confidence": 0,
+        "alternatives": [],
+        "rationale": "No candidate concept matches the firm term 'E1 Roof structure' based on provided labels and descriptions."
+      },
+      "latencyMs": 11077.156499999997
+    },
+    {
+      "fragment": {
+        "id": "sf-4-p4-b6",
+        "page": 4,
+        "type": "paragraph",
+        "text": "Internal partitions are a mixture of solid and lightweight construction. The rear extension measures approximately 4.2m by 3.1m. Condition rating 1.",
+        "sectionHeading": "Inside the property",
+        "elementHeading": "E3 Walls and partitions",
+        "headingPath": [
+          "Inside the property",
+          "E3 Walls and partitions"
+        ],
+        "sourceBlockIds": [
+          "p4-b2",
+          "p4-b5",
+          "p4-b6"
+        ]
+      },
+      "retrievalInput": {
+        "firmTerm": "E3 Walls and partitions",
+        "nearbyHeading": "Inside the property",
+        "representativeText": "Internal partitions are a mixture of solid and lightweight construction. The rear extension measures approximately 4.2m by 3.1m. Condition rating 1."
+      },
+      "candidates": [
+        {
+          "conceptId": "building_element.external_wall",
+          "label": "External wall",
+          "aliases": [],
+          "description": "An external wall inspected as the subject of a finding.",
+          "score": 0.05263157894736842,
+          "matchedTerms": [
+            "wall"
+          ]
+        },
+        {
+          "conceptId": "condition",
+          "label": "Condition",
+          "aliases": [],
+          "description": "A project-neutral free-text assessment of current condition.",
+          "score": 0.05263157894736842,
+          "matchedTerms": [
+            "condition"
+          ]
+        },
+        {
+          "conceptId": "defect",
+          "label": "Defect",
+          "aliases": [],
+          "description": "An identified defect or adverse condition associated with a finding.",
+          "score": 0.05263157894736842,
+          "matchedTerms": [
+            "condition"
+          ]
+        },
+        {
+          "conceptId": "field_completion_metadata",
+          "label": "Field completion metadata",
+          "aliases": [],
+          "description": "Per-field applicability and validity annotations used by completion.",
+          "score": 0.05263157894736842,
+          "matchedTerms": [
+            "by"
+          ]
+        },
+        {
+          "conceptId": "inspection_brief.deliverable",
+          "label": "Deliverables",
+          "aliases": [
+            "deliverable"
+          ],
+          "description": "The output required by the inspection brief.",
+          "score": 0.05263157894736842,
+          "matchedTerms": [
+            "by"
+          ]
+        }
+      ],
+      "status": "unresolved",
+      "proposal": {
+        "firmTerm": "E3 Walls and partitions",
+        "selectedConceptId": null,
+        "confidence": 0,
+        "alternatives": [],
+        "rationale": "No candidate concept matches the firm term 'E3 Walls and partitions' accurately."
+      },
+      "latencyMs": 9331.463499999998
+    },
+    {
+      "fragment": {
+        "id": "sf-4-p4-b8",
+        "page": 4,
+        "type": "paragraph",
+        "text": "No testing was undertaken. The installation appears dated but no immediate safety conclusion is drawn.",
+        "sectionHeading": "Inside the property",
+        "elementHeading": "F1 Electricity",
+        "headingPath": [
+          "Inside the property",
+          "F1 Electricity"
+        ],
+        "sourceBlockIds": [
+          "p4-b2",
+          "p4-b7",
+          "p4-b8"
+        ]
+      },
+      "retrievalInput": {
+        "firmTerm": "F1 Electricity",
+        "nearbyHeading": "Inside the property",
+        "representativeText": "No testing was undertaken. The installation appears dated but no immediate safety conclusion is drawn."
+      },
+      "candidates": [
+        {
+          "conceptId": "inspection_brief.instruction.client",
+          "label": "Client",
+          "aliases": [],
+          "description": "The person or organisation for whom the instruction is undertaken.",
+          "score": 0.11764705882352941,
+          "matchedTerms": [
+            "undertaken",
+            "is"
+          ]
+        },
+        {
+          "conceptId": "property.address.route",
+          "label": "Street",
+          "aliases": [],
+          "description": "The street or route on which the property is located.",
+          "score": 0.11764705882352941,
+          "matchedTerms": [
+            "property",
+            "is"
+          ]
+        },
+        {
+          "conceptId": "inspection_brief.instruction.source",
+          "label": "Source",
+          "aliases": [],
+          "description": "The channel or source through which the instruction was received.",
+          "score": 0.058823529411764705,
+          "matchedTerms": [
+            "was"
+          ]
+        },
+        {
+          "conceptId": "property",
+          "label": "Property",
+          "aliases": [],
+          "description": "The selected property to which the survey relates.",
+          "score": 0.058823529411764705,
+          "matchedTerms": [
+            "property"
+          ]
+        },
+        {
+          "conceptId": "property.address",
+          "label": "Structured address",
+          "aliases": [],
+          "description": "The provider-normalized structured address of the property.",
+          "score": 0.058823529411764705,
+          "matchedTerms": [
+            "property"
+          ]
+        }
+      ],
+      "status": "unresolved",
+      "proposal": {
+        "firmTerm": "F1 Electricity",
+        "selectedConceptId": null,
+        "confidence": 0,
+        "alternatives": [],
+        "rationale": "No clear match found among the candidate concepts for the term 'F1 Electricity'."
+      },
+      "latencyMs": 8812.126800000005
+    },
+    {
+      "fragment": {
+        "id": "sf-4-p4-b10",
+        "page": 4,
+        "type": "paragraph",
+        "text": "The heating installation was operating at the time of inspection.",
+        "sectionHeading": "Inside the property",
+        "elementHeading": "F4 Heating",
+        "headingPath": [
+          "Inside the property",
+          "F4 Heating"
+        ],
+        "sourceBlockIds": [
+          "p4-b2",
+          "p4-b9",
+          "p4-b10"
+        ]
+      },
+      "retrievalInput": {
+        "firmTerm": "F4 Heating",
+        "nearbyHeading": "Inside the property",
+        "representativeText": "The heating installation was operating at the time of inspection."
+      },
+      "candidates": [
+        {
+          "conceptId": "inspection_brief.instruction.source",
+          "label": "Source",
+          "aliases": [],
+          "description": "The channel or source through which the instruction was received.",
+          "score": 0.2,
+          "matchedTerms": [
+            "was",
+            "inspection"
+          ]
+        },
+        {
+          "conceptId": "building_element",
+          "label": "Building element",
+          "aliases": [],
+          "description": "The subject of an inspection finding.",
+          "score": 0.1,
+          "matchedTerms": [
+            "inspection"
+          ]
+        },
+        {
+          "conceptId": "condition",
+          "label": "Condition",
+          "aliases": [],
+          "description": "A project-neutral free-text assessment of current condition.",
+          "score": 0.1,
+          "matchedTerms": [
+            "inspection"
+          ]
+        },
+        {
+          "conceptId": "defect",
+          "label": "Defect",
+          "aliases": [],
+          "description": "An identified defect or adverse condition associated with a finding.",
+          "score": 0.1,
+          "matchedTerms": [
+            "inspection"
+          ]
+        },
+        {
+          "conceptId": "evidence",
+          "label": "Evidence reference",
+          "aliases": [],
+          "description": "A stable reference to evidence supporting an inspection finding.",
+          "score": 0.1,
+          "matchedTerms": [
+            "inspection"
+          ]
+        }
+      ],
+      "status": "unresolved",
+      "proposal": {
+        "firmTerm": "F4 Heating",
+        "selectedConceptId": null,
+        "confidence": 0,
+        "alternatives": [],
+        "rationale": "No candidate concept accurately represents 'F4 Heating' based on the provided descriptions and labels."
+      },
+      "latencyMs": 8479.527999999998
+    },
+    {
+      "fragment": {
+        "id": "sf-5-p5-b3",
+        "page": 5,
+        "type": "paragraph",
+        "text": "The surveyor does not act as a legal adviser. Further investigation may be recommended where parts of the building are concealed or inaccessible.",
+        "sectionHeading": "Issues for your legal advisers",
+        "headingPath": [
+          "Issues for your legal advisers"
+        ],
+        "sourceBlockIds": [
+          "p5-b2",
+          "p5-b3"
+        ]
+      },
+      "retrievalInput": {
+        "firmTerm": "Issues for your legal advisers",
+        "representativeText": "The surveyor does not act as a legal adviser. Further investigation may be recommended where parts of the building are concealed or inaccessible."
+      },
+      "candidates": [
+        {
+          "conceptId": "property.address.sub_building_name",
+          "label": "Sub-building name",
+          "aliases": [],
+          "description": "The named flat, unit, or other sub-building.",
+          "score": 0.10526315789473684,
+          "matchedTerms": [
+            "building",
+            "or"
+          ]
+        },
+        {
+          "conceptId": "property.address.sub_building_number",
+          "label": "Sub-building number",
+          "aliases": [],
+          "description": "The number identifying a flat, unit, or other sub-building.",
+          "score": 0.10526315789473684,
+          "matchedTerms": [
+            "building",
+            "or"
+          ]
+        },
+        {
+          "conceptId": "recommendation",
+          "label": "Recommendation",
+          "aliases": [],
+          "description": "The surveyor recommended action arising from a finding.",
+          "score": 0.10526315789473684,
+          "matchedTerms": [
+            "surveyor",
+            "recommended"
+          ]
+        },
+        {
+          "conceptId": "building_element",
+          "label": "Building element",
+          "aliases": [],
+          "description": "The subject of an inspection finding.",
+          "score": 0.05263157894736842,
+          "matchedTerms": [
+            "building"
+          ]
+        },
+        {
+          "conceptId": "building_element.external_wall",
+          "label": "External wall",
+          "aliases": [],
+          "description": "An external wall inspected as the subject of a finding.",
+          "score": 0.05263157894736842,
+          "matchedTerms": [
+            "building"
+          ]
+        }
+      ],
+      "status": "unresolved",
+      "proposal": {
+        "firmTerm": "Issues for your legal advisers",
+        "selectedConceptId": null,
+        "confidence": 0,
+        "alternatives": [],
+        "rationale": "No candidate concept matches the firm term or its context."
+      },
+      "latencyMs": 8621.713499999998
+    },
+    {
+      "fragment": {
+        "id": "sf-5-p5-b4",
+        "page": 5,
+        "type": "paragraph",
+        "text": "Public organisation and terminology",
+        "sectionHeading": "Issues for your legal advisers",
+        "headingPath": [
+          "Issues for your legal advisers"
+        ],
+        "sourceBlockIds": [
+          "p5-b2",
+          "p5-b4"
+        ]
+      },
+      "retrievalInput": {
+        "firmTerm": "Issues for your legal advisers",
+        "representativeText": "Public organisation and terminology"
+      },
+      "candidates": [
+        {
+          "conceptId": "inspection_brief.instruction.client",
+          "label": "Client",
+          "aliases": [],
+          "description": "The person or organisation for whom the instruction is undertaken.",
+          "score": 0.14285714285714285,
+          "matchedTerms": [
+            "organisation"
+          ]
+        },
+        {
+          "conceptId": "inspection_brief.instruction.instructing_party",
+          "label": "Instructing party",
+          "aliases": [],
+          "description": "The person or organisation instructing the survey.",
+          "score": 0.14285714285714285,
+          "matchedTerms": [
+            "organisation"
+          ]
+        },
+        {
+          "conceptId": "active_job",
+          "label": "Active job",
+          "aliases": [],
+          "description": "The current surveying job context.",
+          "score": 0,
+          "matchedTerms": []
+        },
+        {
+          "conceptId": "building_element",
+          "label": "Building element",
+          "aliases": [],
+          "description": "The subject of an inspection finding.",
+          "score": 0,
+          "matchedTerms": []
+        },
+        {
+          "conceptId": "building_element.external_wall",
+          "label": "External wall",
+          "aliases": [],
+          "description": "An external wall inspected as the subject of a finding.",
+          "score": 0,
+          "matchedTerms": []
+        }
+      ],
+      "status": "unresolved",
+      "proposal": {
+        "firmTerm": "Issues for your legal advisers",
+        "selectedConceptId": null,
+        "confidence": 0,
+        "alternatives": [],
+        "rationale": "No candidate concept matches the firm term 'Issues for your legal advisers'."
+      },
+      "latencyMs": 8179.574099999998
+    },
+    {
+      "fragment": {
+        "id": "sf-5-p5-b5",
+        "page": 5,
+        "type": "paragraph",
+        "text": "Royal Institution of Chartered Surveyors RICS Home Survey - Level 2 https://www.rics.org",
+        "sectionHeading": "Issues for your legal advisers",
+        "headingPath": [
+          "Issues for your legal advisers"
+        ],
+        "sourceBlockIds": [
+          "p5-b2",
+          "p5-b5"
+        ]
+      },
+      "retrievalInput": {
+        "firmTerm": "Issues for your legal advisers",
+        "representativeText": "Royal Institution of Chartered Surveyors RICS Home Survey - Level 2 https://www.rics.org"
+      },
+      "candidates": [
+        {
+          "conceptId": "inspection_brief.instruction.instructing_party",
+          "label": "Instructing party",
+          "aliases": [],
+          "description": "The person or organisation instructing the survey.",
+          "score": 0.06666666666666667,
+          "matchedTerms": [
+            "survey"
+          ]
+        },
+        {
+          "conceptId": "observation",
+          "label": "Observation",
+          "aliases": [],
+          "description": "What the surveyor directly observed during inspection.",
+          "score": 0.06666666666666667,
+          "matchedTerms": [
+            "surveyor"
+          ]
+        },
+        {
+          "conceptId": "property",
+          "label": "Property",
+          "aliases": [],
+          "description": "The selected property to which the survey relates.",
+          "score": 0.06666666666666667,
+          "matchedTerms": [
+            "survey"
+          ]
+        },
+        {
+          "conceptId": "recommendation",
+          "label": "Recommendation",
+          "aliases": [],
+          "description": "The surveyor recommended action arising from a finding.",
+          "score": 0.06666666666666667,
+          "matchedTerms": [
+            "surveyor"
+          ]
+        },
+        {
+          "conceptId": "active_job",
+          "label": "Active job",
+          "aliases": [],
+          "description": "The current surveying job context.",
+          "score": 0,
+          "matchedTerms": []
+        }
+      ],
+      "status": "unresolved",
+      "proposal": {
+        "firmTerm": "Issues for your legal advisers",
+        "selectedConceptId": null,
+        "confidence": 0,
+        "alternatives": [],
+        "rationale": "The term does not directly map to any of the provided candidate concepts."
+      },
+      "latencyMs": 8237.654500000004
+    },
+    {
+      "fragment": {
+        "id": "sf-5-p5-b6",
+        "page": 5,
+        "type": "paragraph",
+        "text": "Ordinary values that should remain unchanged",
+        "sectionHeading": "Issues for your legal advisers",
+        "headingPath": [
+          "Issues for your legal advisers"
+        ],
+        "sourceBlockIds": [
+          "p5-b2",
+          "p5-b6"
+        ]
+      },
+      "retrievalInput": {
+        "firmTerm": "Issues for your legal advisers",
+        "representativeText": "Ordinary values that should remain unchanged"
+      },
+      "candidates": [
+        {
+          "conceptId": "inspection_brief.instruction.source.email",
+          "label": "Email",
+          "aliases": [],
+          "description": "The instruction source value \"Email\".",
+          "score": 0.1,
+          "matchedTerms": [
+            "value"
+          ]
+        },
+        {
+          "conceptId": "inspection_brief.instruction.source.internal",
+          "label": "Internal referral",
+          "aliases": [],
+          "description": "The instruction source value \"Internal referral\".",
+          "score": 0.1,
+          "matchedTerms": [
+            "value"
+          ]
+        },
+        {
+          "conceptId": "inspection_brief.instruction.source.letter",
+          "label": "Letter",
+          "aliases": [],
+          "description": "The instruction source value \"Letter\".",
+          "score": 0.1,
+          "matchedTerms": [
+            "value"
+          ]
+        },
+        {
+          "conceptId": "inspection_brief.instruction.source.other",
+          "label": "Other",
+          "aliases": [],
+          "description": "The instruction source value \"Other\".",
+          "score": 0.1,
+          "matchedTerms": [
+            "value"
+          ]
+        },
+        {
+          "conceptId": "inspection_brief.instruction.source.phone",
+          "label": "Telephone",
+          "aliases": [],
+          "description": "The instruction source value \"Telephone\".",
+          "score": 0.1,
+          "matchedTerms": [
+            "value"
+          ]
+        }
+      ],
+      "status": "unresolved",
+      "proposal": {
+        "firmTerm": "Issues for your legal advisers",
+        "selectedConceptId": null,
+        "confidence": 0,
+        "alternatives": [],
+        "rationale": "No candidate concept matches the firm term 'Issues for your legal advisers'."
+      },
+      "latencyMs": 8378.255999999994
+    },
+    {
+      "fragment": {
+        "id": "sf-5-p5-b7",
+        "page": 5,
+        "type": "paragraph",
+        "text": "2 3 12 300 2021 12.5% 300mm 18% D4 Main walls E8 Bathroom fittings F1 Electricity NI",
+        "sectionHeading": "Issues for your legal advisers",
+        "headingPath": [
+          "Issues for your legal advisers"
+        ],
+        "sourceBlockIds": [
+          "p5-b2",
+          "p5-b7"
+        ]
+      },
+      "retrievalInput": {
+        "firmTerm": "Issues for your legal advisers",
+        "representativeText": "2 3 12 300 2021 12.5% 300mm 18% D4 Main walls E8 Bathroom fittings F1 Electricity NI"
+      },
+      "candidates": [
+        {
+          "conceptId": "building_element.external_wall",
+          "label": "External wall",
+          "aliases": [],
+          "description": "An external wall inspected as the subject of a finding.",
+          "score": 0.05555555555555555,
+          "matchedTerms": [
+            "wall"
+          ]
+        },
+        {
+          "conceptId": "active_job",
+          "label": "Active job",
+          "aliases": [],
+          "description": "The current surveying job context.",
+          "score": 0,
+          "matchedTerms": []
+        },
+        {
+          "conceptId": "building_element",
+          "label": "Building element",
+          "aliases": [],
+          "description": "The subject of an inspection finding.",
+          "score": 0,
+          "matchedTerms": []
+        },
+        {
+          "conceptId": "condition",
+          "label": "Condition",
+          "aliases": [],
+          "description": "A project-neutral free-text assessment of current condition.",
+          "score": 0,
+          "matchedTerms": []
+        },
+        {
+          "conceptId": "defect",
+          "label": "Defect",
+          "aliases": [],
+          "description": "An identified defect or adverse condition associated with a finding.",
+          "score": 0,
+          "matchedTerms": []
+        }
+      ],
+      "status": "unresolved",
+      "proposal": {
+        "firmTerm": "Issues for your legal advisers",
+        "selectedConceptId": null,
+        "confidence": 0,
+        "alternatives": [],
+        "rationale": "No reliable candidate concept matches the firm term or surrounding text."
+      },
+      "latencyMs": 8579.558400000009
+    },
+    {
+      "fragment": {
+        "id": "sf-6-p6-b3",
+        "page": 6,
+        "type": "paragraph",
+        "text": "Jane advised that the loft was inspected. This ambiguous free-prose name is intentionally included to test conservative person-name handling.",
+        "sectionHeading": "Adversarial / ambiguous cases",
+        "headingPath": [
+          "Adversarial / ambiguous cases"
+        ],
+        "sourceBlockIds": [
+          "p6-b2",
+          "p6-b3"
+        ]
+      },
+      "retrievalInput": {
+        "firmTerm": "Adversarial / ambiguous cases",
+        "representativeText": "Jane advised that the loft was inspected. This ambiguous free-prose name is intentionally included to test conservative person-name handling."
+      },
+      "candidates": [
+        {
+          "conceptId": "inspection_brief.instruction.client",
+          "label": "Client",
+          "aliases": [],
+          "description": "The person or organisation for whom the instruction is undertaken.",
+          "score": 0.1,
+          "matchedTerms": [
+            "is",
+            "person"
+          ]
+        },
+        {
+          "conceptId": "building_element.external_wall",
+          "label": "External wall",
+          "aliases": [],
+          "description": "An external wall inspected as the subject of a finding.",
+          "score": 0.05,
+          "matchedTerms": [
+            "inspected"
+          ]
+        },
+        {
+          "conceptId": "condition",
+          "label": "Condition",
+          "aliases": [],
+          "description": "A project-neutral free-text assessment of current condition.",
+          "score": 0.05,
+          "matchedTerms": [
+            "free"
+          ]
+        },
+        {
+          "conceptId": "inspection_brief.instruction.instructing_party",
+          "label": "Instructing party",
+          "aliases": [],
+          "description": "The person or organisation instructing the survey.",
+          "score": 0.05,
+          "matchedTerms": [
+            "person"
+          ]
+        },
+        {
+          "conceptId": "inspection_brief.instruction.source",
+          "label": "Source",
+          "aliases": [],
+          "description": "The channel or source through which the instruction was received.",
+          "score": 0.05,
+          "matchedTerms": [
+            "was"
+          ]
+        }
+      ],
+      "status": "unresolved",
+      "proposal": {
+        "firmTerm": "Adversarial / ambiguous cases",
+        "selectedConceptId": null,
+        "confidence": 0,
+        "alternatives": [],
+        "rationale": "The term does not directly map to any of the provided candidate concepts."
+      },
+      "latencyMs": 10182.486900000004
+    },
+    {
+      "fragment": {
+        "id": "sf-6-p6-b4",
+        "page": 6,
+        "type": "paragraph",
+        "text": "The property is near Example Park and fronts Example High Street. This location-like prose is intentionally ambiguous and should not be aggressively redacted solely because it looks like a place.",
+        "sectionHeading": "Adversarial / ambiguous cases",
+        "headingPath": [
+          "Adversarial / ambiguous cases"
+        ],
+        "sourceBlockIds": [
+          "p6-b2",
+          "p6-b4"
+        ]
+      },
+      "retrievalInput": {
+        "firmTerm": "Adversarial / ambiguous cases",
+        "representativeText": "The property is near Example Park and fronts Example High Street. This location-like prose is intentionally ambiguous and should not be aggressively redacted solely because it looks like a place."
+      },
+      "candidates": [
+        {
+          "conceptId": "property.address.route",
+          "label": "Street",
+          "aliases": [],
+          "description": "The street or route on which the property is located.",
+          "score": 0.11538461538461539,
+          "matchedTerms": [
+            "property",
+            "is",
+            "street"
+          ]
+        },
+        {
+          "conceptId": "property.address.street_number",
+          "label": "Street number",
+          "aliases": [],
+          "description": "The number identifying the property on its street.",
+          "score": 0.07692307692307693,
+          "matchedTerms": [
+            "property",
+            "street"
+          ]
+        },
+        {
+          "conceptId": "field_completion_metadata.invalid",
+          "label": "Invalid",
+          "aliases": [],
+          "description": "Marks a populated field as not acceptable for completion.",
+          "score": 0.038461538461538464,
+          "matchedTerms": [
+            "not"
+          ]
+        },
+        {
+          "conceptId": "field_completion_metadata.not_applicable",
+          "label": "Not applicable",
+          "aliases": [],
+          "description": "Marks a field as excluded from completion totals.",
+          "score": 0.038461538461538464,
+          "matchedTerms": [
+            "not"
+          ]
+        },
+        {
+          "conceptId": "inspection_brief.instruction.client",
+          "label": "Client",
+          "aliases": [],
+          "description": "The person or organisation for whom the instruction is undertaken.",
+          "score": 0.038461538461538464,
+          "matchedTerms": [
+            "is"
+          ]
+        }
+      ],
+      "status": "unresolved",
+      "proposal": {
+        "firmTerm": "Adversarial / ambiguous cases",
+        "selectedConceptId": null,
+        "confidence": 0,
+        "alternatives": [],
+        "rationale": "The term does not directly map to any of the provided candidate concepts."
+      },
+      "latencyMs": 8898.494999999995
+    },
+    {
+      "fragment": {
+        "id": "sf-6-p6-b5",
+        "page": 6,
+        "type": "paragraph",
+        "text": "Contact [EMAIL] on [PHONE] regarding [POSTCODE].",
+        "sectionHeading": "Adversarial / ambiguous cases",
+        "headingPath": [
+          "Adversarial / ambiguous cases"
+        ],
+        "sourceBlockIds": [
+          "p6-b2",
+          "p6-b5"
+        ]
+      },
+      "retrievalInput": {
+        "firmTerm": "Adversarial / ambiguous cases",
+        "representativeText": "Contact [EMAIL] on [PHONE] regarding [POSTCODE]."
+      },
+      "candidates": [
+        {
+          "conceptId": "inspection_brief.instruction.source.email",
+          "label": "Email",
+          "aliases": [],
+          "description": "The instruction source value \"Email\".",
+          "score": 0.125,
+          "matchedTerms": [
+            "email"
+          ]
+        },
+        {
+          "conceptId": "inspection_brief.instruction.source.phone",
+          "label": "Telephone",
+          "aliases": [],
+          "description": "The instruction source value \"Telephone\".",
+          "score": 0.125,
+          "matchedTerms": [
+            "phone"
+          ]
+        },
+        {
+          "conceptId": "property.address.postal_code",
+          "label": "Postcode",
+          "aliases": [],
+          "description": "The postal code of the property.",
+          "score": 0.125,
+          "matchedTerms": [
+            "postcode"
+          ]
+        },
+        {
+          "conceptId": "active_job",
+          "label": "Active job",
+          "aliases": [],
+          "description": "The current surveying job context.",
+          "score": 0,
+          "matchedTerms": []
+        },
+        {
+          "conceptId": "building_element",
+          "label": "Building element",
+          "aliases": [],
+          "description": "The subject of an inspection finding.",
+          "score": 0,
+          "matchedTerms": []
+        }
+      ],
+      "status": "unresolved",
+      "proposal": {
+        "firmTerm": "Adversarial / ambiguous cases",
+        "selectedConceptId": null,
+        "confidence": 0,
+        "alternatives": [],
+        "rationale": "No reliable candidate concept matches the firm term or context."
+      },
+      "latencyMs": 7865.9804
+    },
+    {
+      "fragment": {
+        "id": "sf-6-p6-b6",
+        "page": 6,
+        "type": "paragraph",
+        "text": "Inline labelled values",
+        "sectionHeading": "Adversarial / ambiguous cases",
+        "headingPath": [
+          "Adversarial / ambiguous cases"
+        ],
+        "sourceBlockIds": [
+          "p6-b2",
+          "p6-b6"
+        ]
+      },
+      "retrievalInput": {
+        "firmTerm": "Adversarial / ambiguous cases",
+        "representativeText": "Inline labelled values"
+      },
+      "candidates": [
+        {
+          "conceptId": "inspection_brief.instruction.source.email",
+          "label": "Email",
+          "aliases": [],
+          "description": "The instruction source value \"Email\".",
+          "score": 0.16666666666666666,
+          "matchedTerms": [
+            "value"
+          ]
+        },
+        {
+          "conceptId": "inspection_brief.instruction.source.internal",
+          "label": "Internal referral",
+          "aliases": [],
+          "description": "The instruction source value \"Internal referral\".",
+          "score": 0.16666666666666666,
+          "matchedTerms": [
+            "value"
+          ]
+        },
+        {
+          "conceptId": "inspection_brief.instruction.source.letter",
+          "label": "Letter",
+          "aliases": [],
+          "description": "The instruction source value \"Letter\".",
+          "score": 0.16666666666666666,
+          "matchedTerms": [
+            "value"
+          ]
+        },
+        {
+          "conceptId": "inspection_brief.instruction.source.other",
+          "label": "Other",
+          "aliases": [],
+          "description": "The instruction source value \"Other\".",
+          "score": 0.16666666666666666,
+          "matchedTerms": [
+            "value"
+          ]
+        },
+        {
+          "conceptId": "inspection_brief.instruction.source.phone",
+          "label": "Telephone",
+          "aliases": [],
+          "description": "The instruction source value \"Telephone\".",
+          "score": 0.16666666666666666,
+          "matchedTerms": [
+            "value"
+          ]
+        }
+      ],
+      "status": "unresolved",
+      "proposal": {
+        "firmTerm": "Adversarial / ambiguous cases",
+        "selectedConceptId": null,
+        "confidence": 0,
+        "alternatives": [],
+        "rationale": "No reliable candidate concept matches the firm term."
+      },
+      "latencyMs": 7612.405200000008
+    }
+  ]
+}

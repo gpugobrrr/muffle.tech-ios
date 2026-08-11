@@ -1,0 +1,112 @@
+{
+  "parserVersion": 1,
+  "sourceFile": "rhs_level_two.pdf",
+  "pageCount": 47,
+  "parsedPages": [
+    5
+  ],
+  "blocks": [
+    {
+      "id": "p5-b1",
+      "page": 5,
+      "type": "heading",
+      "text": "! Reminder",
+      "bounds": {
+        "x": 104.88,
+        "y": 716.28,
+        "width": 73.79,
+        "height": 12.48
+      },
+      "font": {
+        "size": 12,
+        "family": "serif"
+      },
+      "sourceItemCount": 2
+    },
+    {
+      "id": "p5-b2",
+      "page": 5,
+      "type": "paragraph",
+      "text": "Please refer to your Terms and Conditions report received on the",
+      "bounds": {
+        "x": 97.08,
+        "y": 691.08,
+        "width": 295.63,
+        "height": 9.96
+      },
+      "font": {
+        "size": 9.96,
+        "family": "serif"
+      },
+      "sourceItemCount": 3
+    },
+    {
+      "id": "p5-b3",
+      "page": 5,
+      "type": "paragraph",
+      "text": "for a full",
+      "bounds": {
+        "x": 508.8,
+        "y": 691.2,
+        "width": 35.48,
+        "height": 9.96
+      },
+      "font": {
+        "size": 9.96,
+        "family": "serif"
+      },
+      "sourceItemCount": 1
+    },
+    {
+      "id": "p5-b4",
+      "page": 5,
+      "type": "paragraph",
+      "text": "list of exclusions.",
+      "bounds": {
+        "x": 97.08,
+        "y": 677.04,
+        "width": 75.47,
+        "height": 9.96
+      },
+      "font": {
+        "size": 9.96,
+        "family": "serif"
+      },
+      "sourceItemCount": 1
+    },
+    {
+      "id": "p5-b5",
+      "page": 5,
+      "type": "paragraph",
+      "text": "RICS Home Survey – Level 2 (survey only)",
+      "bounds": {
+        "x": 85.56,
+        "y": 27.96,
+        "width": 190.51,
+        "height": 9.96
+      },
+      "font": {
+        "size": 9.96,
+        "family": "serif"
+      },
+      "sourceItemCount": 1
+    },
+    {
+      "id": "p5-b6",
+      "page": 5,
+      "type": "paragraph",
+      "text": "4",
+      "bounds": {
+        "x": 555.72,
+        "y": 27.96,
+        "width": 5.54,
+        "height": 9.96
+      },
+      "font": {
+        "size": 9.96,
+        "family": "serif"
+      },
+      "sourceItemCount": 1
+    }
+  ]
+}

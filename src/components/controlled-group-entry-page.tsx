@@ -7,7 +7,7 @@ import { NumericEntryPage } from '@/components/numeric-entry-page';
 import { TextEntryPage } from '@/components/text-entry-page';
 import { Colors, Fonts, Spacing, Type } from '@/constants/theme';
 import type { ActiveEntryField } from '@/hooks/use-workspace';
-import type { CompoundGroupRow } from '@/lib/compound-capture';
+import type { CompoundGroupRow } from '@/lib/controlled-group';
 import type { FieldDefinition } from '@/lib/field-schema';
 import { orderMultiChoiceValues, toggleMultiChoiceValue } from '@/lib/multi-choice';
 import { formatSvyrDisplayedLabel } from '@/lib/svyr-label-presentation';

@@ -1,5 +1,6 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { verifyCommandContract } from '@/lib/command-contract';
 import {
@@ -33,6 +34,14 @@ import {
 } from '@/lib/multi-choice';
 import { createEmptyInspectionRecord } from '@/lib/inspection-record';
 import { commitInspectionFindingField, resolveFindingFieldValue } from '@/lib/finding-capture';
+import { captureAndCommitInspectionEvidencePhoto } from '@/lib/evidence-capture';
+import { createExpoEvidenceFileStore } from '@/lib/evidence-files';
+import {
+  ACTIVE_JOB_STORAGE_KEY,
+  createInitialActiveJob,
+  deserializeActiveJob,
+  serializeActiveJob,
+} from '@/lib/job-persistence';
 import { resolveLookup } from '@/lib/lookup';
 import { suffixForPath } from '@/lib/pin-context';
 import { executeSurveyOperation } from '@/lib/survey-operations';
@@ -78,13 +87,7 @@ const INITIAL_BRIEF: InspectionBrief = {
 };
 
 /** Demo job site — presentation reads this; it never hard-codes the address. */
-const INITIAL_JOB: ActiveJob = {
-  property: {
-    displayAddress: '18 Market Street',
-    instructionType: 'Level 2 Building Survey',
-  },
-  inspection: createEmptyInspectionRecord(),
-};
+const INITIAL_JOB: ActiveJob = createInitialActiveJob();
 
 function announce(message: string) {
   AccessibilityInfo.announceForAccessibility(message);
@@ -116,6 +119,12 @@ export type ActiveCompoundCapture = {
   node: CommandNode;
 };
 
+export type ActiveEvidenceCapture = {
+  path: string[];
+  node: CommandNode;
+  target: NonNullable<CommandNode['evidenceCaptureTarget']>;
+};
+
 /**
  * Single source of SVYR command state for the landscape Power User workspace.
  * The registry, parser, command path, and suggestions all resolve here.
@@ -133,6 +142,8 @@ export type SvyrController = {
   activeEntryField: ActiveEntryField | null;
   /** Grouped controlled capture surface for a compound registry branch. */
   activeCompoundCapture: ActiveCompoundCapture | null;
+  /** Photo evidence capture surface for a configured finding route. */
+  activeEvidenceCapture: ActiveEvidenceCapture | null;
   /** Compact validation message inside the entry panel — never a nav dock error. */
   entryError: string | null;
   fullCommandPath: string[];
@@ -213,6 +224,8 @@ export function useSvyrController(): SvyrController {
     useState<ActiveEntryField | null>(null);
   const [activeCompoundCapture, setActiveCompoundCapture] =
     useState<ActiveCompoundCapture | null>(null);
+  const [activeEvidenceCapture, setActiveEvidenceCapture] =
+    useState<ActiveEvidenceCapture | null>(null);
   const [entryError, setEntryError] = useState<string | null>(null);
   const [notesByPath, setNotesByPath] = useState<SvyrNotesByPath>({});
   const [entryDraftsByPath, setEntryDraftsByPath] =
@@ -225,6 +238,8 @@ export function useSvyrController(): SvyrController {
   const activeJobRef = useRef<ActiveJob>(INITIAL_JOB);
   const activeEntryRef = useRef<ActiveEntryField | null>(null);
   const activeCompoundCaptureRef = useRef<ActiveCompoundCapture | null>(null);
+  const activeEvidenceCaptureRef = useRef<ActiveEvidenceCapture | null>(null);
+  const evidenceFileStoreRef = useRef(createExpoEvidenceFileStore());
   const dataEntryDirectoryRef = useRef<string[]>([]);
   const entryDraftsByPathRef = useRef<SvyrEntryDraftsByPath>({});
 
@@ -236,6 +251,7 @@ export function useSvyrController(): SvyrController {
   activeJobRef.current = activeJob;
   activeEntryRef.current = activeEntryField;
   activeCompoundCaptureRef.current = activeCompoundCapture;
+  activeEvidenceCaptureRef.current = activeEvidenceCapture;
   dataEntryDirectoryRef.current = dataEntryDirectory;
   entryDraftsByPathRef.current = entryDraftsByPath;
 
@@ -268,7 +284,9 @@ export function useSvyrController(): SvyrController {
    * dock is replaced entirely. Leaving clears the field, never the reverse.
    */
   const inputMode: SvyrInputMode =
-    activeEntryField || activeCompoundCapture ? 'data-entry' : 'navigation';
+    activeEntryField || activeCompoundCapture || activeEvidenceCapture
+      ? 'data-entry'
+      : 'navigation';
 
   /** Visible only after a successful execution — never from path resolution. */
   const infoBarText = lastExecutionResult
@@ -278,6 +296,7 @@ export function useSvyrController(): SvyrController {
   const clearActiveEntry = useCallback(() => {
     setActiveEntryField(null);
     setActiveCompoundCapture(null);
+    setActiveEvidenceCapture(null);
     setEntryError(null);
   }, []);
 
@@ -661,6 +680,43 @@ export function useSvyrController(): SvyrController {
     [clearActiveEntry, setDataEntryDirectoryForPath],
   );
 
+  const commitEvidencePhoto = useCallback(
+    async (temporaryUri: string): Promise<boolean> => {
+      const capture = activeEvidenceCaptureRef.current;
+      if (!capture) return false;
+
+      const committed = await captureAndCommitInspectionEvidencePhoto({
+        inspection: activeJobRef.current.inspection,
+        target: capture.target,
+        jobId: activeJobRef.current.id,
+        temporaryUri,
+        fileStore: evidenceFileStoreRef.current,
+      });
+      if (!committed.ok) {
+        setEntryError(committed.message);
+        setFocusToken((token) => token + 1);
+        announce(committed.message);
+        return false;
+      }
+
+      setActiveJobState((current) => ({
+        ...current,
+        inspection: committed.result.inspection,
+      }));
+      setLastExecutionResult({
+        operationId: committed.result.operationId,
+        label: 'Photo',
+        value: committed.evidence.id,
+        executedCommand: formatCommandPath(capture.path),
+      });
+      setEntryError(null);
+      setTemporaryAutocompleteContent(null);
+      announce('Photo evidence recorded');
+      return true;
+    },
+    [],
+  );
+
   const requestTerminalFocus = useCallback(() => {
     setFocusToken((n) => n + 1);
   }, []);
@@ -733,7 +789,30 @@ export function useSvyrController(): SvyrController {
       setLastExecutionResult(null);
       setEntryError(null);
       setActiveEntryField(null);
+      setActiveEvidenceCapture(null);
       setActiveCompoundCapture({ path: suggestion.commandPath, node });
+      setDataEntryDirectoryForPath(suggestion.commandPath);
+      setCommandSuffix(suggestion.insertion);
+      setFocusToken((token) => token + 1);
+    },
+    [setDataEntryDirectoryForPath],
+  );
+
+  const beginEvidenceCapture = useCallback(
+    (suggestion: TokenSuggestion) => {
+      const node = findCommandNode(suggestion.commandPath);
+      if (!node?.evidenceCaptureTarget) return;
+
+      setTemporaryAutocompleteContent(null);
+      setLastExecutionResult(null);
+      setEntryError(null);
+      setActiveEntryField(null);
+      setActiveCompoundCapture(null);
+      setActiveEvidenceCapture({
+        path: suggestion.commandPath,
+        node,
+        target: node.evidenceCaptureTarget,
+      });
       setDataEntryDirectoryForPath(suggestion.commandPath);
       setCommandSuffix(suggestion.insertion);
       setFocusToken((token) => token + 1);
@@ -745,14 +824,16 @@ export function useSvyrController(): SvyrController {
   const cancelDataEntry = useCallback(() => {
     const field = activeEntryRef.current;
     const compound = activeCompoundCaptureRef.current;
-    if (!field && !compound) return;
+    const evidence = activeEvidenceCaptureRef.current;
+    if (!field && !compound && !evidence) return;
 
     setTemporaryAutocompleteContent(null);
     setLastExecutionResult(null);
     setEntryError(null);
     setActiveEntryField(null);
     setActiveCompoundCapture(null);
-    const path = field?.path ?? compound?.path ?? [];
+    setActiveEvidenceCapture(null);
+    const path = field?.path ?? compound?.path ?? evidence?.path ?? [];
     setDataEntryDirectory((current) => current.slice(0, -1));
     setCommandSuffix(
       suffixForPath(path.slice(0, -1)),
@@ -887,6 +968,9 @@ export function useSvyrController(): SvyrController {
     if (activeCompoundCaptureRef.current) {
       return dataEntryDirectoryRef.current;
     }
+    if (activeEvidenceCaptureRef.current) {
+      return dataEntryDirectoryRef.current;
+    }
     return parseEditableCommand(suffixRef.current).structuredTokens;
   }, []);
 
@@ -903,6 +987,7 @@ export function useSvyrController(): SvyrController {
       setEntryError(null);
       setActiveEntryField(null);
       setActiveCompoundCapture(null);
+      setActiveEvidenceCapture(null);
       setDataEntryDirectory(targetDirectory);
       setCommandSuffix(suffixForPath(targetDirectory));
       setFocusToken((token) => token + 1);
@@ -953,6 +1038,11 @@ export function useSvyrController(): SvyrController {
         return;
       }
 
+      if (suggestion.evidenceCapture) {
+        beginEvidenceCapture(suggestion);
+        return;
+      }
+
       if (suggestion.workflowOnly) {
         const node = findCommandNode(suggestion.commandPath);
         clearActiveEntry();
@@ -985,7 +1075,7 @@ export function useSvyrController(): SvyrController {
       setCommandSuffix(suggestion.insertion);
       setFocusToken((n) => n + 1);
     },
-    [beginCompoundCapture, beginDataEntry, clearActiveEntry, executeCommand, setDataEntryDirectoryForPath],
+    [beginCompoundCapture, beginDataEntry, beginEvidenceCapture, clearActiveEntry, executeCommand, setDataEntryDirectoryForPath],
   );
 
   /**
@@ -994,7 +1084,7 @@ export function useSvyrController(): SvyrController {
    */
   const moveUpDirectory = useCallback(() => {
     // Dedicated entry: stash any uncommitted draft, then leave without commit.
-    if (activeEntryRef.current || activeCompoundCaptureRef.current) {
+    if (activeEntryRef.current || activeCompoundCaptureRef.current || activeEvidenceCaptureRef.current) {
       if (activeEntryRef.current) {
         stashActiveEntryDraft();
       }
@@ -1077,7 +1167,11 @@ export function useSvyrController(): SvyrController {
    * stashed by field path so navigation never traps the surveyor.
    */
   const cancelCurrentInteraction = useCallback(() => {
-    if (!activeEntryRef.current && !activeCompoundCaptureRef.current) {
+    if (
+      !activeEntryRef.current &&
+      !activeCompoundCaptureRef.current &&
+      !activeEvidenceCaptureRef.current
+    ) {
       return false;
     }
     if (activeEntryRef.current) {
@@ -1105,6 +1199,21 @@ export function useSvyrController(): SvyrController {
     setActiveJobState((current) => ({ ...current, property }));
   }, []);
 
+  useEffect(() => {
+    void (async () => {
+      const raw = await AsyncStorage.getItem(ACTIVE_JOB_STORAGE_KEY);
+      if (!raw) return;
+      const restored = deserializeActiveJob(raw);
+      if (restored) {
+        setActiveJobState(restored);
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    void AsyncStorage.setItem(ACTIVE_JOB_STORAGE_KEY, serializeActiveJob(activeJob));
+  }, [activeJob]);
+
   return {
     inspectionBrief,
     activeJob,
@@ -1120,6 +1229,7 @@ export function useSvyrController(): SvyrController {
     inputMode,
     activeEntryField,
     activeCompoundCapture,
+    activeEvidenceCapture,
     entryError,
     setEntryValue,
     beginDataEntry,
@@ -1135,6 +1245,7 @@ export function useSvyrController(): SvyrController {
     commitFieldValue,
     commitControlledFieldValue,
     commitControlledSetFieldValue,
+    commitEvidencePhoto,
     activeMultiChoiceValues,
     toggleMultiChoiceDraft,
     commitMultiChoiceField,

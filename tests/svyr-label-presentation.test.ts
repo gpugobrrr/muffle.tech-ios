@@ -104,6 +104,7 @@ test('services/electricity screen presents capture leaves with parentheses', () 
       '(observation)',
       '(defect)',
       '(recommendation)',
+      '(Add photo)',
     ],
   );
 });

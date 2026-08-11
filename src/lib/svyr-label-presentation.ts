@@ -61,9 +61,12 @@ export function formatSvyrDisplayedLabel(
  * never imply a writable capture surface for unsupported leaves.
  */
 export function resolveSvyrNodeLabelPresentation(
-  node: Pick<CommandNode, 'requiresValue' | 'compoundCapture'>,
+  node: Pick<
+    CommandNode,
+    'requiresValue' | 'compoundCapture' | 'evidenceCaptureTarget'
+  >,
 ): SvyrCommandLabelPresentation {
-  if (node.requiresValue || node.compoundCapture) {
+  if (node.requiresValue || node.compoundCapture || node.evidenceCaptureTarget) {
     return 'entry';
   }
   return 'navigation';
@@ -76,11 +79,15 @@ export function resolveSvyrNodeLabelPresentation(
 export function resolveSvyrTokenLabelPresentation(
   suggestion: Pick<
     TokenSuggestion,
-    'requiresValue' | 'compoundCapture'
+    'requiresValue' | 'compoundCapture' | 'evidenceCapture'
   >,
 ): SvyrCommandLabelPresentation {
-  return resolveSvyrNodeLabelPresentation({
-    requiresValue: suggestion.requiresValue,
-    compoundCapture: suggestion.compoundCapture,
-  });
+  if (
+    suggestion.requiresValue ||
+    suggestion.compoundCapture ||
+    suggestion.evidenceCapture
+  ) {
+    return 'entry';
+  }
+  return 'navigation';
 }

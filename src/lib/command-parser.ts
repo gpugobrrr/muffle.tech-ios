@@ -54,6 +54,8 @@ export type TokenSuggestion = {
   workflowOnly?: boolean;
   /** Opens grouped controlled capture for registered child fields. */
   compoundCapture?: boolean;
+  /** Opens photo evidence capture for a configured finding. */
+  evidenceCapture?: boolean;
   /** Visible but cannot be selected when the registry marks it unavailable. */
   available: boolean;
   description: string;
@@ -228,6 +230,7 @@ function tokenSuggestion(
     requiresValue: node.requiresValue,
     workflowOnly: node.workflowOnly,
     compoundCapture: node.compoundCapture,
+    evidenceCapture: Boolean(node.evidenceCaptureTarget),
     available: node.available !== false,
     description: node.description,
   };

@@ -38,6 +38,7 @@ function createBrief(instructingParty: string | null = null): InspectionBrief {
 
 function createJob(address: StructuredAddress): ActiveJob {
   return {
+    id: `job.test.${address.postalCode ?? 'unknown'}`,
     property: {
       displayAddress: address.formattedAddress,
       address,

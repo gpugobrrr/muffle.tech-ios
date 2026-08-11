@@ -8,9 +8,13 @@
     "scheme": "muffledemo",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Allow Muffle to capture photo evidence during inspections."
+      }
     },
     "android": {
+      "permissions": ["CAMERA"],
       "adaptiveIcon": {
         "backgroundColor": "#F1F1ED",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -24,6 +28,12 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Allow Muffle to capture photo evidence during inspections."
+        }
+      ],
       [
         "expo-splash-screen",
         {

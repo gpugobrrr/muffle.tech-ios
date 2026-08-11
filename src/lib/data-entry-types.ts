@@ -13,6 +13,7 @@ export const SVYR_DATA_ENTRY_TYPES = {
   controlledFact: 4,
   compoundGroup: 5,
   findingCapture: 6,
+  evidenceCapture: 7,
 } as const;
 
 export type SvyrDataEntryType =
@@ -61,10 +62,16 @@ export function usesSingleChoicePresentation(
  * Compound groups and finding leaves are identifiable without field schema.
  */
 export function resolveSvyrNodeDataEntryType(
-  node: Pick<CommandNode, 'compoundCapture' | 'findingTarget' | 'requiresValue'>,
+  node: Pick<
+    CommandNode,
+    'compoundCapture' | 'findingTarget' | 'evidenceCaptureTarget' | 'requiresValue'
+  >,
 ): SvyrDataEntryType | null {
   if (node.compoundCapture) {
     return SVYR_DATA_ENTRY_TYPES.compoundGroup;
+  }
+  if (node.evidenceCaptureTarget) {
+    return SVYR_DATA_ENTRY_TYPES.evidenceCapture;
   }
   if (node.findingTarget) {
     return SVYR_DATA_ENTRY_TYPES.findingCapture;
@@ -76,7 +83,13 @@ export function resolveSvyrNodeDataEntryType(
 }
 
 export function isFindingCaptureEntry(
-  node: Pick<CommandNode, 'findingTarget'> | null | undefined,
+  node: Pick<CommandNode, 'findingTarget' | 'evidenceCaptureTarget'> | null | undefined,
 ): boolean {
   return Boolean(node?.findingTarget);
+}
+
+export function isEvidenceCaptureEntry(
+  node: Pick<CommandNode, 'evidenceCaptureTarget'> | null | undefined,
+): boolean {
+  return Boolean(node?.evidenceCaptureTarget);
 }

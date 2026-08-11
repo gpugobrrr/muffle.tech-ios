@@ -26,6 +26,11 @@ export type InspectionFindingCaptureTarget = {
   field: InspectionFindingField;
 };
 
+export type InspectionEvidenceCaptureTarget = {
+  findingId: string;
+  elementConceptId: InspectionElementConceptId;
+};
+
 export type CommandNode = {
   /** Keyword as typed in SVYR > (always lowercase). */
   token: string;
@@ -69,6 +74,8 @@ export type CommandNode = {
   coverage?: Level2CaptureCoverage;
   /** Existing finding-field context resolved by the controller at commit. */
   findingTarget?: InspectionFindingCaptureTarget;
+  /** Photo evidence capture linked to an existing finding. */
+  evidenceCaptureTarget?: InspectionEvidenceCaptureTarget;
   /**
    * Counts toward directory completion. Defaults to `requiresValue` when
    * omitted. Explicit `false` / `optional: true` excludes the field.

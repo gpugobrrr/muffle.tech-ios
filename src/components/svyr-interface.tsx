@@ -14,6 +14,7 @@ import { GestureDetector } from 'react-native-gesture-handler';
 import { CommandDock } from '@/components/command-dock';
 import { SvyrNavigationPage } from '@/components/svyr-navigation-page';
 import { CompoundCaptureEntryPage } from '@/components/controlled-group-entry-page';
+import { EvidencePhotoCapturePage } from '@/components/evidence-photo-capture-page';
 import { SvyrDataEntryPanel } from '@/components/svyr-data-entry-panel';
 import { inputInstructionForField } from '@/components/text-entry-page';
 import { WorkspaceHeader } from '@/components/workspace-header';
@@ -295,7 +296,15 @@ export function SvyrInterface({
 
         {/* Party notes live in the active field content column. */}
         <View style={styles.stageSpacer}>
-          {controller.activeCompoundCapture ? (
+          {controller.activeEvidenceCapture ? (
+            <EvidencePhotoCapturePage
+              target={controller.activeEvidenceCapture.target}
+              inspection={controller.activeJob.inspection}
+              error={controller.entryError}
+              onCapturePhoto={controller.commitEvidencePhoto}
+              onNavigateUpDirectory={controller.cancelCurrentInteraction}
+            />
+          ) : controller.activeCompoundCapture ? (
             <CompoundCaptureEntryPage
               rows={compoundRows}
               error={controller.entryError}

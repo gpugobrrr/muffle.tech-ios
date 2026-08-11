@@ -4,6 +4,7 @@ import type {
 } from '@/lib/command-registry';
 import type { FieldDefinition } from '@/lib/field-schema';
 import { buildFindingCaptureLeaf as createFindingCaptureLeaf } from '@/lib/finding-capture';
+import { buildEvidenceCaptureLeaf as createEvidenceCaptureLeaf } from '@/lib/evidence-capture';
 import { HEATING_FIELD_DEFINITIONS } from '@/lib/property-energy-heating';
 import {
   servicesPresenceFieldDefinition,
@@ -147,6 +148,14 @@ function servicesFindingLeaves(
       config.elementConceptId,
       'recommendation',
       `${prefix} recommendation`,
+    ),
+    createEvidenceCaptureLeaf(
+      'photo',
+      'Add photo',
+      `Capture photo evidence for the ${prefix.toLowerCase()} finding.`,
+      config.findingId,
+      config.elementConceptId,
+      `${prefix} photo evidence`,
     ),
   ];
 }
@@ -460,6 +469,14 @@ const EXTERNAL_NODE: CommandNode = {
         externalWallFindingLeaf('condition', 'condition', 'Record free-text current condition.', 'condition'),
         externalWallFindingLeaf('defect', 'defect', 'Record an identified defect.', 'defect'),
         externalWallFindingLeaf('recommend', 'recommendation', 'Record recommended action.', 'recommendation'),
+        createEvidenceCaptureLeaf(
+          'photo',
+          'Add photo',
+          'Capture photo evidence for the external wall finding.',
+          EXTERNAL_WALL_FINDING_ID,
+          'building_element.external_wall',
+          'External wall photo evidence',
+        ),
         workflowLeaf('limit', 'limitation', 'Finding limitation coverage.', {
           requirement: 'External wall finding limitation',
           status: 'blocked',

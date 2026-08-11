@@ -75,6 +75,16 @@ export type InspectionEvidenceReference = {
   id: string;
 };
 
+export type InspectionEvidenceKind = 'photo';
+
+/** Canonical evidence asset metadata — image bytes live on disk, not in JSON. */
+export type InspectionEvidence = {
+  id: string;
+  kind: InspectionEvidenceKind;
+  /** Persistent local file URI resolved by the evidence file helper. */
+  uri: string;
+};
+
 /**
  * Canonical inspection content. Presentation labels and report layout never
  * belong here; `elementConceptId` is the stable semantic anchor.
@@ -91,9 +101,13 @@ export type InspectionFinding = {
 
 export type InspectionRecord = {
   findings: Readonly<Record<string, InspectionFinding>>;
+  /** Canonical evidence assets keyed by stable evidence ID. */
+  evidence?: Readonly<Record<string, InspectionEvidence>>;
 };
 
 export type ActiveJob = {
+  /** Stable job identity used for on-device evidence file paths. */
+  id: string;
   property: ActiveProperty | null;
   inspection: InspectionRecord;
 };

@@ -42,6 +42,7 @@ function createJob(
 ): ActiveJob {
   const address = DEMO_OX3_8SE_ADDRESSES[1].address;
   return {
+    id: 'job.test.inspection-finding',
     property: {
       displayAddress: address.formattedAddress,
       address,

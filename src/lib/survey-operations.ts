@@ -14,6 +14,7 @@ import {
 } from '@/lib/multi-choice';
 import type {
   InspectionBrief,
+  InspectionEvidence,
   InspectionFinding,
   InspectionRecord,
 } from '@/types/workspace';
@@ -30,6 +31,7 @@ export type SurveyOperation = {
     fieldId?: string;
     findingId?: string;
     finding?: InspectionFinding;
+    evidence?: InspectionEvidence;
   };
 };
 
@@ -44,6 +46,7 @@ export const SURVEY_OPERATIONS = {
   readControlledFactSet: 'survey.controlled_fact_set.read',
   upsertInspectionFinding: 'survey.inspection.finding.upsert',
   readInspectionFinding: 'survey.inspection.finding.read',
+  addInspectionEvidence: 'survey.inspection.evidence.add',
 } as const;
 
 /** Successful execution payload shared by both SVYR renderers. */
@@ -77,6 +80,21 @@ function labelForField(
 function optionalText(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
   return trimmed ? trimmed : undefined;
+}
+
+function normalizeEvidence(
+  evidence: InspectionEvidence,
+): InspectionEvidence | null {
+  const id = evidence.id.trim();
+  const uri = evidence.uri.trim();
+  if (!id || !uri || evidence.kind !== 'photo') {
+    return null;
+  }
+  return {
+    id,
+    kind: 'photo',
+    uri,
+  };
 }
 
 function normalizeFinding(
@@ -281,6 +299,47 @@ export function executeSurveyOperation(
   return null;
 }
 
+function executeAddInspectionEvidence(
+  inspection: InspectionRecord,
+  operation: SurveyOperation,
+): InspectionOperationResult | null {
+  const findingId = operation.arguments.findingId?.trim();
+  const evidence = operation.arguments.evidence
+    ? normalizeEvidence(operation.arguments.evidence)
+    : null;
+  if (!findingId || !evidence) return null;
+
+  const existingFinding = inspection.findings[findingId];
+  if (!existingFinding?.observation?.trim()) return null;
+  if (inspection.evidence?.[evidence.id]) return null;
+
+  const existingRefs = existingFinding.evidence ?? [];
+  if (existingRefs.some((reference) => reference.id === evidence.id)) {
+    return null;
+  }
+
+  const nextFinding = normalizeFinding({
+    ...existingFinding,
+    evidence: [...existingRefs, { id: evidence.id }],
+  });
+  if (!nextFinding) return null;
+
+  return {
+    operationId: operation.operationId,
+    inspection: {
+      findings: {
+        ...inspection.findings,
+        [findingId]: nextFinding,
+      },
+      evidence: {
+        ...(inspection.evidence ?? {}),
+        [evidence.id]: evidence,
+      },
+    },
+    finding: nextFinding,
+  };
+}
+
 /**
  * Execute canonical finding operations against the inspection record.
  * Upsert replaces one stable ID and therefore cannot duplicate an edited
@@ -290,6 +349,10 @@ export function executeInspectionOperation(
   inspection: InspectionRecord,
   operation: SurveyOperation,
 ): InspectionOperationResult | null {
+  if (operation.operationId === SURVEY_OPERATIONS.addInspectionEvidence) {
+    return executeAddInspectionEvidence(inspection, operation);
+  }
+
   if (
     operation.operationId === SURVEY_OPERATIONS.upsertInspectionFinding
   ) {
@@ -304,6 +367,9 @@ export function executeInspectionOperation(
         findings: {
           ...inspection.findings,
           [finding.id]: finding,
+        },
+        evidence: {
+          ...(inspection.evidence ?? {}),
         },
       },
       finding,

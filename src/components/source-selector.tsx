@@ -1,5 +1,6 @@
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { SvyrChoiceItem } from '@/components/svyr-choice-item';
 import { Colors, Fonts, Spacing, Type } from '@/constants/theme';
 import type { SvyrController } from '@/hooks/use-workspace';
 import { findFieldDefinition, normalizeFieldInputValue } from '@/lib/field-schema';
@@ -59,15 +60,12 @@ export function SourceSelector({ controller }: Props) {
             renderItem={({ item }) => {
               const isSelected = currentValue === item.value;
               return (
-                <Pressable
+                <SvyrChoiceItem
+                  label={item.label}
+                  selected={isSelected}
                   onPress={() => handleSelectOption(item.value)}
                   style={styles.optionRow}
-                  hitSlop={6}>
-                  <Text style={[styles.optionText, isSelected && styles.optionTextSelected]}>
-                    {item.label}
-                  </Text>
-                  {isSelected ? <Text style={styles.selectionMark}>•</Text> : null}
-                </Pressable>
+                />
               );
             }}
             showsVerticalScrollIndicator={false}
@@ -133,21 +131,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: Spacing.xs,
-  },
-  optionText: {
-    fontFamily: Fonts.sans,
-    fontSize: Type.body,
-    color: Colors.text,
-    flex: 1,
-  },
-  optionTextSelected: {
-    color: Colors.accent,
-    fontWeight: '600',
-  },
-  selectionMark: {
-    color: Colors.accent,
-    marginLeft: Spacing.sm,
-    fontSize: Type.body,
   },
   inputRow: {
     flex: 1,

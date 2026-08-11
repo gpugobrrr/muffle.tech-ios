@@ -1,4 +1,4 @@
-import type { InspectionElementConceptId } from '@/lib/inspection-finding-elements';
+import type { FindingCaptureConfig } from '@/lib/finding-capture';
 
 export type ServicesFindingRouteId =
   | 'electricity'
@@ -9,20 +9,12 @@ export type ServicesFindingRouteId =
 
 export type ServicesGasFindingRouteId = 'gas';
 
-export type ServicesFindingConfig = {
+export type ServicesFindingConfig = FindingCaptureConfig & {
   routeId: ServicesFindingRouteId;
-  route: readonly string[];
-  elementConceptId: InspectionElementConceptId;
-  findingId: string;
-  label: string;
 };
 
-export type ServicesGasFindingConfig = {
+export type ServicesGasFindingConfig = FindingCaptureConfig & {
   routeId: ServicesGasFindingRouteId;
-  route: readonly string[];
-  elementConceptId: InspectionElementConceptId;
-  findingId: string;
-  label: string;
 };
 
 export const SERVICES_FINDING_CONFIGS: readonly ServicesFindingConfig[] = [

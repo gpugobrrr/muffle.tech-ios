@@ -32,7 +32,7 @@ import {
   toggleMultiChoiceValue,
 } from '@/lib/multi-choice';
 import { createEmptyInspectionRecord } from '@/lib/inspection-record';
-import { commitInspectionFindingField, resolveFindingFieldValue } from '@/lib/level-2-finding-capture';
+import { commitInspectionFindingField, resolveFindingFieldValue } from '@/lib/finding-capture';
 import { resolveLookup } from '@/lib/lookup';
 import { suffixForPath } from '@/lib/pin-context';
 import { executeSurveyOperation } from '@/lib/survey-operations';

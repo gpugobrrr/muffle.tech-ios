@@ -3,7 +3,7 @@ import type {
   Level2CaptureCoverage,
 } from '@/lib/command-registry';
 import type { FieldDefinition } from '@/lib/field-schema';
-import { buildFindingCaptureLeaf as createFindingCaptureLeaf } from '@/lib/level-2-finding-capture';
+import { buildFindingCaptureLeaf as createFindingCaptureLeaf } from '@/lib/finding-capture';
 import { HEATING_FIELD_DEFINITIONS } from '@/lib/property-energy-heating';
 import {
   servicesPresenceFieldDefinition,

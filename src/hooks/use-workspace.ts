@@ -679,8 +679,19 @@ export function useSvyrController(): SvyrController {
     (field: ActiveEntryField, value: string): boolean => {
       // Prefer the live registry node so a stale ActiveEntryField copy cannot
       // drop findingTarget and silently fall through to placeholder execute.
+      const liveNode = findCommandNode(field.path);
       const target =
-        findCommandNode(field.path)?.findingTarget ?? field.node.findingTarget;
+        liveNode?.findingTarget ?? field.node.findingTarget;
+      // TEMP DIAGNOSTIC — prove which finding target the UI is committing.
+      console.log('[finding-debug:obs-submit]', {
+        path: field.path,
+        value,
+        activeNodeToken: field.node.token,
+        activeNodeFindingTarget: field.node.findingTarget ?? null,
+        liveNodeToken: liveNode?.token ?? null,
+        liveNodeFindingTarget: liveNode?.findingTarget ?? null,
+        resolvedTarget: target ?? null,
+      });
       if (!target) {
         console.error('[finding-capture] missing findingTarget', {
           path: field.path,
@@ -694,6 +705,13 @@ export function useSvyrController(): SvyrController {
         target,
         value,
       );
+
+      console.log('[finding-debug:obs-result]', {
+        ok: committed.ok,
+        message: committed.ok ? null : committed.message,
+        path: field.path,
+        resolvedTarget: target,
+      });
 
       if (!committed.ok) {
         setEntryError(committed.message);
@@ -744,6 +762,13 @@ export function useSvyrController(): SvyrController {
     if (!findingTarget) return 'none';
     const value = parseEditableCommand(suffixRef.current).valueText.trim();
     if (!value) return 'none';
+    // TEMP DIAGNOSTIC — navigation-away auto-commit path.
+    console.log('[finding-debug:obs-nav-commit]', {
+      path: field.path,
+      value,
+      findingTarget,
+      suffix: suffixRef.current,
+    });
     return commitFindingDataEntry(field, value) ? 'committed' : 'failed';
   }, [commitFindingDataEntry]);
 
@@ -1262,6 +1287,13 @@ export function useSvyrController(): SvyrController {
     const submittedCommand = [formatCommandPath(field.path), value].join(' ');
     const findingTarget =
       findCommandNode(field.path)?.findingTarget ?? field.node.findingTarget;
+    // TEMP DIAGNOSTIC — ENTER submit path.
+    console.log('[finding-debug:obs-enter]', {
+      path: field.path,
+      value,
+      findingTarget: findingTarget ?? null,
+      activeNodeToken: field.node.token,
+    });
     if (findingTarget) {
       return commitFindingDataEntry(field, value);
     }

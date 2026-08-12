@@ -152,12 +152,20 @@ export function commitInspectionFindingField(
   const value = input.trim();
   if (!value) return { ok: false, message: 'Value is required' };
 
-  const finding = findingWithFieldValue(
-    inspection.findings[target.findingId],
-    target,
-    value,
-  );
+  const existing = inspection.findings[target.findingId];
+  const finding = findingWithFieldValue(existing, target, value);
   if (!finding) {
+    // TEMP DIAGNOSTIC — observation must never hit this branch.
+    console.error('[finding-debug:obs-gate]', {
+      reason: 'findingWithFieldValue returned null',
+      targetField: target.field,
+      targetFieldStrictEqObservation: target.field === 'observation',
+      targetFindingId: target.findingId,
+      targetElementConceptId: target.elementConceptId,
+      existingFinding: existing ?? null,
+      availableFindingIds: Object.keys(inspection.findings),
+      value,
+    });
     return {
       ok: false,
       message: 'Record observation first',
@@ -169,6 +177,12 @@ export function commitInspectionFindingField(
     arguments: { finding },
   });
   if (!result) {
+    console.error('[finding-debug:obs-gate]', {
+      reason: 'executeInspectionOperation returned null',
+      target,
+      finding,
+      value,
+    });
     return {
       ok: false,
       message: 'Finding could not be recorded',

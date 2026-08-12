@@ -9,7 +9,7 @@ SplashScreen.preventAutoHideAsync();
 export default function RootLayout() {
   useEffect(() => {
     console.log('[muffle-build]', {
-      marker: '6947fbd-type7-debug',
+      marker: '344da6d-obs-gate-debug',
     });
     SplashScreen.hideAsync();
   }, []);

@@ -74,6 +74,7 @@
     "test:controlled-fact": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/controlled-fact.test.ts",
     "test:data-entry-types": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/data-entry-types.test.ts",
     "test:finding-capture": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/finding-capture.test.ts",
+    "test:finding-entry-session": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/finding-entry-session.test.ts",
     "test:evidence-capture": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/evidence-capture.test.ts",
     "test:active-job-state": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/active-job-state.test.ts",
     "test:svyr-bar": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/svyr-bar-navigation.test.ts tests/svyr-entry-drafts.test.ts",

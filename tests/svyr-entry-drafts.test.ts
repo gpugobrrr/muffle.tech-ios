@@ -236,10 +236,9 @@ test('controller syncs command suffix ref before React state for Type 6 submit',
     workspace,
     /const setCommandSuffix = useCallback\(\(value: string\) => \{\s*suffixRef\.current = value;\s*setCommandSuffixState\(value\);/s,
   );
-  assert.match(
-    workspace,
-    /findCommandNode\(field\.path\)\?\.findingTarget \?\? field\.node\.findingTarget/,
-  );
+  assert.match(workspace, /findingEntrySessionRef/);
+  assert.match(workspace, /openFindingEntrySession/);
+  assert.match(workspace, /commitFindingEntrySession/);
 });
 
 test('shared SvyrBar remains the sole path-bar implementation', () => {

@@ -38,7 +38,13 @@ import {
   shouldPersistActiveJob,
   type ActiveJobUpdate,
 } from '@/lib/active-job-state';
-import { commitInspectionFindingField, resolveFindingFieldValue } from '@/lib/finding-capture';
+import { resolveFindingFieldValue } from '@/lib/finding-capture';
+import {
+  commitFindingEntrySession,
+  findingEntrySessionPathKey,
+  openFindingEntrySession,
+  type FindingEntrySession,
+} from '@/lib/finding-entry-session';
 import { captureAndCommitInspectionEvidencePhoto } from '@/lib/evidence-capture';
 import { createExpoEvidenceFileStore } from '@/lib/evidence-files';
 import {
@@ -251,6 +257,7 @@ export function useSvyrController(): SvyrController {
   const jobHydratedRef = useRef(false);
   const jobMutatedBeforeHydrationRef = useRef(false);
   const activeEntryRef = useRef<ActiveEntryField | null>(null);
+  const findingEntrySessionRef = useRef<FindingEntrySession | null>(null);
   const activeCompoundCaptureRef = useRef<ActiveCompoundCapture | null>(null);
   const activeEvidenceCaptureRef = useRef<ActiveEvidenceCapture | null>(null);
   const evidenceFileStoreRef = useRef(createExpoEvidenceFileStore());
@@ -332,6 +339,7 @@ export function useSvyrController(): SvyrController {
 
   const clearActiveEntry = useCallback(() => {
     activeEntryRef.current = null;
+    findingEntrySessionRef.current = null;
     activeCompoundCaptureRef.current = null;
     activeEvidenceCaptureRef.current = null;
     setActiveEntryField(null);
@@ -375,14 +383,16 @@ export function useSvyrController(): SvyrController {
    * active entry field, so no keystroke can damage it.
    */
   const setEntryValue = useCallback((value: string) => {
-    const field = activeEntryRef.current;
-    if (!field) return;
+    const sessionPath = findingEntrySessionRef.current?.path;
+    const fieldPath = activeEntryRef.current?.path;
+    const path = sessionPath ? [...sessionPath] : fieldPath;
+    if (!path) return;
 
     setEntryError(null);
     setLastExecutionResult(null);
     setTemporaryAutocompleteContent(null);
     setCommandSuffix(
-      `${suffixForPath(field.path).replace(/\s+$/, '')} ${value}`,
+      `${suffixForPath(path).replace(/\s+$/, '')} ${value}`,
     );
   }, []);
 
@@ -677,21 +687,11 @@ export function useSvyrController(): SvyrController {
 
   const commitFindingDataEntry = useCallback(
     (field: ActiveEntryField, value: string): boolean => {
-      // Prefer the live registry node so a stale ActiveEntryField copy cannot
-      // drop findingTarget and silently fall through to placeholder execute.
-      const liveNode = findCommandNode(field.path);
+      // Commit against the frozen entry session opened for this screen — never
+      // a sibling that became selected/highlighted after typing finished.
+      const session = findingEntrySessionRef.current;
       const target =
-        liveNode?.findingTarget ?? field.node.findingTarget;
-      // TEMP DIAGNOSTIC — prove which finding target the UI is committing.
-      console.log('[finding-debug:obs-submit]', {
-        path: field.path,
-        value,
-        activeNodeToken: field.node.token,
-        activeNodeFindingTarget: field.node.findingTarget ?? null,
-        liveNodeToken: liveNode?.token ?? null,
-        liveNodeFindingTarget: liveNode?.findingTarget ?? null,
-        resolvedTarget: target ?? null,
-      });
+        session?.findingTarget ?? field.node.findingTarget ?? null;
       if (!target) {
         console.error('[finding-capture] missing findingTarget', {
           path: field.path,
@@ -700,18 +700,12 @@ export function useSvyrController(): SvyrController {
         return false;
       }
 
-      const committed = commitInspectionFindingField(
+      const committed = commitFindingEntrySession(
         activeJobRef.current.inspection,
-        target,
+        session,
         value,
+        target,
       );
-
-      console.log('[finding-debug:obs-result]', {
-        ok: committed.ok,
-        message: committed.ok ? null : committed.message,
-        path: field.path,
-        resolvedTarget: target,
-      });
 
       if (!committed.ok) {
         setEntryError(committed.message);
@@ -720,8 +714,9 @@ export function useSvyrController(): SvyrController {
         return false;
       }
 
-      const submittedCommand = `${formatCommandPath(field.path)} ${value.trim()}`;
-      const entryParent = field.path.slice(0, -1);
+      const commitPath = session ? [...session.path] : field.path;
+      const submittedCommand = `${formatCommandPath(commitPath)} ${value.trim()}`;
+      const entryParent = commitPath.slice(0, -1);
       updateActiveJob((current) => ({
         ...current,
         inspection: committed.result.inspection,
@@ -733,7 +728,7 @@ export function useSvyrController(): SvyrController {
         value: value.trim(),
         executedCommand: submittedCommand,
       });
-      setEntryDraftsByPath((current) => clearEntryDraft(current, field.path));
+      setEntryDraftsByPath((current) => clearEntryDraft(current, commitPath));
       clearActiveEntry();
       setTemporaryAutocompleteContent(null);
       if (entryParent.length > 0) {
@@ -755,21 +750,22 @@ export function useSvyrController(): SvyrController {
    * fields correctly report "Record observation first".
    */
   const tryCommitActiveFindingEntry = useCallback((): 'none' | 'committed' | 'failed' => {
+    const session = findingEntrySessionRef.current;
     const field = activeEntryRef.current;
-    if (!field) return 'none';
-    const findingTarget =
-      findCommandNode(field.path)?.findingTarget ?? field.node.findingTarget;
-    if (!findingTarget) return 'none';
+    if (!session?.findingTarget && !field?.node.findingTarget) return 'none';
     const value = parseEditableCommand(suffixRef.current).valueText.trim();
     if (!value) return 'none';
-    // TEMP DIAGNOSTIC — navigation-away auto-commit path.
-    console.log('[finding-debug:obs-nav-commit]', {
-      path: field.path,
-      value,
-      findingTarget,
-      suffix: suffixRef.current,
-    });
-    return commitFindingDataEntry(field, value) ? 'committed' : 'failed';
+    // Prefer the frozen session path/node even if live active entry drifted
+    // to a sibling (proven ENTER race: Observation → Defect before commit).
+    let entryField = field;
+    if (session) {
+      const sessionNode = findCommandNode([...session.path]);
+      if (sessionNode) {
+        entryField = { path: [...session.path], node: sessionNode };
+      }
+    }
+    if (!entryField) return 'none';
+    return commitFindingDataEntry(entryField, value) ? 'committed' : 'failed';
   }, [commitFindingDataEntry]);
 
   const commitEvidencePhoto = useCallback(
@@ -827,6 +823,30 @@ export function useSvyrController(): SvyrController {
     const node = findCommandNode(suggestion.commandPath);
     if (!node?.requiresValue) return;
 
+    // Opening a different finding leaf must resolve the current finding session
+    // first — never replace the frozen Observation identity with Defect mid-type.
+    const existingSession = findingEntrySessionRef.current;
+    if (
+      existingSession &&
+      node.findingTarget &&
+      findingEntrySessionPathKey(existingSession) !==
+        suggestion.commandPath.join('/')
+    ) {
+      const value = parseEditableCommand(suffixRef.current).valueText.trim();
+      if (value) {
+        const existingNode = findCommandNode([...existingSession.path]);
+        if (existingNode) {
+          const committed = commitFindingDataEntry(
+            { path: [...existingSession.path], node: existingNode },
+            value,
+          );
+          if (!committed) return;
+        }
+      } else {
+        findingEntrySessionRef.current = null;
+      }
+    }
+
     const fieldDefinition = findFieldDefinition(suggestion.commandPath);
     setTemporaryAutocompleteContent(null);
     setLastExecutionResult(null);
@@ -835,6 +855,9 @@ export function useSvyrController(): SvyrController {
     activeEntryRef.current = nextField;
     setActiveEntryField(nextField);
     setDataEntryDirectoryForPath(suggestion.commandPath);
+    findingEntrySessionRef.current = node.findingTarget
+      ? openFindingEntrySession(suggestion.commandPath, node.findingTarget)
+      : null;
 
     if (fieldDefinition?.valueType === 'multiSelect') {
       // Working set lives in the typed draft map — not commandSuffix free text.
@@ -875,7 +898,7 @@ export function useSvyrController(): SvyrController {
       }),
     );
     setFocusToken((n) => n + 1);
-  }, [setDataEntryDirectoryForPath]);
+  }, [commitFindingDataEntry, setDataEntryDirectoryForPath]);
 
   const beginCompoundCapture = useCallback(
     (suggestion: TokenSuggestion) => {
@@ -886,6 +909,7 @@ export function useSvyrController(): SvyrController {
       setLastExecutionResult(null);
       setEntryError(null);
       activeEntryRef.current = null;
+      findingEntrySessionRef.current = null;
       activeEvidenceCaptureRef.current = null;
       setActiveEntryField(null);
       setActiveEvidenceCapture(null);
@@ -908,6 +932,7 @@ export function useSvyrController(): SvyrController {
       setLastExecutionResult(null);
       setEntryError(null);
       activeEntryRef.current = null;
+      findingEntrySessionRef.current = null;
       activeCompoundCaptureRef.current = null;
       setActiveEntryField(null);
       setActiveCompoundCapture(null);
@@ -928,6 +953,7 @@ export function useSvyrController(): SvyrController {
   /** Leave data entry and restore the parent structural path (no Engine write). */
   const cancelDataEntry = useCallback(() => {
     const field = activeEntryRef.current;
+    const session = findingEntrySessionRef.current;
     const compound = activeCompoundCaptureRef.current;
     const evidence = activeEvidenceCaptureRef.current;
     if (!field && !compound && !evidence) return;
@@ -936,12 +962,18 @@ export function useSvyrController(): SvyrController {
     setLastExecutionResult(null);
     setEntryError(null);
     activeEntryRef.current = null;
+    findingEntrySessionRef.current = null;
     activeCompoundCaptureRef.current = null;
     activeEvidenceCaptureRef.current = null;
     setActiveEntryField(null);
     setActiveCompoundCapture(null);
     setActiveEvidenceCapture(null);
-    const path = field?.path ?? compound?.path ?? evidence?.path ?? [];
+    const path =
+      (session ? [...session.path] : null) ??
+      field?.path ??
+      compound?.path ??
+      evidence?.path ??
+      [];
     setDataEntryDirectory((current) => current.slice(0, -1));
     setCommandSuffix(
       suffixForPath(path.slice(0, -1)),
@@ -954,14 +986,14 @@ export function useSvyrController(): SvyrController {
    * Empty text drafts clear any prior text stash so re-entry starts fresh.
    */
   const stashActiveEntryDraft = useCallback(() => {
+    const session = findingEntrySessionRef.current;
     const field = activeEntryRef.current;
-    if (!field) return;
-    const fieldDefinition = findFieldDefinition(field.path);
+    const path = session ? [...session.path] : field?.path;
+    if (!path) return;
+    const fieldDefinition = findFieldDefinition(path);
     if (fieldDefinition?.valueType === 'multiSelect') return;
     const draft = parseEditableCommand(suffixRef.current).valueText;
-    setEntryDraftsByPath((current) =>
-      stashEntryDraft(current, field.path, draft),
-    );
+    setEntryDraftsByPath((current) => stashEntryDraft(current, path, draft));
   }, []);
 
   const activeMultiChoiceValues = useMemo((): readonly string[] => {
@@ -1098,6 +1130,7 @@ export function useSvyrController(): SvyrController {
       setLastExecutionResult(null);
       setEntryError(null);
       activeEntryRef.current = null;
+      findingEntrySessionRef.current = null;
       activeCompoundCaptureRef.current = null;
       activeEvidenceCaptureRef.current = null;
       setActiveEntryField(null);
@@ -1270,8 +1303,18 @@ export function useSvyrController(): SvyrController {
    * affordance. Empty values stay in entry mode with a compact error.
    */
   const submitDataEntry = useCallback((): boolean => {
+    const session = findingEntrySessionRef.current;
     const field = activeEntryRef.current;
-    if (!field) {
+    // Reconstruct the entry being edited from the frozen session when the live
+    // active node has already moved to a sibling (Observation → Defect race).
+    const entryField =
+      session && findCommandNode([...session.path])
+        ? {
+            path: [...session.path],
+            node: findCommandNode([...session.path])!,
+          }
+        : field;
+    if (!entryField) {
       return false;
     }
 
@@ -1284,18 +1327,13 @@ export function useSvyrController(): SvyrController {
       return false;
     }
 
-    const submittedCommand = [formatCommandPath(field.path), value].join(' ');
+    const submittedCommand = [formatCommandPath(entryField.path), value].join(
+      ' ',
+    );
     const findingTarget =
-      findCommandNode(field.path)?.findingTarget ?? field.node.findingTarget;
-    // TEMP DIAGNOSTIC — ENTER submit path.
-    console.log('[finding-debug:obs-enter]', {
-      path: field.path,
-      value,
-      findingTarget: findingTarget ?? null,
-      activeNodeToken: field.node.token,
-    });
+      session?.findingTarget ?? entryField.node.findingTarget ?? null;
     if (findingTarget) {
-      return commitFindingDataEntry(field, value);
+      return commitFindingDataEntry(entryField, value);
     }
 
     return executeCommand(submittedCommand, { fromDataEntry: true });

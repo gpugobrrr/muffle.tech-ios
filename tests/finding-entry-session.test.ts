@@ -47,6 +47,7 @@ test('observation target survives sibling selection change before commit', () =>
   const session = openFindingEntrySession(
     ['services', 'electricity', 'observe'],
     observe.findingTarget!,
+    observe.token,
   );
 
   // Live selection drifts to Defect before the commit callback runs.
@@ -69,7 +70,7 @@ test('observation target survives sibling selection change before commit', () =>
   const committed = commitFindingEntrySession(
     createEmptyInspectionRecord(),
     session,
-    'eeeeee',
+    'test',
     liveSelection.findingTarget,
   );
   assert.equal(committed.ok, true);
@@ -78,8 +79,20 @@ test('observation target survives sibling selection change before commit', () =>
     committed.result.inspection.findings[
       'finding.service.electrical_installation.1'
     ]?.observation,
-    'eeeeee',
+    'test',
   );
+
+  // Defect can open against the same finding without "Record observation first".
+  const defected = commitFindingEntrySession(
+    committed.result.inspection,
+    openFindingEntrySession(
+      ['services', 'electricity', 'defect'],
+      defect.findingTarget!,
+      defect.token,
+    ),
+    'Signs of thermal discolouration.',
+  );
+  assert.equal(defected.ok, true);
 });
 
 test('ENTER observation creates finding and does not return Record observation first', () => {
@@ -87,11 +100,12 @@ test('ENTER observation creates finding and does not return Record observation f
   const session = openFindingEntrySession(
     ['services', 'electricity', 'observe'],
     observe.findingTarget!,
+    observe.token,
   );
   const result = commitFindingEntrySession(
     createEmptyInspectionRecord(),
     session,
-    'eeeeee',
+    'test',
   );
   assert.equal(result.ok, true);
   if (!result.ok) return;
@@ -108,6 +122,7 @@ test('navigate away from observation commits then leaves finding in place', () =
   const session = openFindingEntrySession(
     ['services', 'electricity', 'observe'],
     observe.findingTarget!,
+    observe.token,
   );
   let activeJob: ActiveJob = createInitialActiveJob();
   const activeJobRef = { current: activeJob };
@@ -115,7 +130,7 @@ test('navigate away from observation commits then leaves finding in place', () =
   const committed = commitFindingEntrySession(
     activeJobRef.current.inspection,
     session,
-    'eeeeee',
+    'test',
   );
   assert.equal(committed.ok, true);
   if (!committed.ok) return;
@@ -136,7 +151,7 @@ test('navigate away from observation commits then leaves finding in place', () =
     activeJobRef.current.inspection.findings[
       'finding.service.electrical_installation.1'
     ]?.observation,
-    'eeeeee',
+    'test',
   );
 });
 

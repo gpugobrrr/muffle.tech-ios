@@ -12,15 +12,18 @@ import type { InspectionRecord } from '@/types/workspace';
  */
 export type FindingEntrySession = {
   path: readonly string[];
+  token: string;
   findingTarget: InspectionFindingCaptureTarget;
 };
 
 export function openFindingEntrySession(
   path: readonly string[],
   findingTarget: InspectionFindingCaptureTarget,
+  token?: string,
 ): FindingEntrySession {
   return {
     path: [...path],
+    token: token ?? path[path.length - 1] ?? findingTarget.field,
     findingTarget: {
       findingId: findingTarget.findingId,
       elementConceptId: findingTarget.elementConceptId,

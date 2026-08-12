@@ -686,12 +686,15 @@ export function useSvyrController(): SvyrController {
   );
 
   const commitFindingDataEntry = useCallback(
-    (field: ActiveEntryField, value: string): boolean => {
-      // Commit against the frozen entry session opened for this screen — never
-      // a sibling that became selected/highlighted after typing finished.
-      const session = findingEntrySessionRef.current;
-      const target =
-        session?.findingTarget ?? field.node.findingTarget ?? null;
+    (
+      field: ActiveEntryField,
+      value: string,
+      sessionSnapshot: FindingEntrySession | null = findingEntrySessionRef.current,
+    ): boolean => {
+      // Frozen session from entry open owns the save target. Live activeEntryRef
+      // may already point at a sibling (Observation → Defect) — ignore that.
+      const session = sessionSnapshot;
+      const target = session?.findingTarget ?? null;
       if (!target) {
         console.error('[finding-capture] missing findingTarget', {
           path: field.path,
@@ -750,22 +753,20 @@ export function useSvyrController(): SvyrController {
    * fields correctly report "Record observation first".
    */
   const tryCommitActiveFindingEntry = useCallback((): 'none' | 'committed' | 'failed' => {
+    // Capture identity before any navigation/selection side effects.
     const session = findingEntrySessionRef.current;
     const field = activeEntryRef.current;
-    if (!session?.findingTarget && !field?.node.findingTarget) return 'none';
+    if (!session?.findingTarget) return 'none';
     const value = parseEditableCommand(suffixRef.current).valueText.trim();
     if (!value) return 'none';
-    // Prefer the frozen session path/node even if live active entry drifted
-    // to a sibling (proven ENTER race: Observation → Defect before commit).
-    let entryField = field;
-    if (session) {
-      const sessionNode = findCommandNode([...session.path]);
-      if (sessionNode) {
-        entryField = { path: [...session.path], node: sessionNode };
-      }
-    }
+    const sessionNode = findCommandNode([...session.path]);
+    const entryField = sessionNode
+      ? { path: [...session.path], node: sessionNode }
+      : field;
     if (!entryField) return 'none';
-    return commitFindingDataEntry(entryField, value) ? 'committed' : 'failed';
+    return commitFindingDataEntry(entryField, value, session)
+      ? 'committed'
+      : 'failed';
   }, [commitFindingDataEntry]);
 
   const commitEvidencePhoto = useCallback(
@@ -839,6 +840,7 @@ export function useSvyrController(): SvyrController {
           const committed = commitFindingDataEntry(
             { path: [...existingSession.path], node: existingNode },
             value,
+            existingSession,
           );
           if (!committed) return;
         }
@@ -856,7 +858,11 @@ export function useSvyrController(): SvyrController {
     setActiveEntryField(nextField);
     setDataEntryDirectoryForPath(suggestion.commandPath);
     findingEntrySessionRef.current = node.findingTarget
-      ? openFindingEntrySession(suggestion.commandPath, node.findingTarget)
+      ? openFindingEntrySession(
+          suggestion.commandPath,
+          node.findingTarget,
+          node.token,
+        )
       : null;
 
     if (fieldDefinition?.valueType === 'multiSelect') {
@@ -1303,23 +1309,22 @@ export function useSvyrController(): SvyrController {
    * affordance. Empty values stay in entry mode with a compact error.
    */
   const submitDataEntry = useCallback((): boolean => {
+    // Capture frozen identity + value before any selection/navigation side effects.
     const session = findingEntrySessionRef.current;
     const field = activeEntryRef.current;
-    // Reconstruct the entry being edited from the frozen session when the live
-    // active node has already moved to a sibling (Observation → Defect race).
-    const entryField =
-      session && findCommandNode([...session.path])
-        ? {
-            path: [...session.path],
-            node: findCommandNode([...session.path])!,
-          }
-        : field;
+    const parsed = parseEditableCommand(suffixRef.current);
+    const value = parsed.valueText.trim();
+
+    const sessionNode = session
+      ? findCommandNode([...session.path])
+      : null;
+    const entryField = sessionNode
+      ? { path: [...session.path], node: sessionNode }
+      : field;
     if (!entryField) {
       return false;
     }
 
-    const parsed = parseEditableCommand(suffixRef.current);
-    const value = parsed.valueText.trim();
     if (!value) {
       setEntryError('Value is required');
       setFocusToken((n) => n + 1);
@@ -1330,10 +1335,8 @@ export function useSvyrController(): SvyrController {
     const submittedCommand = [formatCommandPath(entryField.path), value].join(
       ' ',
     );
-    const findingTarget =
-      session?.findingTarget ?? entryField.node.findingTarget ?? null;
-    if (findingTarget) {
-      return commitFindingDataEntry(entryField, value);
+    if (session?.findingTarget) {
+      return commitFindingDataEntry(entryField, value, session);
     }
 
     return executeCommand(submittedCommand, { fromDataEntry: true });

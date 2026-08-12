@@ -1318,9 +1318,10 @@ export function useSvyrController(): SvyrController {
     const sessionNode = session
       ? findCommandNode([...session.path])
       : null;
-    const entryField = sessionNode
-      ? { path: [...session.path], node: sessionNode }
-      : field;
+    const entryField =
+      session && sessionNode
+        ? { path: [...session.path], node: sessionNode }
+        : field;
     if (!entryField) {
       return false;
     }

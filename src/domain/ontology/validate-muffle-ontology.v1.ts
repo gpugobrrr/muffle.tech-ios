@@ -49,9 +49,14 @@ export function validateMuffleOntologyV1(
   }
 
   const schemaFields = allFieldDefinitions();
-  const schemaById = new Map(
-    schemaFields.map((field) => [field.fieldId, field]),
-  );
+  const schemaById = new Map<string, (typeof schemaFields)[number]>();
+  for (const field of schemaFields) {
+    // First registration is canonical (property/energy). Later Services
+    // presence aliases reuse the same field IDs on different paths.
+    if (!schemaById.has(field.fieldId)) {
+      schemaById.set(field.fieldId, field);
+    }
+  }
   const ontologyFieldConcepts = ontology.concepts.filter(
     (concept) => concept.bindings?.canonicalFieldId,
   );
@@ -86,7 +91,7 @@ export function validateMuffleOntologyV1(
     }
   }
 
-  for (const field of schemaFields) {
+  for (const field of schemaById.values()) {
     const matches = ontologyFieldConcepts.filter(
       (concept) => concept.bindings?.canonicalFieldId === field.fieldId,
     );

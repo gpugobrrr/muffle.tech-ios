@@ -29,8 +29,33 @@ test('concept identifiers are unique and parents resolve', () => {
   }
 });
 
-test('every current canonical field has exactly one ontology concept', () => {
+test('every unique field-schema id has ontology field semantics', () => {
+  const seenFieldIds = new Set<string>();
   for (const field of allFieldDefinitions()) {
+    if (seenFieldIds.has(field.fieldId)) continue;
+    seenFieldIds.add(field.fieldId);
+    const concept = getConceptByCanonicalField(field.fieldId);
+    assert.ok(concept, field.fieldId);
+    assert.equal(typeof concept.id, 'string');
+    assert.ok(concept.id.length > 0, field.fieldId);
+    assert.equal(concept.bindings?.canonicalFieldId, field.fieldId);
+  }
+
+  const electricity = getConceptByCanonicalField(
+    'property.energy.mains_services.electricity',
+  );
+  assert.equal(electricity?.id, 'property.energy.mains_services.electricity');
+  assert.equal(
+    electricity?.bindings?.schemaPath,
+    'property/energy/mains-services/electricity',
+  );
+});
+
+test('every current canonical field has exactly one ontology concept', () => {
+  const seenFieldIds = new Set<string>();
+  for (const field of allFieldDefinitions()) {
+    if (seenFieldIds.has(field.fieldId)) continue;
+    seenFieldIds.add(field.fieldId);
     const concept = getConceptByCanonicalField(field.fieldId);
     assert.ok(concept, field.fieldId);
     assert.equal(concept.bindings?.schemaPath, field.pathKey);

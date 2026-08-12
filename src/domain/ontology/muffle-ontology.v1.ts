@@ -33,6 +33,8 @@ export type OntologyValueType =
   | 'object'
   | 'text'
   | 'singleSelect'
+  | 'controlledStatus'
+  | 'multiSelect'
   | 'boolean'
   | 'number'
   | 'address';
@@ -325,8 +327,9 @@ const DIRECTORY_PARENTS: Readonly<Record<string, string | undefined>> = {
   'prep/brief/instr': 'workflow.preparation.brief',
 };
 
-const WORKFLOW_CONCEPTS: OntologyConcept[] = allDirectoryDefinitions().map(
-  (directory) => {
+const WORKFLOW_CONCEPTS: OntologyConcept[] = allDirectoryDefinitions()
+  .filter((directory) => DIRECTORY_CONCEPT_IDS[directory.pathKey])
+  .map((directory) => {
     const aliases = Object.entries(COMMAND_ALIASES)
       .filter(([, canonicalToken]) => canonicalToken === directory.token)
       .map(([alias]) => alias);
@@ -353,8 +356,7 @@ const WORKFLOW_CONCEPTS: OntologyConcept[] = allDirectoryDefinitions().map(
         { type: 'command-registry', id: directory.pathKey },
       ],
     };
-  },
-);
+  });
 
 const FIELD_SEMANTICS: Readonly<
   Record<
@@ -401,6 +403,76 @@ const FIELD_SEMANTICS: Readonly<
     parentId: 'inspection_brief',
     description: 'A limitation applying to the inspection brief.',
   },
+  'property.energy.mains_services.gas': {
+    id: 'property.energy.mains_services.gas',
+    parentId: 'property',
+    description: 'Canonical mains-gas presence for the selected property.',
+  },
+  'property.energy.mains_services.electricity': {
+    id: 'property.energy.mains_services.electricity',
+    parentId: 'property',
+    description: 'Canonical mains-electricity presence for the selected property.',
+  },
+  'property.energy.mains_services.water': {
+    id: 'property.energy.mains_services.water',
+    parentId: 'property',
+    description: 'Canonical mains-water presence for the selected property.',
+  },
+  'property.energy.mains_services.drainage': {
+    id: 'property.energy.mains_services.drainage',
+    parentId: 'property',
+    description: 'Canonical mains-drainage presence for the selected property.',
+  },
+  'property.energy.heating.system_type': {
+    id: 'property.energy.heating.system_type',
+    parentId: 'property',
+    description: 'The main heating system type recorded for the property.',
+  },
+  'property.energy.heating.fuel_source': {
+    id: 'property.energy.heating.fuel_source',
+    parentId: 'property',
+    description: 'The fuel source serving the main heating system.',
+  },
+  'property.energy.heating.boiler_make_model': {
+    id: 'property.energy.heating.boiler_make_model',
+    parentId: 'property',
+    description: 'The boiler or heater make and model, when known.',
+  },
+  'property.energy.heating.installation_year': {
+    id: 'property.energy.heating.installation_year',
+    parentId: 'property',
+    description: 'The approximate heating installation year, when known.',
+  },
+  'property.energy.heating.controls': {
+    id: 'property.energy.heating.controls',
+    parentId: 'property',
+    description: 'The heating controls present at the property.',
+  },
+  'property.energy.heating.heat_emitters': {
+    id: 'property.energy.heating.heat_emitters',
+    parentId: 'property',
+    description: 'The heat emitters present at the property.',
+  },
+  'property.energy.heating.hot_water': {
+    id: 'property.energy.heating.hot_water',
+    parentId: 'property',
+    description: 'The hot-water system serving the property.',
+  },
+  'property.energy.heating.secondary_heating': {
+    id: 'property.energy.heating.secondary_heating',
+    parentId: 'property',
+    description: 'Any secondary heating present at the property.',
+  },
+  'property.energy.heating.condition': {
+    id: 'property.energy.heating.condition',
+    parentId: 'property',
+    description: 'The recorded condition of the heating installation.',
+  },
+  'property.energy.heating.defects': {
+    id: 'property.energy.heating.defects',
+    parentId: 'property',
+    description: 'Defects noted on the heating installation.',
+  },
 };
 
 function aliasesForToken(token: string): string[] {
@@ -413,11 +485,21 @@ function maturityForField(field: FieldDefinition): OntologyMaturity {
   return field.operationId ? 'engine-backed' : 'schema-only';
 }
 
-const FIELD_CONCEPTS: OntologyConcept[] = allFieldDefinitions().map((field) => {
+const FIELD_CONCEPTS: OntologyConcept[] = [];
+const mappedCanonicalFieldIds = new Set<string>();
+for (const field of allFieldDefinitions()) {
+  // Services presence routes reuse the same canonical field IDs as
+  // property/energy/mains-services. Map each field ID once.
+  if (mappedCanonicalFieldIds.has(field.fieldId)) continue;
+  mappedCanonicalFieldIds.add(field.fieldId);
+
   const semantic = FIELD_SEMANTICS[field.fieldId];
+  if (!semantic) {
+    throw new Error(`Missing ontology field semantics: ${field.fieldId}`);
+  }
   const aliases = aliasesForToken(field.token);
-  return {
-    ...BASE,
+  FIELD_CONCEPTS.push({
+    ...(field.fieldId.startsWith('property.energy.') ? V1_1_BASE : BASE),
     id: semantic.id,
     kind: 'field',
     label: field.label,
@@ -455,8 +537,8 @@ const FIELD_CONCEPTS: OntologyConcept[] = allFieldDefinitions().map((field) => {
         ? [{ type: 'engine-operation' as const, id: field.readOperationId }]
         : []),
     ],
-  };
-});
+  });
+}
 
 const SOURCE_FIELD = allFieldDefinitions().find(
   (field) => field.fieldId === 'instruction.source',

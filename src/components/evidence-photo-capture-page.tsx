@@ -12,7 +12,7 @@ type Props = {
   target: InspectionEvidenceCaptureTarget;
   inspection: InspectionRecord;
   error: string | null;
-  onCapturePhoto: (temporaryUri: string) => Promise<boolean>;
+  onCapturePhoto: (temporaryUri: string) => Promise<string | null>;
   onNavigateUpDirectory: () => boolean;
 };
 
@@ -74,14 +74,14 @@ export function EvidencePhotoCapturePage({
       if (result.canceled || !result.assets[0]?.uri) {
         return;
       }
-      const saved = await onCapturePhoto(result.assets[0].uri);
-      if (!saved) {
-        setLocalError(error ?? 'Photo could not be saved');
+      const failureMessage = await onCapturePhoto(result.assets[0].uri);
+      if (failureMessage) {
+        setLocalError(failureMessage);
       }
     } finally {
       setBusy(false);
     }
-  }, [ensurePermission, error, onCapturePhoto]);
+  }, [ensurePermission, onCapturePhoto]);
 
   const message = localError ?? error;
 

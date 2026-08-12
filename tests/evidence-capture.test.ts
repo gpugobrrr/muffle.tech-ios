@@ -120,59 +120,36 @@ test('valid photo evidence creates one canonical evidence record and finding lin
 });
 
 test('evidence commit rejects unknown finding and missing observation', () => {
-  const electricity = servicesFindingConfig('electricity');
-  const inspection = createEmptyInspectionRecord();
-  const rejected = commitInspectionEvidencePhoto(
-    inspection,
-    photoTarget(electricity.findingId, electricity.elementConceptId),
-    {
-      id: 'evidence.photo.missing-finding',
-      kind: 'photo',
-      uri: '/persistent/photo.jpg',
-    },
-  );
-  assert.equal(rejected.ok, false);
-  if (rejected.ok) return;
-  assert.equal(rejected.message, 'Record observation first');
-  assert.equal(Object.keys(inspection.evidence ?? {}).length, 0);
-});
-
-test('evidence commit logs diagnostic target snapshot before engine call', () => {
-  const logs: unknown[] = [];
-  const originalLog = console.log;
-  console.log = (...args: unknown[]) => {
-    logs.push(args);
+  const errors: unknown[] = [];
+  const originalError = console.error;
+  console.error = (...args: unknown[]) => {
+    errors.push(args);
   };
   try {
     const electricity = servicesFindingConfig('electricity');
     const inspection = createEmptyInspectionRecord();
-    commitInspectionEvidencePhoto(
+    const rejected = commitInspectionEvidencePhoto(
       inspection,
       photoTarget(electricity.findingId, electricity.elementConceptId),
       {
-        id: 'evidence.photo.diagnostic',
+        id: 'evidence.photo.missing-finding',
         kind: 'photo',
         uri: '/persistent/photo.jpg',
       },
     );
-    const attempt = logs.find(
-      (entry) =>
-        Array.isArray(entry) &&
-        entry[0] === '[evidence-photo] commit attempt',
+    assert.equal(rejected.ok, false);
+    if (rejected.ok) return;
+    assert.equal(rejected.message, 'Record observation first');
+    assert.equal(Object.keys(inspection.evidence ?? {}).length, 0);
+    assert.ok(
+      errors.some(
+        (entry) =>
+          Array.isArray(entry) &&
+          entry[0] === '[evidence-photo] Evidence commit rejected',
+      ),
     );
-    assert.ok(attempt);
-    assert.deepEqual((attempt as unknown[])[1], {
-      targetFindingId: electricity.findingId,
-      targetElementConceptId: electricity.elementConceptId,
-      availableFindingIds: [],
-      findingExists: false,
-      observation: null,
-      evidenceId: 'evidence.photo.diagnostic',
-      evidenceKind: 'photo',
-      evidenceUri: '/persistent/photo.jpg',
-    });
   } finally {
-    console.log = originalLog;
+    console.error = originalError;
   }
 });
 

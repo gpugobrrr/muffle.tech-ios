@@ -88,18 +88,6 @@ export function commitInspectionEvidencePhoto(
   target: InspectionEvidenceCaptureTarget,
   evidence: InspectionEvidence,
 ): EvidencePhotoCommitResult {
-  console.log('[evidence-photo] commit attempt', {
-    targetFindingId: target.findingId,
-    targetElementConceptId: target.elementConceptId,
-    availableFindingIds: Object.keys(inspection.findings),
-    findingExists: Boolean(inspection.findings[target.findingId]),
-    observation:
-      inspection.findings[target.findingId]?.observation ?? null,
-    evidenceId: evidence.id,
-    evidenceKind: evidence.kind,
-    evidenceUri: evidence.uri,
-  });
-
   const result = executeInspectionOperation(inspection, {
     operationId: SURVEY_EVIDENCE_ADD,
     arguments: {
@@ -108,12 +96,18 @@ export function commitInspectionEvidencePhoto(
     },
   });
   if (!result) {
-    return {
-      ok: false,
-      message: inspection.findings[target.findingId]
-        ? 'Evidence could not be recorded'
-        : 'Record observation first',
-    };
+    const message = inspection.findings[target.findingId]
+      ? 'Evidence could not be recorded'
+      : 'Record observation first';
+    console.error('[evidence-photo] Evidence commit rejected', {
+      message,
+      targetFindingId: target.findingId,
+      availableFindingIds: Object.keys(inspection.findings),
+      findingExists: Boolean(inspection.findings[target.findingId]),
+      observation: inspection.findings[target.findingId]?.observation ?? null,
+      evidenceId: evidence.id,
+    });
+    return { ok: false, message };
   }
 
   return { ok: true, result, evidence };

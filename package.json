@@ -75,6 +75,7 @@
     "test:data-entry-types": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/data-entry-types.test.ts",
     "test:finding-capture": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/finding-capture.test.ts",
     "test:evidence-capture": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/evidence-capture.test.ts",
+    "test:active-job-state": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/active-job-state.test.ts",
     "test:svyr-bar": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/svyr-bar-navigation.test.ts tests/svyr-entry-drafts.test.ts",
     "test:semantic-fragments": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/semantic-fragment-extractor.test.ts tests/semantic-fragment-extractor-cli.test.ts tests/semantic-fragment-retrieval.test.ts",
     "test:semantic-mapping-inspection": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/semantic-mapping-inspection.test.ts tests/semantic-mapping-inspection-cli.test.ts",

@@ -32,6 +32,12 @@ import {
   prepareMultiChoiceCommit,
   toggleMultiChoiceValue,
 } from '@/lib/multi-choice';
+import {
+  applyActiveJobTransition,
+  resolveHydratedActiveJob,
+  shouldPersistActiveJob,
+  type ActiveJobUpdate,
+} from '@/lib/active-job-state';
 import { commitInspectionFindingField, resolveFindingFieldValue } from '@/lib/finding-capture';
 import { captureAndCommitInspectionEvidencePhoto } from '@/lib/evidence-capture';
 import { createExpoEvidenceFileStore } from '@/lib/evidence-files';
@@ -86,8 +92,6 @@ const INITIAL_BRIEF: InspectionBrief = {
 };
 
 /** Demo job site — presentation reads this; it never hard-codes the address. */
-const INITIAL_JOB: ActiveJob = createInitialActiveJob();
-
 function announce(message: string) {
   AccessibilityInfo.announceForAccessibility(message);
 }
@@ -175,6 +179,11 @@ export type SvyrController = {
     path: string[],
     values: readonly string[],
   ) => boolean;
+  /**
+   * Persist a captured photo against the active evidence target.
+   * Returns null on success, or the user-facing failure message.
+   */
+  commitEvidencePhoto: (temporaryUri: string) => Promise<string | null>;
   /** Working multi-choice selection for the active field (transient draft). */
   activeMultiChoiceValues: readonly string[];
   toggleMultiChoiceDraft: (canonicalValue: string) => void;
@@ -231,10 +240,15 @@ export function useSvyrController(): SvyrController {
     useState<SvyrEntryDraftsByPath>({});
   const [inspectionBrief, setInspectionBrief] =
     useState<InspectionBrief>(INITIAL_BRIEF);
-  const [activeJob, setActiveJobState] = useState<ActiveJob>(INITIAL_JOB);
+  const [activeJob, setActiveJobState] = useState<ActiveJob>(
+    () => createInitialActiveJob(),
+  );
+  const [jobHydrated, setJobHydrated] = useState(false);
   const suffixRef = useRef('');
   const briefRef = useRef<InspectionBrief>(INITIAL_BRIEF);
-  const activeJobRef = useRef<ActiveJob>(INITIAL_JOB);
+  const activeJobRef = useRef<ActiveJob>(activeJob);
+  const jobHydratedRef = useRef(false);
+  const jobMutatedBeforeHydrationRef = useRef(false);
   const activeEntryRef = useRef<ActiveEntryField | null>(null);
   const activeCompoundCaptureRef = useRef<ActiveCompoundCapture | null>(null);
   const activeEvidenceCaptureRef = useRef<ActiveEvidenceCapture | null>(null);
@@ -242,12 +256,30 @@ export function useSvyrController(): SvyrController {
   const dataEntryDirectoryRef = useRef<string[]>([]);
   const entryDraftsByPathRef = useRef<SvyrEntryDraftsByPath>({});
 
+  /**
+   * Canonical ActiveJob mutation: one next value updates the imperative ref
+   * immediately, then React state. Native/camera callbacks read the ref and
+   * must not wait for a later render.
+   */
+  const updateActiveJob = useCallback((update: ActiveJobUpdate) => {
+    if (!jobHydratedRef.current) {
+      jobMutatedBeforeHydrationRef.current = true;
+    }
+    return applyActiveJobTransition(
+      activeJobRef.current,
+      update,
+      (next) => {
+        activeJobRef.current = next;
+        setActiveJobState(next);
+      },
+    );
+  }, []);
+
   // Kept in sync during render, not in an effect: gesture and native-input
   // callbacks fire outside React's commit order and must never act on a
-  // stale command path.
+  // stale command path. ActiveJob uses updateActiveJob for ref+state atomicity.
   suffixRef.current = commandSuffix;
   briefRef.current = inspectionBrief;
-  activeJobRef.current = activeJob;
   activeEntryRef.current = activeEntryField;
   activeCompoundCaptureRef.current = activeCompoundCapture;
   activeEvidenceCaptureRef.current = activeEvidenceCapture;
@@ -653,7 +685,7 @@ export function useSvyrController(): SvyrController {
 
       const submittedCommand = `${formatCommandPath(field.path)} ${value.trim()}`;
       const entryParent = field.path.slice(0, -1);
-      setActiveJobState((current) => ({
+      updateActiveJob((current) => ({
         ...current,
         inspection: committed.result.inspection,
       }));
@@ -676,13 +708,13 @@ export function useSvyrController(): SvyrController {
       announce(`${field.node.entryLabel ?? target.field} recorded`);
       return true;
     },
-    [clearActiveEntry, setDataEntryDirectoryForPath],
+    [clearActiveEntry, setDataEntryDirectoryForPath, updateActiveJob],
   );
 
   const commitEvidencePhoto = useCallback(
-    async (temporaryUri: string): Promise<boolean> => {
+    async (temporaryUri: string): Promise<string | null> => {
       const capture = activeEvidenceCaptureRef.current;
-      if (!capture) return false;
+      if (!capture) return 'Photo could not be saved';
 
       const committed = await captureAndCommitInspectionEvidencePhoto({
         inspection: activeJobRef.current.inspection,
@@ -695,10 +727,10 @@ export function useSvyrController(): SvyrController {
         setEntryError(committed.message);
         setFocusToken((token) => token + 1);
         announce(committed.message);
-        return false;
+        return committed.message;
       }
 
-      setActiveJobState((current) => ({
+      updateActiveJob((current) => ({
         ...current,
         inspection: committed.result.inspection,
       }));
@@ -711,9 +743,9 @@ export function useSvyrController(): SvyrController {
       setEntryError(null);
       setTemporaryAutocompleteContent(null);
       announce('Photo evidence recorded');
-      return true;
+      return null;
     },
-    [],
+    [updateActiveJob],
   );
 
   const requestTerminalFocus = useCallback(() => {
@@ -1194,24 +1226,47 @@ export function useSvyrController(): SvyrController {
     });
   }, []);
 
-  const setActiveProperty = useCallback((property: ActiveProperty) => {
-    setActiveJobState((current) => ({ ...current, property }));
-  }, []);
+  const setActiveProperty = useCallback(
+    (property: ActiveProperty) => {
+      updateActiveJob((current) => ({ ...current, property }));
+    },
+    [updateActiveJob],
+  );
 
   useEffect(() => {
+    let cancelled = false;
     void (async () => {
-      const raw = await AsyncStorage.getItem(ACTIVE_JOB_STORAGE_KEY);
-      if (!raw) return;
-      const restored = deserializeActiveJob(raw);
-      if (restored) {
-        setActiveJobState(restored);
+      try {
+        const raw = await AsyncStorage.getItem(ACTIVE_JOB_STORAGE_KEY);
+        if (cancelled) return;
+        const restored = raw ? deserializeActiveJob(raw) : null;
+        const apply = resolveHydratedActiveJob({
+          restored,
+          mutatedBeforeHydration: jobMutatedBeforeHydrationRef.current,
+        });
+        if (apply) {
+          activeJobRef.current = apply;
+          setActiveJobState(apply);
+        }
+      } finally {
+        if (!cancelled) {
+          jobHydratedRef.current = true;
+          setJobHydrated(true);
+        }
       }
     })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
-    void AsyncStorage.setItem(ACTIVE_JOB_STORAGE_KEY, serializeActiveJob(activeJob));
-  }, [activeJob]);
+    if (!shouldPersistActiveJob(jobHydrated)) return;
+    void AsyncStorage.setItem(
+      ACTIVE_JOB_STORAGE_KEY,
+      serializeActiveJob(activeJob),
+    );
+  }, [activeJob, jobHydrated]);
 
   return {
     inspectionBrief,

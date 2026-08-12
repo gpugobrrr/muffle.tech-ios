@@ -57,6 +57,7 @@ import {
   stashEntryDraft,
   stashMultiChoiceEntryDraft,
   suffixForDataEntryReentry,
+  resolveDataEntryReentryDraft,
   type SvyrEntryDraftsByPath,
 } from '@/lib/svyr-entry-drafts';
 import {
@@ -749,6 +750,19 @@ export function useSvyrController(): SvyrController {
     [clearActiveEntry, setDataEntryDirectoryForPath, updateActiveJob],
   );
 
+  /**
+   * Finding fields must reach the Engine before navigation leaves the entry.
+   * Otherwise swipe-back / SVYR bar navigation only stashes a draft and later
+   * fields correctly report "Record observation first".
+   */
+  const tryCommitActiveFindingEntry = useCallback((): 'none' | 'committed' | 'failed' => {
+    const field = activeEntryRef.current;
+    if (!field?.node.findingTarget) return 'none';
+    const value = parseEditableCommand(suffixRef.current).valueText.trim();
+    if (!value) return 'none';
+    return commitFindingDataEntry(field, value) ? 'committed' : 'failed';
+  }, [commitFindingDataEntry]);
+
   const commitEvidencePhoto = useCallback(
     async (temporaryUri: string): Promise<string | null> => {
       const capture = activeEvidenceCaptureRef.current;
@@ -841,7 +855,10 @@ export function useSvyrController(): SvyrController {
     setCommandSuffix(
       suffixForDataEntryReentry({
         path: suggestion.commandPath,
-        draft: stashedDraft ?? canonicalFindingValue ?? undefined,
+        draft: resolveDataEntryReentryDraft({
+          canonicalValue: canonicalFindingValue,
+          stashedDraft,
+        }),
         defaultInsertion: suggestion.insertion,
         suffixForPath,
       }),
@@ -1061,7 +1078,11 @@ export function useSvyrController(): SvyrController {
    */
   const applySvyrBarPath = useCallback(
     (targetDirectory: string[]): boolean => {
-      stashActiveEntryDraft();
+      const commitOutcome = tryCommitActiveFindingEntry();
+      if (commitOutcome === 'failed') return false;
+      if (commitOutcome === 'none') {
+        stashActiveEntryDraft();
+      }
 
       setTemporaryAutocompleteContent(null);
       setLastExecutionResult(null);
@@ -1074,7 +1095,7 @@ export function useSvyrController(): SvyrController {
       setFocusToken((token) => token + 1);
       return true;
     },
-    [stashActiveEntryDraft],
+    [stashActiveEntryDraft, tryCommitActiveFindingEntry],
   );
   /**
    * Shared SVYR bar segment press:
@@ -1103,6 +1124,15 @@ export function useSvyrController(): SvyrController {
   const selectSuggestion = useCallback(
     (suggestion: CommandSuggestion) => {
       if (suggestion.type === 'input-hint') return;
+
+      if (activeEntryRef.current) {
+        const commitOutcome = tryCommitActiveFindingEntry();
+        if (commitOutcome === 'failed') return;
+        if (commitOutcome === 'none') {
+          stashActiveEntryDraft();
+        }
+        clearActiveEntry();
+      }
 
       setTemporaryAutocompleteContent(null);
       setLastExecutionResult(null);
@@ -1156,7 +1186,7 @@ export function useSvyrController(): SvyrController {
       setCommandSuffix(suggestion.insertion);
       setFocusToken((n) => n + 1);
     },
-    [beginCompoundCapture, beginDataEntry, beginEvidenceCapture, clearActiveEntry, executeCommand, setDataEntryDirectoryForPath],
+    [beginCompoundCapture, beginDataEntry, beginEvidenceCapture, clearActiveEntry, executeCommand, setDataEntryDirectoryForPath, stashActiveEntryDraft, tryCommitActiveFindingEntry],
   );
 
   /**
@@ -1164,12 +1194,15 @@ export function useSvyrController(): SvyrController {
    * Same path result as atomic Backspace. Ignores free-text values.
    */
   const moveUpDirectory = useCallback(() => {
-    // Dedicated entry: stash any uncommitted draft, then leave without commit.
     if (activeEntryRef.current || activeCompoundCaptureRef.current || activeEvidenceCaptureRef.current) {
-      if (activeEntryRef.current) {
+      const commitOutcome = tryCommitActiveFindingEntry();
+      if (commitOutcome === 'failed') return false;
+      if (commitOutcome === 'none' && activeEntryRef.current) {
         stashActiveEntryDraft();
       }
-      cancelDataEntry();
+      if (commitOutcome !== 'committed') {
+        cancelDataEntry();
+      }
       setFocusToken((n) => n + 1);
       return true;
     }
@@ -1190,7 +1223,7 @@ export function useSvyrController(): SvyrController {
     setCommandSuffix(next);
     setFocusToken((n) => n + 1);
     return true;
-  }, [cancelDataEntry, stashActiveEntryDraft]);
+  }, [cancelDataEntry, stashActiveEntryDraft, tryCommitActiveFindingEntry]);
 
   /**
    * Shared semantic delete action. TextInput decides when native character
@@ -1265,12 +1298,15 @@ export function useSvyrController(): SvyrController {
     ) {
       return false;
     }
+    const commitOutcome = tryCommitActiveFindingEntry();
+    if (commitOutcome === 'failed') return false;
+    if (commitOutcome === 'committed') return true;
     if (activeEntryRef.current) {
       stashActiveEntryDraft();
     }
     cancelDataEntry();
     return true;
-  }, [cancelDataEntry, stashActiveEntryDraft]);
+  }, [cancelDataEntry, stashActiveEntryDraft, tryCommitActiveFindingEntry]);
 
   const setPathNote = useCallback((pathKey: string, note: string) => {
     setNotesByPath((current) => {

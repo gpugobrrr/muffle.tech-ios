@@ -89,8 +89,18 @@ export function readMultiChoiceEntryDraft(
 
 /**
  * Rebuild the editable suffix for text data-entry re-entry.
- * Restores a stashed text draft when present; otherwise uses the suggestion insertion.
+ * Canonical committed values win over transient stashed drafts.
  */
+export function resolveDataEntryReentryDraft(options: {
+  canonicalValue: string | null | undefined;
+  stashedDraft: string | undefined;
+}): string | undefined {
+  const canonical = options.canonicalValue?.trim();
+  if (canonical) return canonical;
+  const draft = options.stashedDraft?.trim();
+  return draft || undefined;
+}
+
 export function suffixForDataEntryReentry(options: {
   path: string[];
   draft: string | undefined;

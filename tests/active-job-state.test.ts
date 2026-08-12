@@ -25,6 +25,7 @@ import {
 } from '../src/lib/job-persistence';
 import { servicesFindingConfig } from '../src/lib/services-findings';
 import type { ActiveJob } from '../src/types/workspace';
+import type { InspectionElementConceptId } from '../src/lib/inspection-finding-elements';
 
 function mockFileStore(
   overrides: Partial<EvidenceFileStore> = {},
@@ -207,6 +208,48 @@ test('resolveActiveJobUpdate accepts value or updater', () => {
     id: `${current.id}.next`,
   }));
   assert.equal(updated.id, 'job.demo.18-market-street.next');
+});
+
+test('observation commit then defect gate passes on same ActiveJob', () => {
+  const electricity = servicesFindingConfig('electricity');
+  const observeTarget = {
+    findingId: electricity.findingId,
+    elementConceptId: electricity.elementConceptId as InspectionElementConceptId,
+    field: 'observation' as const,
+  };
+  const defectTarget = {
+    ...observeTarget,
+    field: 'defect' as const,
+  };
+
+  let activeJob: ActiveJob = createInitialActiveJob();
+  const observed = commitInspectionFindingField(
+    activeJob.inspection,
+    observeTarget,
+    'Consumer unit appears dated.',
+  );
+  assert.equal(observed.ok, true);
+  if (!observed.ok) return;
+
+  activeJob = applyActiveJobTransition(
+    activeJob,
+    (current) => ({
+      ...current,
+      inspection: observed.result.inspection,
+    }),
+    (next) => {
+      activeJob = next;
+    },
+  );
+
+  const defect = commitInspectionFindingField(
+    activeJob.inspection,
+    defectTarget,
+    'No RCD protection visible.',
+  );
+  assert.equal(defect.ok, true);
+  if (!defect.ok) return;
+  assert.notEqual(defect.message, 'Record observation first');
 });
 
 test('serialized ActiveJob round-trips findings used by evidence commit', () => {

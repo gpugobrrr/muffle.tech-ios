@@ -10,6 +10,7 @@ import { executeSurveyOperation } from '../src/lib/survey-operations';
 import {
   clearEntryDraft,
   readEntryDraft,
+  resolveDataEntryReentryDraft,
   stashEntryDraft,
   suffixForDataEntryReentry,
   type SvyrEntryDraftsByPath,
@@ -200,17 +201,30 @@ test('stash helpers are field-scoped and empty clears', () => {
   assert.equal(readEntryDraft(drafts, client), 'B');
 });
 
-test('controller still refuses to treat bar leave as submit', () => {
+test('canonical finding value wins over stashed draft on re-entry', () => {
+  assert.equal(
+    resolveDataEntryReentryDraft({
+      canonicalValue: 'Consumer unit appears dated.',
+      stashedDraft: 'older uncommitted draft',
+    }),
+    'Consumer unit appears dated.',
+  );
+  assert.equal(
+    resolveDataEntryReentryDraft({
+      canonicalValue: null,
+      stashedDraft: 'resume editing',
+    }),
+    'resume editing',
+  );
+});
+
+test('controller commits finding fields before bar navigation', () => {
   const workspace = readFileSync(
     path.join(repoRoot, 'src/hooks/use-workspace.ts'),
     'utf8',
   );
-  assert.match(workspace, /stashActiveEntryDraft/);
-  assert.match(workspace, /Always navigates/);
-  assert.doesNotMatch(
-    workspace,
-    /if \(parsed\.valueText\.length > 0\) return false;\s*\n\s*setTemporaryAutocompleteContent/,
-  );
+  assert.match(workspace, /tryCommitActiveFindingEntry/);
+  assert.match(workspace, /commitOutcome === 'failed'/);
 });
 
 test('shared SvyrBar remains the sole path-bar implementation', () => {

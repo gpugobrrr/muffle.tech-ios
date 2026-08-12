@@ -257,7 +257,7 @@ const PROPERTY_NODE: CommandNode = {
     status: 'navigation-only',
     canonicalConceptId: 'property',
     recommendedLaterWork:
-      'Add independently reviewed property-description fields before enabling capture.',
+      'Keep energy heating and mains-service presence on existing Engine-backed fields. Leave type, age, construction, and location blocked until those facts have approved schemas and vocabularies.',
   },
   children: [
     {

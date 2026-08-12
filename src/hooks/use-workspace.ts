@@ -218,7 +218,7 @@ export type SvyrController = {
 };
 
 export function useSvyrController(): SvyrController {
-  const [commandSuffix, setCommandSuffix] = useState('');
+  const [commandSuffix, setCommandSuffixState] = useState('');
   const [dataEntryDirectory, setDataEntryDirectory] = useState<string[]>([]);
   const [temporaryAutocompleteContent, setTemporaryAutocompleteContent] =
     useState<string | null>(null);
@@ -276,14 +276,19 @@ export function useSvyrController(): SvyrController {
     );
   }, []);
 
+  /**
+   * Command suffix mutation: imperative callbacks (submit / auto-commit on
+   * navigate) read suffixRef and must see the latest typed value immediately.
+   */
+  const setCommandSuffix = useCallback((value: string) => {
+    suffixRef.current = value;
+    setCommandSuffixState(value);
+  }, []);
+
   // Kept in sync during render, not in an effect: gesture and native-input
   // callbacks fire outside React's commit order and must never act on a
-  // stale command path. ActiveJob uses updateActiveJob for ref+state atomicity.
-  suffixRef.current = commandSuffix;
+  // stale command path. ActiveJob / commandSuffix use explicit ref+state writers.
   briefRef.current = inspectionBrief;
-  activeEntryRef.current = activeEntryField;
-  activeCompoundCaptureRef.current = activeCompoundCapture;
-  activeEvidenceCaptureRef.current = activeEvidenceCapture;
   dataEntryDirectoryRef.current = dataEntryDirectory;
   entryDraftsByPathRef.current = entryDraftsByPath;
 
@@ -326,6 +331,9 @@ export function useSvyrController(): SvyrController {
     : null;
 
   const clearActiveEntry = useCallback(() => {
+    activeEntryRef.current = null;
+    activeCompoundCaptureRef.current = null;
+    activeEvidenceCaptureRef.current = null;
     setActiveEntryField(null);
     setActiveCompoundCapture(null);
     setActiveEvidenceCapture(null);
@@ -669,50 +677,30 @@ export function useSvyrController(): SvyrController {
 
   const commitFindingDataEntry = useCallback(
     (field: ActiveEntryField, value: string): boolean => {
-      const target = field.node.findingTarget;
+      // Prefer the live registry node so a stale ActiveEntryField copy cannot
+      // drop findingTarget and silently fall through to placeholder execute.
+      const target =
+        findCommandNode(field.path)?.findingTarget ?? field.node.findingTarget;
       if (!target) {
-        console.error('[finding-debug] missing findingTarget', {
+        console.error('[finding-capture] missing findingTarget', {
           path: field.path,
-          value,
           nodeToken: field.node.token,
         });
         return false;
       }
-
-      console.log('[finding-debug] submit', {
-        path: field.path,
-        value,
-        target,
-      });
 
       const committed = commitInspectionFindingField(
         activeJobRef.current.inspection,
         target,
         value,
       );
+
       if (!committed.ok) {
-        console.error('[finding-debug] commit failed', {
-          path: field.path,
-          value,
-          target,
-          message: committed.message,
-          availableFindingIds: Object.keys(
-            activeJobRef.current.inspection.findings,
-          ),
-        });
         setEntryError(committed.message);
         setFocusToken((n) => n + 1);
         announce(committed.message);
         return false;
       }
-
-      console.log('[finding-debug] committed result', {
-        findingId: target.findingId,
-        resultFindingIds: Object.keys(committed.result.inspection.findings),
-        resultObservation:
-          committed.result.inspection.findings[target.findingId]?.observation ??
-          null,
-      });
 
       const submittedCommand = `${formatCommandPath(field.path)} ${value.trim()}`;
       const entryParent = field.path.slice(0, -1);
@@ -721,13 +709,6 @@ export function useSvyrController(): SvyrController {
         inspection: committed.result.inspection,
       }));
 
-      console.log('[finding-debug] activeJob after update', {
-        findingId: target.findingId,
-        refFindingIds: Object.keys(activeJobRef.current.inspection.findings),
-        refObservation:
-          activeJobRef.current.inspection.findings[target.findingId]
-            ?.observation ?? null,
-      });
       setLastExecutionResult({
         operationId: committed.result.operationId,
         label: field.node.entryLabel ?? target.field,
@@ -757,7 +738,10 @@ export function useSvyrController(): SvyrController {
    */
   const tryCommitActiveFindingEntry = useCallback((): 'none' | 'committed' | 'failed' => {
     const field = activeEntryRef.current;
-    if (!field?.node.findingTarget) return 'none';
+    if (!field) return 'none';
+    const findingTarget =
+      findCommandNode(field.path)?.findingTarget ?? field.node.findingTarget;
+    if (!findingTarget) return 'none';
     const value = parseEditableCommand(suffixRef.current).valueText.trim();
     if (!value) return 'none';
     return commitFindingDataEntry(field, value) ? 'committed' : 'failed';
@@ -822,7 +806,9 @@ export function useSvyrController(): SvyrController {
     setTemporaryAutocompleteContent(null);
     setLastExecutionResult(null);
     setEntryError(null);
-    setActiveEntryField({ path: suggestion.commandPath, node });
+    const nextField = { path: suggestion.commandPath, node };
+    activeEntryRef.current = nextField;
+    setActiveEntryField(nextField);
     setDataEntryDirectoryForPath(suggestion.commandPath);
 
     if (fieldDefinition?.valueType === 'multiSelect') {
@@ -874,9 +860,13 @@ export function useSvyrController(): SvyrController {
       setTemporaryAutocompleteContent(null);
       setLastExecutionResult(null);
       setEntryError(null);
+      activeEntryRef.current = null;
+      activeEvidenceCaptureRef.current = null;
       setActiveEntryField(null);
       setActiveEvidenceCapture(null);
-      setActiveCompoundCapture({ path: suggestion.commandPath, node });
+      const next = { path: suggestion.commandPath, node };
+      activeCompoundCaptureRef.current = next;
+      setActiveCompoundCapture(next);
       setDataEntryDirectoryForPath(suggestion.commandPath);
       setCommandSuffix(suggestion.insertion);
       setFocusToken((token) => token + 1);
@@ -892,13 +882,17 @@ export function useSvyrController(): SvyrController {
       setTemporaryAutocompleteContent(null);
       setLastExecutionResult(null);
       setEntryError(null);
+      activeEntryRef.current = null;
+      activeCompoundCaptureRef.current = null;
       setActiveEntryField(null);
       setActiveCompoundCapture(null);
-      setActiveEvidenceCapture({
+      const next = {
         path: suggestion.commandPath,
         node,
         target: node.evidenceCaptureTarget,
-      });
+      };
+      activeEvidenceCaptureRef.current = next;
+      setActiveEvidenceCapture(next);
       setDataEntryDirectoryForPath(suggestion.commandPath);
       setCommandSuffix(suggestion.insertion);
       setFocusToken((token) => token + 1);
@@ -913,21 +907,12 @@ export function useSvyrController(): SvyrController {
     const evidence = activeEvidenceCaptureRef.current;
     if (!field && !compound && !evidence) return;
 
-    if (field?.node.findingTarget) {
-      const draft = parseEditableCommand(suffixRef.current).valueText.trim();
-      console.warn('[finding-debug] leaving finding entry without Engine commit', {
-        path: field.path,
-        target: field.node.findingTarget,
-        stashedDraft: draft || null,
-        availableFindingIds: Object.keys(
-          activeJobRef.current.inspection.findings,
-        ),
-      });
-    }
-
     setTemporaryAutocompleteContent(null);
     setLastExecutionResult(null);
     setEntryError(null);
+    activeEntryRef.current = null;
+    activeCompoundCaptureRef.current = null;
+    activeEvidenceCaptureRef.current = null;
     setActiveEntryField(null);
     setActiveCompoundCapture(null);
     setActiveEvidenceCapture(null);
@@ -1087,6 +1072,9 @@ export function useSvyrController(): SvyrController {
       setTemporaryAutocompleteContent(null);
       setLastExecutionResult(null);
       setEntryError(null);
+      activeEntryRef.current = null;
+      activeCompoundCaptureRef.current = null;
+      activeEvidenceCaptureRef.current = null;
       setActiveEntryField(null);
       setActiveCompoundCapture(null);
       setActiveEvidenceCapture(null);
@@ -1259,7 +1247,6 @@ export function useSvyrController(): SvyrController {
   const submitDataEntry = useCallback((): boolean => {
     const field = activeEntryRef.current;
     if (!field) {
-      console.error('[finding-debug] submitDataEntry with no active field');
       return false;
     }
 
@@ -1273,16 +1260,12 @@ export function useSvyrController(): SvyrController {
     }
 
     const submittedCommand = [formatCommandPath(field.path), value].join(' ');
-    if (field.node.findingTarget) {
+    const findingTarget =
+      findCommandNode(field.path)?.findingTarget ?? field.node.findingTarget;
+    if (findingTarget) {
       return commitFindingDataEntry(field, value);
     }
 
-    console.warn('[finding-debug] submitDataEntry falling through to executeCommand', {
-      path: field.path,
-      value,
-      nodeToken: field.node.token,
-      requiresValue: field.node.requiresValue,
-    });
     return executeCommand(submittedCommand, { fromDataEntry: true });
   }, [commitFindingDataEntry, executeCommand]);
 

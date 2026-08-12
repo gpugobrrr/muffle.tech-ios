@@ -59,6 +59,78 @@ test('supported finding fields match the canonical InspectionFinding shape', () 
   ]);
 });
 
+test('electricity observation on empty inspection creates the stable finding', () => {
+  const observeTarget = findCommandNode(['services', 'electricity', 'observe'])!
+    .findingTarget!;
+  assert.deepEqual(observeTarget, {
+    findingId: 'finding.service.electrical_installation.1',
+    elementConceptId: 'service_system.electrical_installation',
+    field: 'observation',
+  });
+
+  const created = commitInspectionFindingField(
+    createEmptyInspectionRecord(),
+    observeTarget,
+    'Consumer unit appears dated.',
+  );
+  assert.equal(created.ok, true);
+  if (!created.ok) return;
+
+  const finding =
+    created.result.inspection.findings[
+      'finding.service.electrical_installation.1'
+    ];
+  assert.deepEqual(finding, {
+    id: 'finding.service.electrical_installation.1',
+    elementConceptId: 'service_system.electrical_installation',
+    observation: 'Consumer unit appears dated.',
+  });
+});
+
+test('electricity defect before observation still returns Record observation first', () => {
+  const defectTarget = findCommandNode(['services', 'electricity', 'defect'])!
+    .findingTarget!;
+  const rejected = commitInspectionFindingField(
+    createEmptyInspectionRecord(),
+    defectTarget,
+    'Signs of thermal discolouration.',
+  );
+  assert.equal(rejected.ok, false);
+  if (rejected.ok) return;
+  assert.equal(rejected.message, 'Record observation first');
+});
+
+test('electricity defect immediately after observation succeeds on the same finding', () => {
+  const observeTarget = findCommandNode(['services', 'electricity', 'observe'])!
+    .findingTarget!;
+  const defectTarget = findCommandNode(['services', 'electricity', 'defect'])!
+    .findingTarget!;
+
+  const observed = commitInspectionFindingField(
+    createEmptyInspectionRecord(),
+    observeTarget,
+    'Consumer unit appears dated.',
+  );
+  assert.equal(observed.ok, true);
+  if (!observed.ok) return;
+
+  const defect = commitInspectionFindingField(
+    observed.result.inspection,
+    defectTarget,
+    'Signs of thermal discolouration.',
+  );
+  assert.equal(defect.ok, true);
+  if (!defect.ok) return;
+  assert.equal(
+    defect.result.inspection.findings[observeTarget.findingId]?.defect,
+    'Signs of thermal discolouration.',
+  );
+  assert.equal(
+    defect.result.inspection.findings[observeTarget.findingId]?.observation,
+    'Consumer unit appears dated.',
+  );
+});
+
 test('observation is required before optional finding fields can be committed', () => {
   const defectTarget = findCommandNode(['external', 'walls', 'defect'])!
     .findingTarget!;

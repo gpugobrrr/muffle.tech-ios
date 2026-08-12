@@ -227,6 +227,21 @@ test('controller commits finding fields before bar navigation', () => {
   assert.match(workspace, /commitOutcome === 'failed'/);
 });
 
+test('controller syncs command suffix ref before React state for Type 6 submit', () => {
+  const workspace = readFileSync(
+    path.join(repoRoot, 'src/hooks/use-workspace.ts'),
+    'utf8',
+  );
+  assert.match(
+    workspace,
+    /const setCommandSuffix = useCallback\(\(value: string\) => \{\s*suffixRef\.current = value;\s*setCommandSuffixState\(value\);/s,
+  );
+  assert.match(
+    workspace,
+    /findCommandNode\(field\.path\)\?\.findingTarget \?\? field\.node\.findingTarget/,
+  );
+});
+
 test('shared SvyrBar remains the sole path-bar implementation', () => {
   const dock = readFileSync(
     path.join(repoRoot, 'src/components/command-dock.tsx'),

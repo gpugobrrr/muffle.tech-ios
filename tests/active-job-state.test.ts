@@ -7,6 +7,7 @@ import {
   resolveHydratedActiveJob,
   shouldPersistActiveJob,
 } from '../src/lib/active-job-state';
+import { parseEditableCommand } from '../src/lib/command-edit';
 import {
   captureAndCommitInspectionEvidencePhoto,
   commitInspectionEvidencePhoto,
@@ -301,4 +302,115 @@ test('serialized ActiveJob round-trips findings used by evidence commit', () => 
   } finally {
     console.error = originalError;
   }
+});
+
+test('Type 6 observation updates ActiveJob before any render for Type 7', async () => {
+  const electricity = servicesFindingConfig('electricity');
+  let activeJob: ActiveJob = createInitialActiveJob();
+  const activeJobRef = { current: activeJob };
+
+  const updateActiveJob = (update: Parameters<typeof applyActiveJobTransition>[1]) =>
+    applyActiveJobTransition(activeJobRef.current, update, (next) => {
+      activeJobRef.current = next;
+      activeJob = next;
+    });
+
+  const observed = commitInspectionFindingField(
+    activeJobRef.current.inspection,
+    {
+      findingId: electricity.findingId,
+      elementConceptId: electricity.elementConceptId,
+      field: 'observation',
+    },
+    'Consumer unit appears dated.',
+  );
+  assert.equal(observed.ok, true);
+  if (!observed.ok) return;
+
+  // No React render — ref must already hold the finding for the next callback.
+  updateActiveJob((current) => ({
+    ...current,
+    inspection: observed.result.inspection,
+  }));
+
+  assert.deepEqual(
+    Object.keys(activeJobRef.current.inspection.findings),
+    [electricity.findingId],
+  );
+
+  const evidence = await captureAndCommitInspectionEvidencePhoto({
+    inspection: activeJobRef.current.inspection,
+    target: {
+      findingId: electricity.findingId,
+      elementConceptId: electricity.elementConceptId,
+    },
+    jobId: activeJobRef.current.id,
+    temporaryUri: 'file:///tmp/evidence.jpg',
+    fileStore: mockFileStore(),
+    createId: () => 'evidence.photo.immediate',
+  });
+  assert.equal(evidence.ok, true);
+});
+
+test('late hydration cannot wipe a newer committed finding', () => {
+  const electricity = servicesFindingConfig('electricity');
+  let activeJob: ActiveJob = createInitialActiveJob();
+  const activeJobRef = { current: activeJob };
+  let mutatedBeforeHydration = false;
+
+  const updateActiveJob = (update: Parameters<typeof applyActiveJobTransition>[1]) => {
+    mutatedBeforeHydration = true;
+    return applyActiveJobTransition(activeJobRef.current, update, (next) => {
+      activeJobRef.current = next;
+      activeJob = next;
+    });
+  };
+
+  const observed = commitInspectionFindingField(
+    activeJobRef.current.inspection,
+    {
+      findingId: electricity.findingId,
+      elementConceptId: electricity.elementConceptId,
+      field: 'observation',
+    },
+    'Consumer unit appears dated.',
+  );
+  assert.equal(observed.ok, true);
+  if (!observed.ok) return;
+
+  updateActiveJob((current) => ({
+    ...current,
+    inspection: observed.result.inspection,
+  }));
+
+  const emptyRestored = createInitialActiveJob();
+  const apply = resolveHydratedActiveJob({
+    restored: emptyRestored,
+    mutatedBeforeHydration,
+  });
+  assert.equal(apply, null);
+  assert.equal(
+    activeJobRef.current.inspection.findings[electricity.findingId]?.observation,
+    'Consumer unit appears dated.',
+  );
+  assert.equal(shouldPersistActiveJob(false), false);
+});
+
+test('command suffix ref must expose typed value before a React re-render', () => {
+  // Mirrors useSvyrController setCommandSuffix: imperative submit/auto-commit
+  // read suffixRef and must not wait for render-time assignment.
+  let commandSuffix = 'services/electricity/observe ';
+  const suffixRef = { current: commandSuffix };
+  const setCommandSuffix = (value: string) => {
+    suffixRef.current = value;
+    commandSuffix = value;
+  };
+
+  setCommandSuffix(
+    'services/electricity/observe Consumer unit appears dated.',
+  );
+
+  const value = parseEditableCommand(suffixRef.current).valueText.trim();
+  assert.equal(value, 'Consumer unit appears dated.');
+  assert.notEqual(suffixRef.current, 'services/electricity/observe ');
 });

@@ -669,7 +669,20 @@ export function useSvyrController(): SvyrController {
   const commitFindingDataEntry = useCallback(
     (field: ActiveEntryField, value: string): boolean => {
       const target = field.node.findingTarget;
-      if (!target) return false;
+      if (!target) {
+        console.error('[finding-debug] missing findingTarget', {
+          path: field.path,
+          value,
+          nodeToken: field.node.token,
+        });
+        return false;
+      }
+
+      console.log('[finding-debug] submit', {
+        path: field.path,
+        value,
+        target,
+      });
 
       const committed = commitInspectionFindingField(
         activeJobRef.current.inspection,
@@ -677,6 +690,15 @@ export function useSvyrController(): SvyrController {
         value,
       );
       if (!committed.ok) {
+        console.error('[finding-debug] commit failed', {
+          path: field.path,
+          value,
+          target,
+          message: committed.message,
+          availableFindingIds: Object.keys(
+            activeJobRef.current.inspection.findings,
+          ),
+        });
         setEntryError(committed.message);
         setFocusToken((n) => n + 1);
         announce(committed.message);
@@ -873,6 +895,18 @@ export function useSvyrController(): SvyrController {
     const compound = activeCompoundCaptureRef.current;
     const evidence = activeEvidenceCaptureRef.current;
     if (!field && !compound && !evidence) return;
+
+    if (field?.node.findingTarget) {
+      const draft = parseEditableCommand(suffixRef.current).valueText.trim();
+      console.warn('[finding-debug] leaving finding entry without Engine commit', {
+        path: field.path,
+        target: field.node.findingTarget,
+        stashedDraft: draft || null,
+        availableFindingIds: Object.keys(
+          activeJobRef.current.inspection.findings,
+        ),
+      });
+    }
 
     setTemporaryAutocompleteContent(null);
     setLastExecutionResult(null);
@@ -1191,7 +1225,10 @@ export function useSvyrController(): SvyrController {
    */
   const submitDataEntry = useCallback((): boolean => {
     const field = activeEntryRef.current;
-    if (!field) return false;
+    if (!field) {
+      console.error('[finding-debug] submitDataEntry with no active field');
+      return false;
+    }
 
     const parsed = parseEditableCommand(suffixRef.current);
     const value = parsed.valueText.trim();
@@ -1206,6 +1243,13 @@ export function useSvyrController(): SvyrController {
     if (field.node.findingTarget) {
       return commitFindingDataEntry(field, value);
     }
+
+    console.warn('[finding-debug] submitDataEntry falling through to executeCommand', {
+      path: field.path,
+      value,
+      nodeToken: field.node.token,
+      requiresValue: field.node.requiresValue,
+    });
     return executeCommand(submittedCommand, { fromDataEntry: true });
   }, [commitFindingDataEntry, executeCommand]);
 

@@ -212,6 +212,8 @@ const FIELD_DEFINITIONS: FieldDefinition[] = [
     valuePrompt: 'ENTER CLIENT',
     entryLabel: 'CLIENT',
     valuePlaceholder: 'Enter name',
+    operationId: 'survey.brief.instruction.client.set',
+    readOperationId: 'survey.brief.instruction.client.read',
     notesEnabled: false,
   },
   {
@@ -226,6 +228,8 @@ const FIELD_DEFINITIONS: FieldDefinition[] = [
     valuePrompt: 'ENTER INSTRUCTION REFERENCE',
     entryLabel: 'INSTRUCTION REFERENCE',
     valuePlaceholder: 'Enter reference',
+    operationId: 'survey.brief.instruction.reference.set',
+    readOperationId: 'survey.brief.instruction.reference.read',
     notesEnabled: false,
   },
   {
@@ -265,6 +269,8 @@ const FIELD_DEFINITIONS: FieldDefinition[] = [
     valuePrompt: 'ENTER PURPOSE',
     entryLabel: 'PURPOSE',
     valuePlaceholder: 'Enter purpose',
+    operationId: 'survey.brief.purpose.set',
+    readOperationId: 'survey.brief.purpose.read',
     notesEnabled: false,
   },
   {
@@ -279,6 +285,8 @@ const FIELD_DEFINITIONS: FieldDefinition[] = [
     valuePrompt: 'ENTER DELIVERABLE',
     entryLabel: 'DELIVERABLE',
     valuePlaceholder: 'Enter deliverable',
+    operationId: 'survey.brief.deliverable.set',
+    readOperationId: 'survey.brief.deliverable.read',
     notesEnabled: false,
   },
   {
@@ -293,6 +301,8 @@ const FIELD_DEFINITIONS: FieldDefinition[] = [
     valuePrompt: 'ENTER LIMITATION',
     entryLabel: 'LIMITATION',
     valuePlaceholder: 'Enter limitation',
+    operationId: 'survey.brief.limitation.set',
+    readOperationId: 'survey.brief.limitation.read',
     notesEnabled: false,
   },
   ...MAINS_SERVICE_FIELD_DEFINITIONS,

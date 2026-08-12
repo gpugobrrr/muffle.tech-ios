@@ -787,10 +787,10 @@ export const LEVEL_2_COVERAGE_MANIFEST: readonly Level2CoverageManifestEntry[] =
     status: 'interactive',
     canonicalConceptId: 'inspection_brief',
     engineBinding:
-      'survey.brief.instruction.party.set; survey.brief.instruction.source.set',
+      'survey.brief.instruction.party.set; survey.brief.instruction.client.set; survey.brief.instruction.reference.set; survey.brief.instruction.source.set; survey.brief.purpose.set; survey.brief.deliverable.set; survey.brief.limitation.set',
     blocker:
-      'Only instructing party and source are currently Engine-backed; other PREP fields remain schema-only.',
-    recommendedLaterWork: 'Add approved operations without changing the established PREP paths.',
+      'PREP scope, access, equipment, plan, and ready remain unavailable until those workflows have canonical operations.',
+    recommendedLaterWork: 'Keep PREP capture on the established brief paths; do not invent scope/access/equipment records.',
   },
   ...flattenCoverage(LEVEL_2_COMMAND_NODES, []),
 ];

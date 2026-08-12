@@ -76,6 +76,7 @@
     "test:finding-capture": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/finding-capture.test.ts",
     "test:finding-entry-session": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/finding-entry-session.test.ts",
     "test:finding-route-smoke": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/finding-route-smoke.test.ts",
+    "test:prep-brief-capture": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/prep-brief-capture.test.ts",
     "test:evidence-capture": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/evidence-capture.test.ts",
     "test:active-job-state": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/active-job-state.test.ts",
     "test:svyr-bar": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/svyr-bar-navigation.test.ts tests/svyr-entry-drafts.test.ts",

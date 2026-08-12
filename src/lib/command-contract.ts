@@ -70,6 +70,19 @@ export function verifyCommandContract(): string[] {
   expect('openPlan', commands.openPlan(), 'placeholder');
   expect('openReady', commands.openReady(), 'placeholder');
 
+  const clientWrite = parseCommand('prep/brief/instr/client Acme Ltd');
+  if (clientWrite.type !== 'operation') {
+    failures.push(
+      `client write: expected an operation, got "${clientWrite.type}"`,
+    );
+  } else if (
+    clientWrite.operation.operationId !== SURVEY_OPERATIONS.setInstructionClient
+  ) {
+    failures.push(
+      `client write operation mismatch: "${clientWrite.operation.operationId}"`,
+    );
+  }
+
   const pinAttempt = parseCommand('prep/brief pin');
   if (pinAttempt.type !== 'unknown') {
     failures.push(

@@ -99,6 +99,8 @@ export function commitInspectionEvidencePhoto(
     const message = inspection.findings[target.findingId]
       ? 'Evidence could not be recorded'
       : 'Record observation first';
+    // Distinct tag from the removed ad442cf-era "commit attempt" log so a
+    // stale Expo Go bundle is immediately recognizable.
     console.error('[evidence-photo] Evidence commit rejected', {
       message,
       targetFindingId: target.findingId,
@@ -106,6 +108,7 @@ export function commitInspectionEvidencePhoto(
       findingExists: Boolean(inspection.findings[target.findingId]),
       observation: inspection.findings[target.findingId]?.observation ?? null,
       evidenceId: evidence.id,
+      buildMarker: 'ad442cf+',
     });
     return { ok: false, message };
   }

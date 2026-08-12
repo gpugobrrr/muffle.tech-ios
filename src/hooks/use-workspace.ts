@@ -683,12 +683,28 @@ export function useSvyrController(): SvyrController {
         return false;
       }
 
+      console.log('[finding-debug] committed result', {
+        findingId: target.findingId,
+        resultFindingIds: Object.keys(committed.result.inspection.findings),
+        resultObservation:
+          committed.result.inspection.findings[target.findingId]?.observation ??
+          null,
+      });
+
       const submittedCommand = `${formatCommandPath(field.path)} ${value.trim()}`;
       const entryParent = field.path.slice(0, -1);
       updateActiveJob((current) => ({
         ...current,
         inspection: committed.result.inspection,
       }));
+
+      console.log('[finding-debug] activeJob after update', {
+        findingId: target.findingId,
+        refFindingIds: Object.keys(activeJobRef.current.inspection.findings),
+        refObservation:
+          activeJobRef.current.inspection.findings[target.findingId]
+            ?.observation ?? null,
+      });
       setLastExecutionResult({
         operationId: committed.result.operationId,
         label: field.node.entryLabel ?? target.field,

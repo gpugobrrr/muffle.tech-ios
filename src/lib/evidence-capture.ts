@@ -3,6 +3,7 @@ import type {
   InspectionEvidenceCaptureTarget,
 } from '@/lib/command-registry';
 import type { InspectionElementConceptId } from '@/lib/inspection-finding-elements';
+import type { LocalMediaSource } from '@/core/local-media-store';
 import type { EvidenceFileStore } from '@/lib/evidence-files';
 import {
   executeInspectionOperation,
@@ -73,14 +74,21 @@ export function findingEvidenceIds(
   return finding.evidence.map(({ id }) => id).filter(Boolean);
 }
 
+export function findingPhotoEvidenceRecords(
+  inspection: InspectionRecord,
+  findingId: string,
+): InspectionEvidence[] {
+  return findingEvidenceIds(inspection, findingId).flatMap((evidenceId) => {
+    const record = resolveEvidenceRecord(inspection, evidenceId);
+    return record?.kind === 'photo' ? [record] : [];
+  });
+}
+
 export function countFindingPhotoEvidence(
   inspection: InspectionRecord,
   findingId: string,
 ): number {
-  return findingEvidenceIds(inspection, findingId).filter((evidenceId) => {
-    const record = resolveEvidenceRecord(inspection, evidenceId);
-    return record?.kind === 'photo';
-  }).length;
+  return findingPhotoEvidenceRecords(inspection, findingId).length;
 }
 
 export function commitInspectionEvidencePhoto(
@@ -115,17 +123,22 @@ export async function captureAndCommitInspectionEvidencePhoto(input: {
   target: InspectionEvidenceCaptureTarget;
   jobId: string;
   temporaryUri: string;
+  file?: Blob;
   fileStore: EvidenceFileStore;
   createId?: () => string;
 }): Promise<EvidencePhotoCommitResult> {
   const evidenceId = (input.createId ?? createEvidencePhotoId)();
   let persistentUri: string | null = null;
+  const source: LocalMediaSource = {
+    uri: input.temporaryUri,
+    ...(input.file ? { file: input.file } : {}),
+  };
 
   try {
     persistentUri = await input.fileStore.copyPhotoToEvidenceDirectory(
       input.jobId,
       evidenceId,
-      input.temporaryUri,
+      source,
     );
   } catch (error) {
     console.error('[evidence-photo] Failed to save photo', error);

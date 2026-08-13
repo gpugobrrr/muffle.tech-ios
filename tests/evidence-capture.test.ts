@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import {
+  createWebSessionLocalMediaStore,
+  isBrowserSessionMediaUri,
+  nativeFilesystemCopyUri,
+} from '../src/core/local-media-store';
 import { findCommandNode } from '../src/lib/command-registry';
+import { externalFindingConfig } from '../src/lib/external-findings';
 import {
   resolveSvyrNodeDataEntryType,
   SVYR_DATA_ENTRY_TYPES,
@@ -43,9 +49,10 @@ function mockFileStore(
     async ensureJobEvidenceDirectory(jobId: string) {
       return `/persistent/${evidenceJobDirectory(jobId)}/`;
     },
-    async copyPhotoToEvidenceDirectory(jobId, evidenceId, temporaryUri) {
+    async copyPhotoToEvidenceDirectory(jobId, evidenceId, source) {
       const destination = `/persistent/${evidencePhotoRelativePath(jobId, evidenceId)}`;
-      files.set(destination, temporaryUri);
+      const uri = typeof source === 'string' ? source : source.uri;
+      files.set(destination, uri);
       return destination;
     },
     async deleteEvidenceFile(uri: string) {
@@ -338,13 +345,15 @@ test('expo evidence file store uses File/Directory API not legacy filesystem hel
     path.join(testsDir, '../src/core/local-media-store.ts'),
     'utf8',
   );
-  assert.match(adapter, /createExpoLocalMediaStore/);
+  assert.match(adapter, /createPlatformLocalMediaStore/);
   assert.match(adapter, /SURVEY_EVIDENCE_MEDIA_PATH/);
   assert.doesNotMatch(adapter, /\.makeDirectoryAsync\b/);
   assert.doesNotMatch(adapter, /\.copyAsync\b/);
   assert.doesNotMatch(adapter, /\.deleteAsync\b/);
   assert.doesNotMatch(adapter, /expo-file-system\/legacy/);
   assert.doesNotMatch(adapter, /\.documentDirectory\b/);
+  assert.match(store, /createWebSessionLocalMediaStore/);
+  assert.match(store, /nativeFilesystemCopyUri/);
   assert.match(store, /\{ Directory, File, Paths \}/);
   assert.match(store, /directory\.create\(\{ intermediates: true/);
   assert.match(store, /source\.bytes\(\)/);
@@ -399,3 +408,114 @@ function photoTarget(
 ) {
   return { findingId, elementConceptId };
 }
+
+function webSessionFileStore(): EvidenceFileStore {
+  const store = createWebSessionLocalMediaStore();
+  return {
+    ensureJobEvidenceDirectory(jobId) {
+      return store.ensureRecordDirectory(jobId);
+    },
+    copyPhotoToEvidenceDirectory(jobId, evidenceId, source) {
+      return store.copyFileIntoDirectory(jobId, evidenceId, source);
+    },
+    deleteEvidenceFile(uri) {
+      return store.deleteFile(uri);
+    },
+  };
+}
+
+test('web picker File produces a same-session URI through evidence.add without native copy', async () => {
+  const chimney = externalFindingConfig('chimney');
+  const walls = externalFindingConfig('walls');
+  let inspection = createEmptyInspectionRecord();
+
+  for (const config of [chimney, walls]) {
+    const observe = findCommandNode([...config.route, 'observe'])!.findingTarget!;
+    const observed = commitInspectionFindingField(
+      inspection,
+      observe,
+      `${config.label} observation.`,
+    );
+    assert.equal(observed.ok, true);
+    if (!observed.ok) return;
+    inspection = observed.result.inspection;
+  }
+
+  const inner = webSessionFileStore();
+  const nativeCopyAttempts: unknown[] = [];
+  const fileStore: EvidenceFileStore = {
+    ...inner,
+    async copyPhotoToEvidenceDirectory(jobId, evidenceId, source) {
+      nativeCopyAttempts.push(source);
+      assert.throws(() => nativeFilesystemCopyUri(source));
+      return inner.copyPhotoToEvidenceDirectory(jobId, evidenceId, source);
+    },
+  };
+
+  const first = await captureAndCommitInspectionEvidencePhoto({
+    inspection,
+    target: photoTarget(chimney.findingId, chimney.elementConceptId),
+    jobId: 'job.test.evidence',
+    temporaryUri: 'blob:https://localhost/picker-1',
+    file: new Blob([Uint8Array.from([0xff, 0xd8, 0xff])], { type: 'image/jpeg' }),
+    fileStore,
+    createId: () => 'evidence.photo.chimney-a',
+  });
+  assert.equal(first.ok, true);
+  if (!first.ok) return;
+  inspection = first.result.inspection;
+
+  const second = await captureAndCommitInspectionEvidencePhoto({
+    inspection,
+    target: photoTarget(chimney.findingId, chimney.elementConceptId),
+    jobId: 'job.test.evidence',
+    temporaryUri: 'blob:https://localhost/picker-2',
+    file: new Blob([Uint8Array.from([0xff, 0xd8, 0xff, 0xdb])], {
+      type: 'image/jpeg',
+    }),
+    fileStore,
+    createId: () => 'evidence.photo.chimney-b',
+  });
+  assert.equal(second.ok, true);
+  if (!second.ok) return;
+  inspection = second.result.inspection;
+
+  assert.equal(first.result.operationId, SURVEY_EVIDENCE_ADD);
+  assert.equal(isBrowserSessionMediaUri(first.evidence.uri), true);
+  assert.equal(isBrowserSessionMediaUri(second.evidence.uri), true);
+  assert.notEqual(first.evidence.uri, second.evidence.uri);
+  assert.deepEqual(inspection.findings[chimney.findingId]?.evidence, [
+    { id: 'evidence.photo.chimney-a' },
+    { id: 'evidence.photo.chimney-b' },
+  ]);
+  assert.equal(inspection.findings[walls.findingId]?.evidence, undefined);
+  assert.equal(countFindingPhotoEvidence(inspection, walls.findingId), 0);
+  assert.equal(countFindingPhotoEvidence(inspection, chimney.findingId), 2);
+  assert.equal(nativeCopyAttempts.length, 2);
+
+  const job = createJob(inspection);
+  assert.equal(activeJobContainsEmbeddedImageData(job), false);
+  const serialized = serializeActiveJob(job);
+  assert.equal(serialized.includes('data:image'), false);
+  assert.ok(
+    !Object.values(inspection.evidence ?? {}).some((record) => 'file' in record),
+  );
+});
+
+test('web evidence still requires observation first', async () => {
+  const chimney = externalFindingConfig('chimney');
+  const result = await captureAndCommitInspectionEvidencePhoto({
+    inspection: createEmptyInspectionRecord(),
+    target: photoTarget(chimney.findingId, chimney.elementConceptId),
+    jobId: 'job.test.evidence',
+    temporaryUri: 'blob:https://localhost/picker-early',
+    file: new Blob(['img'], { type: 'image/jpeg' }),
+    fileStore: webSessionFileStore(),
+    createId: () => 'evidence.photo.chimney-early',
+  });
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.equal(result.message, 'Record observation first');
+  }
+});
+

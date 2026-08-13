@@ -1,10 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 
 import { Colors, Fonts, Spacing, Type } from '@/constants/theme';
+import {
+  isBrowserSessionMediaRuntime,
+  type LocalMediaSource,
+} from '@/core/local-media-store';
 import type { InspectionEvidenceCaptureTarget } from '@/lib/command-registry';
-import { countFindingPhotoEvidence } from '@/lib/evidence-capture';
+import { findingPhotoEvidenceRecords } from '@/lib/evidence-capture';
+import { pickEvidencePhotoFromUserGesture } from '@/lib/evidence-photo-picker';
 import { formatSvyrDisplayedLabel } from '@/lib/svyr-label-presentation';
 import type { InspectionRecord } from '@/types/workspace';
 
@@ -12,7 +17,7 @@ type Props = {
   target: InspectionEvidenceCaptureTarget;
   inspection: InspectionRecord;
   error: string | null;
-  onCapturePhoto: (temporaryUri: string) => Promise<string | null>;
+  onCapturePhoto: (source: LocalMediaSource) => Promise<string | null>;
   onNavigateUpDirectory: () => boolean;
 };
 
@@ -25,16 +30,23 @@ export function EvidencePhotoCapturePage({
   onCapturePhoto,
   onNavigateUpDirectory,
 }: Props) {
-  const [permissionState, setPermissionState] = useState<PermissionState>('unknown');
+  const webRuntime = isBrowserSessionMediaRuntime();
+  const [permissionState, setPermissionState] = useState<PermissionState>(
+    webRuntime ? 'granted' : 'unknown',
+  );
   const [busy, setBusy] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
-  const photoCount = useMemo(
-    () => countFindingPhotoEvidence(inspection, target.findingId),
+  const photos = useMemo(
+    () => findingPhotoEvidenceRecords(inspection, target.findingId),
     [inspection, target.findingId],
   );
 
   const ensurePermission = useCallback(async (): Promise<boolean> => {
+    if (webRuntime) {
+      setPermissionState('granted');
+      return true;
+    }
     const current = await ImagePicker.getCameraPermissionsAsync();
     if (current.granted) {
       setPermissionState('granted');
@@ -51,39 +63,45 @@ export function EvidencePhotoCapturePage({
     }
     setPermissionState('denied');
     return false;
-  }, []);
+  }, [webRuntime]);
 
   useEffect(() => {
+    if (webRuntime) return;
     void ensurePermission();
-  }, [ensurePermission]);
+  }, [ensurePermission, webRuntime]);
 
-  const takePhoto = useCallback(async () => {
+  const addPhoto = useCallback(async () => {
     setLocalError(null);
-    if (!(await ensurePermission())) {
+    if (!webRuntime && !(await ensurePermission())) {
       setLocalError('Camera permission is required to capture photo evidence.');
+      return;
+    }
+
+    const picked = await pickEvidencePhotoFromUserGesture();
+    if (picked.status === 'canceled') {
+      return;
+    }
+    if (picked.status === 'failed') {
+      setLocalError(picked.message);
       return;
     }
 
     setBusy(true);
     try {
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ['images'],
-        quality: 0.85,
-        exif: false,
-      });
-      if (result.canceled || !result.assets[0]?.uri) {
-        return;
-      }
-      const failureMessage = await onCapturePhoto(result.assets[0].uri);
+      const failureMessage = await onCapturePhoto(picked.source);
       if (failureMessage) {
         setLocalError(failureMessage);
       }
+    } catch (error) {
+      console.error('[evidence-photo] Capture failed', error);
+      setLocalError('Photo could not be saved');
     } finally {
       setBusy(false);
     }
-  }, [ensurePermission, onCapturePhoto]);
+  }, [ensurePermission, onCapturePhoto, webRuntime]);
 
   const message = localError ?? error;
+  const buttonLabel = webRuntime ? 'Choose photo' : 'Take photo';
 
   return (
     <View style={styles.page}>
@@ -92,8 +110,20 @@ export function EvidencePhotoCapturePage({
           {formatSvyrDisplayedLabel('Add photo', 'entry')}
         </Text>
         <Text style={styles.summary}>
-          Photos saved: {photoCount}
+          Photos saved: {photos.length}
         </Text>
+        {photos.length > 0 ? (
+          <View style={styles.previewRow}>
+            {photos.map((photo) => (
+              <Image
+                key={photo.id}
+                accessibilityLabel="Saved photo evidence"
+                source={{ uri: photo.uri }}
+                style={styles.preview}
+              />
+            ))}
+          </View>
+        ) : null}
         {message ? (
           <Text
             style={styles.error}
@@ -102,7 +132,7 @@ export function EvidencePhotoCapturePage({
             {message}
           </Text>
         ) : null}
-        {permissionState === 'denied' ? (
+        {permissionState === 'denied' && !webRuntime ? (
           <Text style={styles.permission}>
             Camera permission is denied. Enable camera access in system settings
             to capture photo evidence.
@@ -110,16 +140,18 @@ export function EvidencePhotoCapturePage({
         ) : (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Take photo evidence"
+            accessibilityLabel={
+              webRuntime ? 'Choose photo evidence' : 'Take photo evidence'
+            }
             disabled={busy}
-            onPress={() => void takePhoto()}
+            onPress={() => void addPhoto()}
             style={({ pressed }) => [
               styles.button,
               pressed ? styles.buttonPressed : null,
               busy ? styles.buttonDisabled : null,
             ]}>
             <Text style={styles.buttonLabel}>
-              {busy ? 'Saving photo…' : 'Take photo'}
+              {busy ? 'Saving photo…' : buttonLabel}
             </Text>
           </Pressable>
         )}
@@ -160,6 +192,17 @@ const styles = StyleSheet.create({
     fontSize: Type.label,
     color: Colors.textSecondary,
     textAlign: 'center',
+  },
+  previewRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+    justifyContent: 'center',
+  },
+  preview: {
+    width: 96,
+    height: 96,
+    backgroundColor: Colors.border,
   },
   error: {
     fontFamily: Fonts.mono,

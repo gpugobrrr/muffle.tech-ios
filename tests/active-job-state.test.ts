@@ -36,9 +36,10 @@ function mockFileStore(
     async ensureJobEvidenceDirectory(jobId: string) {
       return `/persistent/${evidenceJobDirectory(jobId)}/`;
     },
-    async copyPhotoToEvidenceDirectory(jobId, evidenceId, temporaryUri) {
+    async copyPhotoToEvidenceDirectory(jobId, evidenceId, source) {
       const destination = `/persistent/${evidencePhotoRelativePath(jobId, evidenceId)}`;
-      files.set(destination, temporaryUri);
+      const uri = typeof source === 'string' ? source : source.uri;
+      files.set(destination, uri);
       return destination;
     },
     async deleteEvidenceFile(uri: string) {

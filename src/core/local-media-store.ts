@@ -3,14 +3,32 @@
  *
  * Stores files by record ID. Callers decide what a record is (job, listing,
  * inventory). This module does not associate files with domain records.
+ *
+ * Canonical callers still persist only a URI string on domain records.
+ * Image bytes never belong in serialized application state.
+ *
+ * Native: copy into application document storage (durable across restarts).
+ * Web: same-session blob object URLs. This runtime has no IndexedDB/media
+ * blob store, so Web URIs do not survive a browser restart or full reload.
  */
+
+export type LocalMediaSource = {
+  /** Picker or filesystem URI. On Web this is often a `blob:` URL. */
+  uri: string;
+  /**
+   * Browser `File`/`Blob` from Expo ImagePicker on Web.
+   * Never copy this through native `expo-file-system` File APIs.
+   * Never serialize this onto domain records.
+   */
+  file?: Blob;
+};
 
 export type LocalMediaStore = {
   ensureRecordDirectory(recordId: string): Promise<string>;
   copyFileIntoDirectory(
     recordId: string,
     fileId: string,
-    temporaryUri: string,
+    source: string | LocalMediaSource,
   ): Promise<string>;
   deleteFile(uri: string): Promise<void>;
 };
@@ -23,6 +41,9 @@ export type LocalMediaPathConfig = {
   /** File extension without a leading dot. */
   extension: string;
 };
+
+export const WEB_SESSION_MEDIA_LIMITATION =
+  'Web photo URIs are session blob object URLs. They render until the tab is closed or reloaded, but they are not restart-durable because this app has no browser media blob store.';
 
 export function sanitizeMediaSegment(value: string): string {
   return value.replace(/[^a-zA-Z0-9._-]/g, '_');
@@ -46,6 +67,154 @@ export function mediaRelativePath(
   fileId: string,
 ): string {
   return `${mediaRecordDirectory(config, recordId)}/${mediaFileName(fileId, config.extension)}`;
+}
+
+export function normalizeLocalMediaSource(
+  source: string | LocalMediaSource,
+): LocalMediaSource {
+  return typeof source === 'string' ? { uri: source } : source;
+}
+
+export function isBrowserSessionMediaRuntime(): boolean {
+  return typeof globalThis.document !== 'undefined';
+}
+
+export function isBrowserSessionMediaUri(uri: string): boolean {
+  return uri.startsWith('blob:');
+}
+
+export function containsEmbeddedImageBytes(value: string): boolean {
+  return /data:image\//i.test(value) || /["']base64["']/.test(value);
+}
+
+export function isBlobLike(value: unknown): value is Blob {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as Blob).arrayBuffer === 'function' &&
+    typeof (value as Blob).size === 'number'
+  );
+}
+
+/**
+ * Accept a Web ImagePicker asset (`uri` plus optional browser `File`) or a
+ * native `file://` URI. Reject data-URL payloads so bytes never become the
+ * canonical stored URI.
+ */
+export function localMediaSourceFromPickerAsset(asset: {
+  uri?: string | null;
+  file?: unknown;
+}): LocalMediaSource | null {
+  const uri = typeof asset.uri === 'string' ? asset.uri.trim() : '';
+  const file = isBlobLike(asset.file) ? asset.file : undefined;
+  if (uri.startsWith('data:')) {
+    return null;
+  }
+  if (file) {
+    return { uri, file };
+  }
+  if (uri) {
+    return { uri };
+  }
+  return null;
+}
+
+/**
+ * Native filesystem copy may only receive a real file URI.
+ * Browser File/blob/data sources must be handled by the Web session store.
+ */
+export function nativeFilesystemCopyUri(
+  source: string | LocalMediaSource,
+): string {
+  const media = normalizeLocalMediaSource(source);
+  if (media.file) {
+    throw new Error(
+      'Native filesystem copy cannot receive a browser File/blob',
+    );
+  }
+  const uri = media.uri.trim();
+  if (!uri) {
+    throw new Error('Native filesystem copy requires a file URI');
+  }
+  if (isBrowserSessionMediaUri(uri) || uri.startsWith('data:')) {
+    throw new Error(
+      'Native filesystem copy cannot receive a browser blob or data URI',
+    );
+  }
+  return uri;
+}
+
+function createObjectUrl(file: Blob): string {
+  const create = globalThis.URL?.createObjectURL;
+  if (typeof create !== 'function') {
+    throw new Error('Web session media requires URL.createObjectURL');
+  }
+  return create.call(globalThis.URL, file);
+}
+
+function revokeObjectUrl(uri: string): void {
+  const revoke = globalThis.URL?.revokeObjectURL;
+  if (typeof revoke === 'function' && isBrowserSessionMediaUri(uri)) {
+    try {
+      revoke.call(globalThis.URL, uri);
+    } catch {
+      // Best-effort; some test environments stub revoke.
+    }
+  }
+}
+
+/**
+ * Same-session Web media persistence.
+ *
+ * Produces a renderable object URL from a browser File/blob. Does not write
+ * through expo-file-system. Does not survive browser restart.
+ */
+export function createWebSessionLocalMediaStore(): LocalMediaStore {
+  const createdObjectUrls = new Set<string>();
+
+  return {
+    async ensureRecordDirectory(recordId: string): Promise<string> {
+      return `web-session://${sanitizeMediaSegment(recordId)}`;
+    },
+
+    async copyFileIntoDirectory(
+      _recordId: string,
+      _fileId: string,
+      source: string | LocalMediaSource,
+    ): Promise<string> {
+      const media = normalizeLocalMediaSource(source);
+      if (media.uri.startsWith('data:')) {
+        throw new Error('Web session media cannot persist data: URIs');
+      }
+      if (media.file) {
+        const uri = createObjectUrl(media.file);
+        createdObjectUrls.add(uri);
+        return uri;
+      }
+      if (isBrowserSessionMediaUri(media.uri)) {
+        return media.uri;
+      }
+      throw new Error(
+        'Web session media requires a File/blob or blob: URI',
+      );
+    },
+
+    async deleteFile(uri: string): Promise<void> {
+      if (createdObjectUrls.has(uri)) {
+        createdObjectUrls.delete(uri);
+      }
+      revokeObjectUrl(uri);
+    },
+  };
+}
+
+export function createPlatformLocalMediaStore(
+  config: LocalMediaPathConfig,
+): LocalMediaStore {
+  if (isBrowserSessionMediaRuntime()) {
+    return createWebSessionLocalMediaStore();
+  }
+  return createExpoLocalMediaStore(config);
 }
 
 /**
@@ -100,34 +269,35 @@ export function createExpoLocalMediaStore(
     async copyFileIntoDirectory(
       recordId: string,
       fileId: string,
-      temporaryUri: string,
+      source: string | LocalMediaSource,
     ): Promise<string> {
+      const temporaryUri = nativeFilesystemCopyUri(source);
       const directory = recordDirectory(recordId);
       directory.create({ intermediates: true, idempotent: true });
 
-      const source = new File(temporaryUri);
+      const sourceFile = new File(temporaryUri);
       const destination = new File(
         directory,
         mediaFileName(fileId, config.extension),
       );
 
       try {
-        await writeFileBytes(source, destination);
+        await writeFileBytes(sourceFile, destination);
       } catch (bytesError) {
         console.warn(
           '[local-media] bytes()/write() failed; falling back to File.copy()',
           {
             temporaryUri,
-            sourceExists: source.exists,
+            sourceExists: sourceFile.exists,
             bytesError,
           },
         );
         try {
-          copyFile(source, destination);
+          copyFile(sourceFile, destination);
         } catch (copyError) {
           console.error('[local-media] File.copy() also failed', {
             temporaryUri,
-            sourceExists: source.exists,
+            sourceExists: sourceFile.exists,
             destinationUri: destination.uri,
             bytesError,
             copyError,

@@ -1,9 +1,10 @@
 import {
-  createExpoLocalMediaStore,
+  createPlatformLocalMediaStore,
   mediaFileName,
   mediaRecordDirectory,
   mediaRelativePath,
   type LocalMediaPathConfig,
+  type LocalMediaSource,
   type LocalMediaStore,
 } from '@/core/local-media-store';
 
@@ -19,7 +20,7 @@ export type EvidenceFileStore = {
   copyPhotoToEvidenceDirectory(
     jobId: string,
     evidenceId: string,
-    temporaryUri: string,
+    source: string | LocalMediaSource,
   ): Promise<string>;
   deleteEvidenceFile(uri: string): Promise<void>;
 };
@@ -41,8 +42,8 @@ function asEvidenceFileStore(store: LocalMediaStore): EvidenceFileStore {
     ensureJobEvidenceDirectory(jobId) {
       return store.ensureRecordDirectory(jobId);
     },
-    copyPhotoToEvidenceDirectory(jobId, evidenceId, temporaryUri) {
-      return store.copyFileIntoDirectory(jobId, evidenceId, temporaryUri);
+    copyPhotoToEvidenceDirectory(jobId, evidenceId, source) {
+      return store.copyFileIntoDirectory(jobId, evidenceId, source);
     },
     deleteEvidenceFile(uri) {
       return store.deleteFile(uri);
@@ -51,9 +52,12 @@ function asEvidenceFileStore(store: LocalMediaStore): EvidenceFileStore {
 }
 
 /**
- * Expo SDK 54+ filesystem store using the new File/Directory/Paths API.
+ * Platform evidence file store.
+ * Native uses Expo document-directory copy. Web uses same-session blob URLs.
  * Survey association rules stay in evidence-capture / Engine operations.
  */
 export function createExpoEvidenceFileStore(): EvidenceFileStore {
-  return asEvidenceFileStore(createExpoLocalMediaStore(SURVEY_EVIDENCE_MEDIA_PATH));
+  return asEvidenceFileStore(
+    createPlatformLocalMediaStore(SURVEY_EVIDENCE_MEDIA_PATH),
+  );
 }

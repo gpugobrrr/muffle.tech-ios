@@ -81,7 +81,7 @@ export type InspectionEvidenceKind = 'photo';
 export type InspectionEvidence = {
   id: string;
   kind: InspectionEvidenceKind;
-  /** Persistent local file URI resolved by the evidence file helper. */
+  /** Local media URI from the platform adapter. Image bytes are not stored here. */
   uri: string;
 };
 

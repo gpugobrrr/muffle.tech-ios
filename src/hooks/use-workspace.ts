@@ -182,7 +182,10 @@ export type SvyrController = {
    * Persist a captured photo against the active evidence target.
    * Returns null on success, or the user-facing failure message.
    */
-  commitEvidencePhoto: (temporaryUri: string) => Promise<string | null>;
+  commitEvidencePhoto: (source: {
+    uri: string;
+    file?: Blob;
+  }) => Promise<string | null>;
   /** Working multi-choice selection for the active field (transient draft). */
   activeMultiChoiceValues: readonly string[];
   toggleMultiChoiceDraft: (canonicalValue: string) => void;
@@ -770,7 +773,7 @@ export function useSvyrController(): SvyrController {
   }, [commitFindingDataEntry]);
 
   const commitEvidencePhoto = useCallback(
-    async (temporaryUri: string): Promise<string | null> => {
+    async (source: { uri: string; file?: Blob }): Promise<string | null> => {
       const capture = activeEvidenceCaptureRef.current;
       if (!capture) return 'Photo could not be saved';
 
@@ -778,7 +781,8 @@ export function useSvyrController(): SvyrController {
         inspection: activeJobRef.current.inspection,
         target: capture.target,
         jobId: activeJobRef.current.id,
-        temporaryUri,
+        temporaryUri: source.uri,
+        file: source.file,
         fileStore: evidenceFileStoreRef.current,
       });
       if (!committed.ok) {

@@ -26,6 +26,7 @@ import {
 import { EXTERNAL_FINDING_CONFIGS } from '@/lib/external-findings';
 import { findFieldDefinition } from '@/lib/field-schema';
 import type { FindingCaptureConfig } from '@/lib/finding-capture';
+import { INTERNAL_FINDING_CONFIGS } from '@/lib/internal-findings';
 import { isInspectionElementConceptId } from '@/lib/inspection-finding-elements';
 import { MAINS_SERVICE_FIELD_IDS } from '@/lib/property-energy-mains-services';
 import {
@@ -78,6 +79,7 @@ export type SurveyCapabilityIssue = CapabilityIssue;
 export function allFindingCaptureConfigs(): readonly FindingCaptureConfig[] {
   return [
     ...EXTERNAL_FINDING_CONFIGS,
+    ...INTERNAL_FINDING_CONFIGS,
     ...SERVICES_FINDING_CONFIGS,
     SERVICES_GAS_FINDING_CONFIG,
   ];
@@ -130,7 +132,6 @@ export const BLOCKED_ROUTE_REASONS: Readonly<Record<string, SurveyBlockedReason>
   'external/walls/risk': SURVEY_BLOCKED_REASONS.findingModelExtensionRequired,
   'internal/limitation': SURVEY_BLOCKED_REASONS.workflowModelUndefined,
   'internal/roof-structure': SURVEY_BLOCKED_REASONS.unresolvedSubjectScope,
-  'internal/ceilings': SURVEY_BLOCKED_REASONS.ontologyTypeOnly,
   'internal/walls-partitions': SURVEY_BLOCKED_REASONS.unresolvedSubjectScope,
   'internal/floors': SURVEY_BLOCKED_REASONS.unresolvedSubjectScope,
   'internal/fireplaces-flues': SURVEY_BLOCKED_REASONS.ontologyTypeOnly,

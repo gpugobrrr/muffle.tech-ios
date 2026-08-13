@@ -656,9 +656,16 @@ const INSPECTION_CONCEPTS: OntologyConcept[] = [
     parentId: 'building_element',
     canonical: true,
     ownership: 'engine-record',
-    maturity: 'type-only',
+    maturity: 'engine-backed',
     valueType: { kind: 'text' },
-    source: [{ type: 'ontology-review', id: 'canonical-promotion-batch-1' }],
+    bindings: { domainProperty: 'InspectionFinding.elementConceptId' },
+    source: [
+      { type: 'ontology-review', id: 'canonical-promotion-batch-1' },
+      {
+        type: 'domain-type',
+        id: 'BuildingElementConceptId:building_element.ceiling',
+      },
+    ],
   },
   {
     ...V1_2_BASE,

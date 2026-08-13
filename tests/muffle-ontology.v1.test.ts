@@ -148,13 +148,13 @@ test('inspection finding slice is canonical and engine-backed', () => {
 
 test('human-approved v1.2 concepts remain canonical; inspection subjects may gain Engine bindings', () => {
   const typeOnlyBuildingElements = [
-    'building_element.ceiling',
     'building_element.damp_proof_course',
     'building_element.fireplace',
     'building_element.porch',
     'building_element.staircase',
   ];
   const engineBackedBuildingElements = [
+    'building_element.ceiling',
     'building_element.chimney',
     'building_element.rainwater_goods',
     'building_element.window',

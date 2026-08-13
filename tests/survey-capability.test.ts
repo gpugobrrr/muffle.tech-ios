@@ -7,6 +7,7 @@ import { resolveDirectoryCompletion } from '../src/lib/completion';
 import { SVYR_DATA_ENTRY_TYPES } from '../src/lib/data-entry-types';
 import { EXTERNAL_FINDING_CONFIGS } from '../src/lib/external-findings';
 import { findFieldDefinition } from '../src/lib/field-schema';
+import { INTERNAL_FINDING_CONFIGS } from '../src/lib/internal-findings';
 import { MAINS_SERVICE_FIELD_IDS } from '../src/lib/property-energy-mains-services';
 import {
   SERVICES_FINDING_CONFIGS,
@@ -42,11 +43,11 @@ function emptyBrief(): InspectionBrief {
 test('every governed route has exactly one capability kind and unclassified is 0', () => {
   const census = surveyCapabilityCensus();
   assert.equal(census.unclassified, 0);
-  assert.equal(census.total, 142);
-  assert.equal(census.capture, 75);
-  assert.equal(census.navigation, 21);
+  assert.equal(census.total, 148);
+  assert.equal(census.capture, 81);
+  assert.equal(census.navigation, 22);
   assert.equal(census.derived, 2);
-  assert.equal(census.blocked, 44);
+  assert.equal(census.blocked, 43);
   assert.equal(
     census.total,
     census.capture + census.navigation + census.derived + census.blocked,
@@ -179,11 +180,52 @@ test('Property and Services mains presence share one canonical field ID', () => 
   assert.equal(propertyWater?.fieldId, servicesWater?.fieldId);
 });
 
+test('Internal ceilings references INTERNAL_FINDING_CONFIGS as Type 6/7', () => {
+  for (const config of INTERNAL_FINDING_CONFIGS) {
+    const parent = capabilityForRoute(config.route);
+    assert.equal(parent?.kind, SURVEY_CAPABILITY_KINDS.navigation, config.label);
+    const observe = capabilityForRoute([...config.route, 'observe']);
+    assert.equal(observe?.kind, SURVEY_CAPABILITY_KINDS.capture, config.label);
+    assert.equal(observe?.captureType, SVYR_DATA_ENTRY_TYPES.findingCapture);
+    assert.equal(observe?.findingId, config.findingId);
+    assert.equal(observe?.elementConceptId, config.elementConceptId);
+    const photo = capabilityForRoute([...config.route, 'photo']);
+    assert.equal(photo?.kind, SURVEY_CAPABILITY_KINDS.capture, config.label);
+    assert.equal(photo?.captureType, SVYR_DATA_ENTRY_TYPES.evidenceCapture);
+    assert.equal(photo?.findingId, config.findingId);
+  }
+});
+
+test('remaining Internal unresolved routes stay blocked with reasons', () => {
+  const expected = {
+    'internal/limitation': SURVEY_BLOCKED_REASONS.workflowModelUndefined,
+    'internal/roof-structure': SURVEY_BLOCKED_REASONS.unresolvedSubjectScope,
+    'internal/walls-partitions': SURVEY_BLOCKED_REASONS.unresolvedSubjectScope,
+    'internal/floors': SURVEY_BLOCKED_REASONS.unresolvedSubjectScope,
+    'internal/fireplaces-flues': SURVEY_BLOCKED_REASONS.ontologyTypeOnly,
+    'internal/built-ins': SURVEY_BLOCKED_REASONS.missingFieldSemantics,
+    'internal/woodwork': SURVEY_BLOCKED_REASONS.ontologyTypeOnly,
+    'internal/bathroom': SURVEY_BLOCKED_REASONS.missingFieldSemantics,
+    'internal/other': SURVEY_BLOCKED_REASONS.publicationGrouping,
+  } as const;
+  for (const [route, reason] of Object.entries(expected)) {
+    const capability = capabilityForRoute(route);
+    assert.equal(capability?.kind, SURVEY_CAPABILITY_KINDS.blocked, route);
+    assert.equal(capability?.blockedReason, reason, route);
+    const node = findCommandNode(route.split('/'));
+    assert.equal(node?.operationId, undefined, route);
+    assert.equal(node?.findingTarget, undefined, route);
+  }
+  assert.equal(ontologyConceptIsTypeOnly('building_element.fireplace'), true);
+  assert.equal(ontologyConceptIsTypeOnly('building_element.staircase'), true);
+  assert.equal(ontologyConceptIsTypeOnly('building_element.ceiling'), false);
+});
+
 test('finding configs remain the single finding identity source', () => {
   const configs = allFindingCaptureConfigs();
   const ids = configs.map((config) => config.findingId);
   assert.equal(new Set(ids).size, ids.length);
-  for (const config of EXTERNAL_FINDING_CONFIGS) {
+  for (const config of [...EXTERNAL_FINDING_CONFIGS, ...INTERNAL_FINDING_CONFIGS]) {
     assert.equal(
       configs.some((item) => item === config),
       true,
@@ -198,8 +240,11 @@ test('derived summary and report do not capture', () => {
   assert.equal(parseCommand('summary').type, 'placeholder');
 });
 
-test('capability classification does not change External completion', () => {
-  const completion = resolveDirectoryCompletion(['external'], emptyBrief());
-  assert.equal(completion?.completed, 0);
-  assert.equal(completion?.total, 0);
+test('capability classification does not change External or Internal completion', () => {
+  const external = resolveDirectoryCompletion(['external'], emptyBrief());
+  assert.equal(external?.completed, 0);
+  assert.equal(external?.total, 0);
+  const internal = resolveDirectoryCompletion(['internal'], emptyBrief());
+  assert.equal(internal?.completed, 0);
+  assert.equal(internal?.total, 0);
 });

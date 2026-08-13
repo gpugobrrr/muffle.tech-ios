@@ -240,6 +240,7 @@ test('type-only External ontology concepts stay out of InspectionElementConceptI
     INSPECTION_ELEMENT_CONCEPT_IDS.filter((id) => id.startsWith('building_element.')),
     [
       'building_element.external_wall',
+      'building_element.ceiling',
       'building_element.chimney',
       'building_element.rainwater_goods',
       'building_element.window',

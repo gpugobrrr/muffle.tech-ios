@@ -1,6 +1,7 @@
 /** Stable property-element IDs accepted by canonical finding operations. */
 export const INSPECTION_ELEMENT_CONCEPT_IDS = [
   'building_element.external_wall',
+  'building_element.ceiling',
   'building_element.chimney',
   'building_element.rainwater_goods',
   'building_element.window',
@@ -24,6 +25,7 @@ export type InspectionFindingField =
 
 const ELEMENT_LABELS: Readonly<Record<InspectionElementConceptId, string>> = {
   'building_element.external_wall': 'External wall',
+  'building_element.ceiling': 'Ceiling',
   'building_element.chimney': 'Chimney',
   'building_element.rainwater_goods': 'Rainwater goods',
   'building_element.window': 'Window',

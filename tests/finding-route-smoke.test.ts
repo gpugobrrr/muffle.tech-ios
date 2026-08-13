@@ -33,6 +33,7 @@ import {
   SERVICES_GAS_FINDING_CONFIG,
 } from '../src/lib/services-findings';
 import { EXTERNAL_FINDING_CONFIGS } from '../src/lib/external-findings';
+import { INTERNAL_FINDING_CONFIGS } from '../src/lib/internal-findings';
 
 /** All configured Type 6 finding routes from the live registry. */
 const FINDING_ROUTES = [
@@ -49,6 +50,12 @@ const FINDING_ROUTES = [
     elementConceptId: SERVICES_GAS_FINDING_CONFIG.elementConceptId,
   },
   ...EXTERNAL_FINDING_CONFIGS.map((config) => ({
+    label: config.label,
+    route: [...config.route],
+    findingId: config.findingId,
+    elementConceptId: config.elementConceptId,
+  })),
+  ...INTERNAL_FINDING_CONFIGS.map((config) => ({
     label: config.label,
     route: [...config.route],
     findingId: config.findingId,

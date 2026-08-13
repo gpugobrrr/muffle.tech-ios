@@ -10,6 +10,7 @@ import {
   externalFindingConfig,
   type ExternalFindingConfig,
 } from '@/lib/external-findings';
+import { internalFindingConfig } from '@/lib/internal-findings';
 import { HEATING_FIELD_DEFINITIONS } from '@/lib/property-energy-heating';
 import {
   servicesPresenceFieldDefinition,
@@ -233,7 +234,7 @@ function compoundCaptureBranch(
   };
 }
 
-function externalFindingLeaves(config: FindingCaptureConfig): CommandNode[] {
+function inspectionFindingLeaves(config: FindingCaptureConfig): CommandNode[] {
   const prefix = config.label;
   return [
     createFindingCaptureLeaf(
@@ -292,12 +293,12 @@ function externalFindingLeaves(config: FindingCaptureConfig): CommandNode[] {
   ];
 }
 
-function externalFindingBranch(
-  config: ExternalFindingConfig,
+function inspectionFindingBranch(
+  config: FindingCaptureConfig & { coverageRequirement?: string },
   extrasAfterPhoto: CommandNode[] = [],
 ): CommandNode {
   const token = config.route[config.route.length - 1];
-  const leaves = externalFindingLeaves(config);
+  const leaves = inspectionFindingLeaves(config);
   const photoIndex = leaves.findIndex((leaf) => leaf.token === 'photo');
   return {
     token,
@@ -305,7 +306,7 @@ function externalFindingBranch(
     learnerLabel: config.label,
     description: `${config.label} finding capture.`,
     coverage: {
-      requirement: config.coverageRequirement,
+      requirement: config.coverageRequirement ?? config.label,
       status: 'interactive',
       canonicalConceptId: config.elementConceptId,
       engineBinding: 'survey.inspection.finding.upsert',
@@ -317,6 +318,13 @@ function externalFindingBranch(
       ...leaves.slice(photoIndex + 1),
     ],
   };
+}
+
+function externalFindingBranch(
+  config: ExternalFindingConfig,
+  extrasAfterPhoto: CommandNode[] = [],
+): CommandNode {
+  return inspectionFindingBranch(config, extrasAfterPhoto);
 }
 
 const PROPERTY_NODE: CommandNode = {
@@ -587,13 +595,7 @@ const INTERNAL_NODE: CommandNode = {
       blocker: 'Roof structure is not canonical.',
       recommendedLaterWork: 'Resolve roof structure independently from coverings.',
     }),
-    workflowLeaf('ceilings', 'ceilings', 'Ceiling inspection subject.', {
-      requirement: 'Ceilings',
-      status: 'navigation-only',
-      canonicalConceptId: 'building_element.ceiling',
-      blocker: 'Canonical concept is type-only and has no Engine binding.',
-      recommendedLaterWork: 'Add Engine-backed ceiling finding support.',
-    }),
+    inspectionFindingBranch(internalFindingConfig('ceilings')),
     workflowLeaf('walls-partitions', 'walls-partitions', 'Internal walls and partitions coverage.', {
       requirement: 'Walls and partitions',
       status: 'blocked',

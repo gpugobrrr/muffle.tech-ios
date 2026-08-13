@@ -219,6 +219,13 @@ test('interactive Level 2 routes remain explicitly bounded', () => {
     'external/windows/recommend',
     'external/windows/photo',
     'external/windows/evidence',
+    'internal/ceilings',
+    'internal/ceilings/observe',
+    'internal/ceilings/condition',
+    'internal/ceilings/defect',
+    'internal/ceilings/recommend',
+    'internal/ceilings/photo',
+    'internal/ceilings/evidence',
     'services/electricity',
     'services/electricity/presence',
     'services/electricity/observe',
@@ -263,7 +270,7 @@ test('interactive Level 2 routes remain explicitly bounded', () => {
   for (const route of [
     ['property', 'construction'],
     ['external', 'porch'],
-    ['internal', 'ceilings'],
+    ['internal', 'fireplaces-flues'],
     ['services', 'common'],
     ['grounds', 'garage'],
   ]) {

@@ -110,6 +110,11 @@ export type ActiveJob = {
   id: string;
   property: ActiveProperty | null;
   inspection: InspectionRecord;
+  /**
+   * Canonical PREP brief and Types 1–5 field state. Optional so older
+   * persisted jobs without a brief still hydrate.
+   */
+  brief?: InspectionBrief;
 };
 
 /** Typed terminal response model */

@@ -26,7 +26,7 @@ import {
     structuredCommandPathFromInput,
     type SvyrExecutionResult,
 } from '@/lib/field-information';
-import { findFieldDefinition, normalizeFieldInputValue } from '@/lib/field-schema';
+import { findFieldDefinition, normalizeFieldInputValue, resolveFieldValue } from '@/lib/field-schema';
 import {
   orderMultiChoiceValues,
   prepareMultiChoiceCommit,
@@ -49,9 +49,11 @@ import { captureAndCommitInspectionEvidencePhoto } from '@/lib/evidence-capture'
 import { createExpoEvidenceFileStore } from '@/lib/evidence-files';
 import {
   ACTIVE_JOB_STORAGE_KEY,
+  createEmptyInspectionBrief,
   createInitialActiveJob,
   deserializeActiveJob,
   serializeActiveJob,
+  withInspectionBrief,
 } from '@/lib/job-persistence';
 import { resolveLookup } from '@/lib/lookup';
 import { suffixForPath } from '@/lib/pin-context';
@@ -86,17 +88,7 @@ if (__DEV__) {
   }
 }
 
-const INITIAL_BRIEF: InspectionBrief = {
-  instruction: {
-    instructingParty: null,
-    client: null,
-    reference: null,
-    source: null,
-  },
-  purpose: null,
-  deliverable: null,
-  limitation: null,
-};
+const INITIAL_BRIEF: InspectionBrief = createEmptyInspectionBrief();
 
 /** Demo job site — presentation reads this; it never hard-codes the address. */
 function announce(message: string) {
@@ -283,6 +275,14 @@ export function useSvyrController(): SvyrController {
     );
   }, []);
 
+  const applyBriefCommit = useCallback(
+    (brief: InspectionBrief) => {
+      setInspectionBrief(brief);
+      updateActiveJob((current) => withInspectionBrief(current, brief));
+    },
+    [updateActiveJob],
+  );
+
   /**
    * Command suffix mutation: imperative callbacks (submit / auto-commit on
    * navigate) read suffixRef and must see the latest typed value immediately.
@@ -431,7 +431,7 @@ export function useSvyrController(): SvyrController {
               ? submittedEntryPath.slice(0, -1)
               : null;
 
-          setInspectionBrief(result.brief);
+          applyBriefCommit(result.brief);
           setLastExecutionResult({
             operationId: result.operationId,
             label: result.label,
@@ -545,7 +545,7 @@ export function useSvyrController(): SvyrController {
           return false;
       }
     },
-    [clearActiveEntry, setDataEntryDirectoryForPath],
+    [clearActiveEntry, setDataEntryDirectoryForPath, applyBriefCommit],
   );
 
   const executeTerminalInput = useCallback(
@@ -582,7 +582,7 @@ export function useSvyrController(): SvyrController {
         return false;
       }
 
-      setInspectionBrief(result.brief);
+      applyBriefCommit(result.brief);
       setLastExecutionResult({
         operationId: result.operationId,
         label: result.label,
@@ -601,7 +601,7 @@ export function useSvyrController(): SvyrController {
       );
       return true;
     },
-    [],
+    [applyBriefCommit],
   );
 
   const commitControlledSetFieldValue = useCallback(
@@ -641,7 +641,7 @@ export function useSvyrController(): SvyrController {
         return false;
       }
 
-      setInspectionBrief(result.brief);
+      applyBriefCommit(result.brief);
       setLastExecutionResult({
         operationId: result.operationId,
         label: result.label,
@@ -660,7 +660,7 @@ export function useSvyrController(): SvyrController {
       );
       return true;
     },
-    [],
+    [applyBriefCommit],
   );
 
   const commitFieldValue = useCallback(
@@ -892,11 +892,15 @@ export function useSvyrController(): SvyrController {
           node.findingTarget,
         )
       : null;
+    const canonicalFieldValue =
+      !node.findingTarget && fieldDefinition?.fieldId
+        ? resolveFieldValue(briefRef.current, fieldDefinition.fieldId)
+        : null;
     setCommandSuffix(
       suffixForDataEntryReentry({
         path: suggestion.commandPath,
         draft: resolveDataEntryReentryDraft({
-          canonicalValue: canonicalFindingValue,
+          canonicalValue: canonicalFindingValue ?? canonicalFieldValue,
           stashedDraft,
         }),
         defaultInsertion: suggestion.insertion,
@@ -1074,7 +1078,7 @@ export function useSvyrController(): SvyrController {
       return false;
     }
 
-    setInspectionBrief(result.brief);
+    applyBriefCommit(result.brief);
     setLastExecutionResult({
       operationId: result.operationId,
       label: result.label,
@@ -1101,7 +1105,7 @@ export function useSvyrController(): SvyrController {
       }),
     );
     return true;
-  }, [clearActiveEntry, setDataEntryDirectoryForPath]);
+  }, [applyBriefCommit, clearActiveEntry, setDataEntryDirectoryForPath]);
 
   /**
    * Shared SVYR bar path for navigation handlers. Data-entry mode prefers the
@@ -1400,6 +1404,9 @@ export function useSvyrController(): SvyrController {
         if (apply) {
           activeJobRef.current = apply;
           setActiveJobState(apply);
+          if (apply.brief) {
+            setInspectionBrief(apply.brief);
+          }
         }
       } finally {
         if (!cancelled) {

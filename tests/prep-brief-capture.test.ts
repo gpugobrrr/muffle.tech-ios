@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { getConceptByCanonicalField } from '../src/domain/ontology/muffle-ontology.v1';
+import { parseEditableCommand } from '../src/lib/command-edit';
 import { parseCommand } from '../src/lib/command-parser';
 import { findCommandNode } from '../src/lib/command-registry';
 import { resolveDirectoryCompletion } from '../src/lib/completion';
@@ -14,13 +15,28 @@ import {
   resolveFieldValue,
 } from '../src/lib/field-schema';
 import {
+  applyActiveJobTransition,
+  resolveHydratedActiveJob,
+  shouldPersistActiveJob,
+} from '../src/lib/active-job-state';
+import {
+  createInitialActiveJob,
+  deserializeActiveJob,
+  readActiveJobBrief,
+  serializeActiveJob,
+  withInspectionBrief,
+} from '../src/lib/job-persistence';
+import { suffixForPath } from '../src/lib/pin-context';
+import {
   executeSurveyOperation,
   SURVEY_OPERATIONS,
 } from '../src/lib/survey-operations';
 import {
   clearEntryDraft,
   readEntryDraft,
+  resolveDataEntryReentryDraft,
   stashEntryDraft,
+  suffixForDataEntryReentry,
 } from '../src/lib/svyr-entry-drafts';
 import type { InspectionBrief } from '../src/types/workspace';
 
@@ -225,6 +241,181 @@ test('unavailable PREP workflows and blocked oil remain placeholders', () => {
     'external/porch',
   ]) {
     const parsed = parseCommand(command);
-    assert.equal(parsed.type, 'placeholder', command);
+    assert.equal(    parsed.type, 'placeholder', command);
   }
+});
+
+const PREP_PERSISTENCE_ROUTES = [
+  {
+    path: ['prep', 'brief', 'instr', 'client'],
+    fieldId: 'instruction.client',
+    setOperationId: SURVEY_OPERATIONS.setInstructionClient,
+    value: 'CLIENT PERSISTENCE SMOKE',
+    briefKey: 'client' as const,
+  },
+  {
+    path: ['prep', 'brief', 'instr', 'ref'],
+    fieldId: 'instruction.reference',
+    setOperationId: SURVEY_OPERATIONS.setInstructionReference,
+    value: 'REF PERSISTENCE SMOKE',
+    briefKey: 'reference' as const,
+  },
+  {
+    path: ['prep', 'brief', 'purp'],
+    fieldId: 'purpose',
+    setOperationId: SURVEY_OPERATIONS.setPurpose,
+    value: 'PURPOSE PERSISTENCE SMOKE',
+    briefKey: 'purpose' as const,
+  },
+  {
+    path: ['prep', 'brief', 'deliv'],
+    fieldId: 'deliverable',
+    setOperationId: SURVEY_OPERATIONS.setDeliverable,
+    value: 'DELIVERABLE PERSISTENCE SMOKE',
+    briefKey: 'deliverable' as const,
+  },
+  {
+    path: ['prep', 'brief', 'limit'],
+    fieldId: 'limitation',
+    setOperationId: SURVEY_OPERATIONS.setLimitation,
+    value: 'LIMITATION PERSISTENCE SMOKE',
+    briefKey: 'limitation' as const,
+  },
+] as const;
+
+function commitPrepRoute(
+  brief: InspectionBrief,
+  route: (typeof PREP_PERSISTENCE_ROUTES)[number],
+) {
+  const parsed = parseCommand(`${route.path.join('/')} ${route.value}`);
+  assert.equal(parsed.type, 'operation', route.fieldId);
+  if (parsed.type !== 'operation') {
+    throw new Error(`expected operation for ${route.fieldId}`);
+  }
+  const committed = executeSurveyOperation(brief, parsed.operation);
+  assert.ok(committed, route.fieldId);
+  return committed!;
+}
+
+function reopenPrepEntryValue(
+  brief: InspectionBrief,
+  path: readonly string[],
+  stashedDraft?: string,
+): string | undefined {
+  const field = findFieldDefinition([...path]);
+  assert.ok(field, path.join('/'));
+  const suffix = suffixForDataEntryReentry({
+    path: [...path],
+    draft: resolveDataEntryReentryDraft({
+      canonicalValue: resolveFieldValue(brief, field.fieldId),
+      stashedDraft,
+    }),
+    defaultInsertion: suffixForPath([...path]),
+    suffixForPath,
+  });
+  return parseEditableCommand(suffix).valueText || undefined;
+}
+
+test('PREP Type 1 fields survive Engine write, reopen, serialize, and hydration', () => {
+  let brief = emptyBrief();
+  let job = createInitialActiveJob();
+  let drafts = {};
+
+  for (const route of PREP_PERSISTENCE_ROUTES) {
+    drafts = stashEntryDraft(drafts, [...route.path], route.value);
+    assert.equal(readEntryDraft(drafts, [...route.path]), route.value);
+    assert.equal(resolveFieldValue(brief, route.fieldId), null, route.fieldId);
+
+    const committed = commitPrepRoute(brief, route);
+    assert.equal(committed.brief === brief, false, `${route.fieldId} next brief`);
+    brief = committed.brief;
+    job = withInspectionBrief(job, brief);
+    drafts = clearEntryDraft(drafts, [...route.path]);
+
+    assert.equal(resolveFieldValue(brief, route.fieldId), route.value);
+    assert.equal(recordedValue(brief, route.briefKey), route.value);
+    assert.equal(readEntryDraft(drafts, [...route.path]), undefined);
+    assert.equal(
+      reopenPrepEntryValue(brief, route.path),
+      route.value,
+      `${route.fieldId} reopen`,
+    );
+  }
+
+  assert.equal(brief.instruction.client, 'CLIENT PERSISTENCE SMOKE');
+  assert.equal(brief.instruction.reference, 'REF PERSISTENCE SMOKE');
+  assert.equal(brief.purpose, 'PURPOSE PERSISTENCE SMOKE');
+  assert.equal(brief.deliverable, 'DELIVERABLE PERSISTENCE SMOKE');
+  assert.equal(brief.limitation, 'LIMITATION PERSISTENCE SMOKE');
+
+  const serialized = serializeActiveJob(job);
+  assert.match(serialized, /CLIENT PERSISTENCE SMOKE/);
+  assert.match(serialized, /"brief"/);
+  const restored = deserializeActiveJob(serialized);
+  assert.ok(restored);
+  const restoredBrief = readActiveJobBrief(restored!);
+  for (const route of PREP_PERSISTENCE_ROUTES) {
+    assert.equal(resolveFieldValue(restoredBrief, route.fieldId), route.value);
+    assert.equal(reopenPrepEntryValue(restoredBrief, route.path), route.value);
+  }
+
+  const hydrated = resolveHydratedActiveJob({
+    restored,
+    mutatedBeforeHydration: false,
+  });
+  assert.ok(hydrated);
+  assert.equal(
+    readActiveJobBrief(hydrated!).instruction.client,
+    'CLIENT PERSISTENCE SMOKE',
+  );
+  assert.equal(shouldPersistActiveJob(true), true);
+});
+
+test('cancelled PREP Client draft does not become canonical or survive hydration', () => {
+  const route = PREP_PERSISTENCE_ROUTES[0];
+  const brief = emptyBrief();
+  const drafts = stashEntryDraft({}, [...route.path], route.value);
+  assert.equal(readEntryDraft(drafts, [...route.path]), route.value);
+  assert.equal(resolveFieldValue(brief, route.fieldId), null);
+
+  const job = createInitialActiveJob();
+  const restored = deserializeActiveJob(serializeActiveJob(job));
+  assert.equal(
+    resolveFieldValue(readActiveJobBrief(restored!), route.fieldId),
+    null,
+  );
+  assert.equal(
+    reopenPrepEntryValue(readActiveJobBrief(restored!), route.path),
+    undefined,
+  );
+});
+
+test('ActiveJob brief commit uses the same next object for ref and state', () => {
+  const route = PREP_PERSISTENCE_ROUTES[0];
+  let refJob = createInitialActiveJob();
+  let stateJob = refJob;
+  const committed = commitPrepRoute(readActiveJobBrief(refJob), route);
+  const next = applyActiveJobTransition(
+    refJob,
+    (current) => withInspectionBrief(current, committed.brief),
+    (value) => {
+      refJob = value;
+      stateJob = value;
+    },
+  );
+  assert.equal(refJob, next);
+  assert.equal(stateJob, next);
+  assert.equal(next.brief?.instruction.client, 'CLIENT PERSISTENCE SMOKE');
+});
+
+test('legacy ActiveJob payloads without brief still hydrate', () => {
+  const raw = serializeActiveJob({
+    id: 'job.legacy',
+    property: { displayAddress: '18 Market Street' },
+    inspection: { findings: {}, evidence: {} },
+  });
+  const restored = deserializeActiveJob(raw);
+  assert.ok(restored);
+  assert.equal(restored!.brief, undefined);
+  assert.equal(readActiveJobBrief(restored!).instruction.client, null);
 });

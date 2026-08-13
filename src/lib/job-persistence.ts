@@ -1,10 +1,24 @@
 import { createJsonStateStore } from '@/core/persisted-state';
-import type { ActiveJob } from '@/types/workspace';
+import type { ActiveJob, InspectionBrief } from '@/types/workspace';
 import { createEmptyInspectionRecord } from '@/lib/inspection-record';
 
 export const ACTIVE_JOB_STORAGE_KEY = 'muffle:active-job';
 
 const DEFAULT_JOB_ID = 'job.demo.18-market-street';
+
+export function createEmptyInspectionBrief(): InspectionBrief {
+  return {
+    instruction: {
+      instructingParty: null,
+      client: null,
+      reference: null,
+      source: null,
+    },
+    purpose: null,
+    deliverable: null,
+    limitation: null,
+  };
+}
 
 export function createInitialActiveJob(): ActiveJob {
   return {
@@ -14,7 +28,29 @@ export function createInitialActiveJob(): ActiveJob {
       instructionType: 'Level 2 Building Survey',
     },
     inspection: createEmptyInspectionRecord(),
+    brief: createEmptyInspectionBrief(),
   };
+}
+
+export function readActiveJobBrief(job: ActiveJob): InspectionBrief {
+  return job.brief ?? createEmptyInspectionBrief();
+}
+
+export function withInspectionBrief(
+  job: ActiveJob,
+  brief: InspectionBrief,
+): ActiveJob {
+  return { ...job, brief };
+}
+
+function asInspectionBrief(value: unknown): InspectionBrief | undefined {
+  if (value === undefined) return undefined;
+  if (!value || typeof value !== 'object') return undefined;
+  const candidate = value as InspectionBrief;
+  if (!candidate.instruction || typeof candidate.instruction !== 'object') {
+    return undefined;
+  }
+  return candidate;
 }
 
 function asActiveJob(parsed: unknown): ActiveJob | null {
@@ -30,6 +66,12 @@ function asActiveJob(parsed: unknown): ActiveJob | null {
     typeof candidate.inspection.evidence !== 'object'
   ) {
     return null;
+  }
+  const brief = asInspectionBrief(candidate.brief);
+  if (brief) return { ...candidate, brief };
+  if (candidate.brief !== undefined) {
+    const { brief: _dropped, ...rest } = candidate;
+    return rest;
   }
   return candidate;
 }

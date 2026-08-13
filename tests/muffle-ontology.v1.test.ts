@@ -146,15 +146,17 @@ test('inspection finding slice is canonical and engine-backed', () => {
   );
 });
 
-test('human-approved v1.2 concepts are canonical without fabricated runtime bindings', () => {
-  const buildingElements = [
+test('human-approved v1.2 concepts remain canonical; inspection subjects may gain Engine bindings', () => {
+  const typeOnlyBuildingElements = [
     'building_element.ceiling',
-    'building_element.chimney',
     'building_element.damp_proof_course',
     'building_element.fireplace',
     'building_element.porch',
-    'building_element.rainwater_goods',
     'building_element.staircase',
+  ];
+  const engineBackedBuildingElements = [
+    'building_element.chimney',
+    'building_element.rainwater_goods',
     'building_element.window',
   ];
   const findingFields = [
@@ -164,7 +166,11 @@ test('human-approved v1.2 concepts are canonical without fabricated runtime bind
     'risk',
     'significance',
   ];
-  const approved = [...buildingElements, ...findingFields];
+  const approved = [
+    ...typeOnlyBuildingElements,
+    ...engineBackedBuildingElements,
+    ...findingFields,
+  ];
 
   assert.equal(
     MUFFLE_ONTOLOGY_V1.concepts.filter(
@@ -178,24 +184,43 @@ test('human-approved v1.2 concepts are canonical without fabricated runtime bind
     assert.equal(concept.canonical, true, id);
     assert.equal(concept.introducedIn, '1.2.0', id);
     assert.equal(concept.ownership, 'engine-record', id);
-    assert.equal(concept.maturity, 'type-only', id);
-    assert.equal(concept.bindings, undefined, id);
-    assert.equal(concept.completion, undefined, id);
-    assert.deepEqual(concept.source, [
-      { type: 'ontology-review', id: 'canonical-promotion-batch-1' },
-    ]);
+    assert.ok(
+      concept.source?.some(
+        (source) =>
+          source.type === 'ontology-review' &&
+          source.id === 'canonical-promotion-batch-1',
+      ),
+      id,
+    );
   }
-  for (const id of buildingElements) {
+  for (const id of typeOnlyBuildingElements) {
     const concept = getOntologyConcept(id);
+    assert.equal(concept?.maturity, 'type-only', id);
+    assert.equal(concept?.bindings, undefined, id);
+    assert.equal(concept?.completion, undefined, id);
+    assert.equal(concept?.parentId, 'building_element', id);
+    assert.equal(concept?.kind, 'value', id);
+    assert.deepEqual(concept?.valueType, { kind: 'text' }, id);
+  }
+  for (const id of engineBackedBuildingElements) {
+    const concept = getOntologyConcept(id);
+    assert.equal(concept?.maturity, 'engine-backed', id);
+    assert.deepEqual(concept?.bindings, {
+      domainProperty: 'InspectionFinding.elementConceptId',
+    });
     assert.equal(concept?.parentId, 'building_element', id);
     assert.equal(concept?.kind, 'value', id);
     assert.deepEqual(concept?.valueType, { kind: 'text' }, id);
   }
   for (const id of findingFields) {
     const concept = getOntologyConcept(id);
-    assert.equal(concept?.parentId, 'inspection.finding', id);
-    assert.equal(concept?.kind, 'field', id);
-    assert.deepEqual(concept?.valueType, { kind: 'text', nullable: true }, id);
+    assert.ok(concept, id);
+    assert.equal(concept.maturity, 'type-only', id);
+    assert.equal(concept.bindings, undefined, id);
+    assert.equal(concept.completion, undefined, id);
+    assert.equal(concept.parentId, 'inspection.finding', id);
+    assert.equal(concept.kind, 'field', id);
+    assert.deepEqual(concept.valueType, { kind: 'text', nullable: true }, id);
   }
 });
 

@@ -3,7 +3,7 @@ import {
   findCommandNode,
   formatCommandPath,
   isBranchNode,
-  normalizeCommandToken,
+  resolveCommandToken,
 } from '@/lib/command-registry';
 
 export type ParsedEditableCommand = {
@@ -76,10 +76,7 @@ export function parseEditableCommand(
 
   for (let i = 0; i < rawSegments.length; i += 1) {
     const rawToken = rawSegments[i];
-    const absolutePath = [
-      ...pathBase,
-      ...structuredTokens.map(normalizeCommandToken),
-    ];
+    const absolutePath = [...pathBase, ...structuredTokens];
     const step = nextEditableStep(absolutePath);
 
     if (step === 'value') {
@@ -96,9 +93,11 @@ export function parseEditableCommand(
       };
     }
 
-    const normalizedToken = normalizeCommandToken(rawToken);
-    if (Array.isArray(step) && step.includes(normalizedToken)) {
-      structuredTokens.push(normalizedToken);
+    const resolvedToken = Array.isArray(step)
+      ? resolveCommandToken(rawToken, step)
+      : undefined;
+    if (resolvedToken) {
+      structuredTokens.push(resolvedToken);
       const tokenIndex = commandSuffix.indexOf(rawToken, consumedThrough);
       consumedThrough =
         tokenIndex >= 0 ? tokenIndex + rawToken.length : consumedThrough;
@@ -118,10 +117,7 @@ export function parseEditableCommand(
     };
   }
 
-  const absolutePath = [
-    ...pathBase,
-    ...structuredTokens.map(normalizeCommandToken),
-  ];
+  const absolutePath = [...pathBase, ...structuredTokens];
   const step = nextEditableStep(absolutePath);
 
   if (step === 'value') {

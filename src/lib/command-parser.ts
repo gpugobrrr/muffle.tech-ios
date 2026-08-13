@@ -5,8 +5,8 @@ import {
     formatCommandPath,
     isBranchNode,
     isTerminalNode,
-    normalizeCommandToken,
     parseSvyrInput,
+    resolveCommandToken,
     walkCommandPath,
     type CommandNode,
 } from '@/lib/command-registry';
@@ -318,12 +318,17 @@ export function getCommandAssistance(
 
   const candidates = childNodes(parentWalk.path);
   const lowerLast = last.toLowerCase();
-  const normalizedLast = normalizeCommandToken(lowerLast);
-  const exact = candidates.find((child) => child.token === normalizedLast);
+  const resolvedLast = resolveCommandToken(
+    lowerLast,
+    candidates.map((child) => child.token),
+  );
+  const exact = resolvedLast
+    ? candidates.find((child) => child.token === resolvedLast)
+    : undefined;
 
   // A complete legacy alias remains selectable as its canonical short token.
   // This migrates the visible input without ever advertising aliases.
-  if (exact && lowerLast !== normalizedLast) {
+  if (exact && lowerLast !== exact.token) {
     return [tokenSuggestion(parentWalk.path, exact)];
   }
 

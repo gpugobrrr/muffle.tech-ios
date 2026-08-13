@@ -138,6 +138,7 @@ export function verifyCommandContract(): string[] {
 
   expectAliasPath('prep/brief/purpose', ['prep', 'brief', 'purp']);
   expectAliasPath('prep/brief/deliverable', ['prep', 'brief', 'deliv']);
+  expectAliasPath('prep/brief/limitation', ['prep', 'brief', 'limit']);
   expectAliasPath('prep/brief/limitations', ['prep', 'brief', 'limit']);
   expectAliasPath('prep/brief/instr/reference', [
     'prep',
@@ -145,6 +146,7 @@ export function verifyCommandContract(): string[] {
     'instr',
     'ref',
   ]);
+  expectAliasPath('external/limitation', ['external', 'limitation']);
 
   failures.push(...verifySuggestionParity());
 

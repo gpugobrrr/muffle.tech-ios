@@ -40,6 +40,7 @@ import {
   deserializeActiveJob,
   serializeActiveJob,
 } from '../src/lib/job-persistence';
+import { EXTERNAL_FINDING_CONFIGS } from '../src/lib/external-findings';
 import { level2CoverageForRoute } from '../src/lib/level-2-capture';
 import {
   executeInspectionOperation,
@@ -52,12 +53,7 @@ const EXTERNAL_WALL_CONCEPT = 'building_element.external_wall';
 const WALLS_ROUTE = ['external', 'walls'] as const;
 
 /** Type-only ontology IDs that SVYR External labels must not promote into Engine findings. */
-const TYPE_ONLY_EXTERNAL_CONCEPTS = [
-  'building_element.chimney',
-  'building_element.rainwater_goods',
-  'building_element.window',
-  'building_element.porch',
-] as const;
+const TYPE_ONLY_EXTERNAL_CONCEPTS = ['building_element.porch'] as const;
 
 const UNRESOLVED_EXTERNAL_LEAVES = [
   {
@@ -65,20 +61,8 @@ const UNRESOLVED_EXTERNAL_LEAVES = [
     missing: 'Section/finding limitation is distinct from brief limitation.',
   },
   {
-    path: ['external', 'chimney'],
-    missing: 'Chimney is type-only and not an InspectionElementConceptId.',
-  },
-  {
     path: ['external', 'roof'],
     missing: 'Roof covering is not a canonical Engine subject.',
-  },
-  {
-    path: ['external', 'rainwater'],
-    missing: 'Rainwater goods is type-only with no Engine binding.',
-  },
-  {
-    path: ['external', 'windows'],
-    missing: 'Window is type-only with no Engine binding.',
   },
   {
     path: ['external', 'doors'],
@@ -159,51 +143,55 @@ test('External tree exposes only the repository subjects and walls capture branc
   assert.equal(level2CoverageForRoute('external')?.status, 'navigation-only');
 });
 
-test('External walls remains the only Engine-backed Type 6/7 External subject', () => {
-  const walls = findCommandNode([...WALLS_ROUTE]);
-  assert.ok(walls);
-  assert.equal(walls?.workflowOnly, undefined);
-  assert.equal(level2CoverageForRoute('external/walls')?.status, 'interactive');
-  assert.equal(
-    level2CoverageForRoute('external/walls')?.canonicalConceptId,
-    EXTERNAL_WALL_CONCEPT,
-  );
-  assert.equal(
-    level2CoverageForRoute('external/walls')?.engineBinding,
-    'survey.inspection.finding.upsert',
-  );
+test('External Engine-backed subjects expose generic Type 6/7 finding leaves', () => {
+  for (const config of EXTERNAL_FINDING_CONFIGS) {
+    const branch = findCommandNode([...config.route]);
+    assert.ok(branch, config.label);
+    assert.equal(branch?.workflowOnly, undefined, config.label);
+    assert.equal(
+      level2CoverageForRoute(config.route.join('/'))?.status,
+      'interactive',
+      config.label,
+    );
+    assert.equal(
+      level2CoverageForRoute(config.route.join('/'))?.canonicalConceptId,
+      config.elementConceptId,
+    );
+    assert.equal(
+      level2CoverageForRoute(config.route.join('/'))?.engineBinding,
+      'survey.inspection.finding.upsert',
+    );
 
-  const observe = findCommandNode([...WALLS_ROUTE, 'observe']);
-  const condition = findCommandNode([...WALLS_ROUTE, 'condition']);
-  const defect = findCommandNode([...WALLS_ROUTE, 'defect']);
-  const recommend = findCommandNode([...WALLS_ROUTE, 'recommend']);
-  const photo = findCommandNode([...WALLS_ROUTE, 'photo']);
-  const evidence = findCommandNode([...WALLS_ROUTE, 'evidence']);
+    const observe = findCommandNode([...config.route, 'observe']);
+    const condition = findCommandNode([...config.route, 'condition']);
+    const defect = findCommandNode([...config.route, 'defect']);
+    const recommend = findCommandNode([...config.route, 'recommend']);
+    const photo = findCommandNode([...config.route, 'photo']);
+    const evidence = findCommandNode([...config.route, 'evidence']);
 
-  assert.equal(isFindingCaptureNode(observe), true);
-  assert.equal(isFindingCaptureNode(condition), true);
-  assert.equal(isFindingCaptureNode(defect), true);
-  assert.equal(isFindingCaptureNode(recommend), true);
-  assert.equal(isEvidenceCaptureNode(photo), true);
-  assert.equal(isFindingCaptureNode(evidence), true);
-
-  assert.equal(
-    resolveSvyrNodeDataEntryType(observe!),
-    SVYR_DATA_ENTRY_TYPES.findingCapture,
-  );
-  assert.equal(
-    resolveSvyrNodeDataEntryType(photo!),
-    SVYR_DATA_ENTRY_TYPES.evidenceCapture,
-  );
-
-  for (const node of [observe, condition, defect, recommend, evidence]) {
-    assert.deepEqual(node?.findingTarget?.findingId, EXTERNAL_WALL_FINDING_ID);
-    assert.deepEqual(node?.findingTarget?.elementConceptId, EXTERNAL_WALL_CONCEPT);
+    assert.equal(isFindingCaptureNode(observe), true, config.label);
+    assert.equal(isFindingCaptureNode(condition), true, config.label);
+    assert.equal(isFindingCaptureNode(defect), true, config.label);
+    assert.equal(isFindingCaptureNode(recommend), true, config.label);
+    assert.equal(isEvidenceCaptureNode(photo), true, config.label);
+    assert.equal(isFindingCaptureNode(evidence), true, config.label);
+    assert.equal(
+      resolveSvyrNodeDataEntryType(observe!),
+      SVYR_DATA_ENTRY_TYPES.findingCapture,
+    );
+    assert.equal(
+      resolveSvyrNodeDataEntryType(photo!),
+      SVYR_DATA_ENTRY_TYPES.evidenceCapture,
+    );
+    for (const node of [observe, condition, defect, recommend, evidence]) {
+      assert.deepEqual(node?.findingTarget?.findingId, config.findingId);
+      assert.deepEqual(node?.findingTarget?.elementConceptId, config.elementConceptId);
+    }
+    assert.deepEqual(photo?.evidenceCaptureTarget, {
+      findingId: config.findingId,
+      elementConceptId: config.elementConceptId,
+    });
   }
-  assert.deepEqual(photo?.evidenceCaptureTarget, {
-    findingId: EXTERNAL_WALL_FINDING_ID,
-    elementConceptId: EXTERNAL_WALL_CONCEPT,
-  });
 });
 
 function nodeAtExactTokens(path: readonly string[]): ReturnType<typeof findCommandNode> {
@@ -232,19 +220,30 @@ test('unresolved External leaves stay placeholders without invented findings', (
   }
 });
 
-test('PREP limitation alias does not make External limitation a capture field', () => {
-  const sectionLimitation = nodeAtExactTokens(['external', 'limitation']);
+test('exact External limitation token remains a reachable workflow placeholder', () => {
+  const sectionLimitation = findCommandNode(['external', 'limitation']);
   assert.ok(sectionLimitation);
   assert.equal(sectionLimitation?.token, 'limitation');
   assert.equal(sectionLimitation?.workflowOnly, true);
-  assert.equal(findCommandNode(['external', 'limitation']), null);
-  assert.notEqual(parseCommand('external/limitation').type, 'operation');
+  assert.equal(sectionLimitation?.operationId, undefined);
+  assert.equal(sectionLimitation?.findingTarget, undefined);
+  const parsed = parseCommand('external/limitation');
+  assert.equal(parsed.type, 'placeholder');
+  if (parsed.type === 'placeholder') {
+    assert.deepEqual(parsed.path, ['external', 'limitation']);
+  }
+  assert.equal(parseCommand('prep/brief/limitation').type, 'operation');
 });
 
 test('type-only External ontology concepts stay out of InspectionElementConceptId', () => {
-  assert.equal(
-    INSPECTION_ELEMENT_CONCEPT_IDS.filter((id) => id.startsWith('building_element.')).join(','),
-    EXTERNAL_WALL_CONCEPT,
+  assert.deepEqual(
+    INSPECTION_ELEMENT_CONCEPT_IDS.filter((id) => id.startsWith('building_element.')),
+    [
+      'building_element.external_wall',
+      'building_element.chimney',
+      'building_element.rainwater_goods',
+      'building_element.window',
+    ],
   );
   for (const id of TYPE_ONLY_EXTERNAL_CONCEPTS) {
     const concept = getOntologyConcept(id);
@@ -254,37 +253,43 @@ test('type-only External ontology concepts stay out of InspectionElementConceptI
     assert.equal(isInspectionElementConceptId(id), false, id);
   }
   assert.equal(isInspectionElementConceptId(EXTERNAL_WALL_CONCEPT), true);
+  assert.equal(isInspectionElementConceptId('building_element.chimney'), true);
+  assert.equal(isInspectionElementConceptId('building_element.rainwater_goods'), true);
+  assert.equal(isInspectionElementConceptId('building_element.window'), true);
   assert.equal(getOntologyConcept('building_element.roof'), undefined);
   assert.equal(getOntologyConcept('building_element.external_door'), undefined);
   assert.equal(getOntologyConcept('building_element.conservatory'), undefined);
   assert.equal(getOntologyConcept('building_element.joinery'), undefined);
 });
 
-test('Engine finding upsert rejects type-only External element concepts', () => {
+test('Engine finding upsert accepts promoted External elements and rejects type-only porch', () => {
   const rejected = executeInspectionOperation(createEmptyInspectionRecord(), {
     operationId: SURVEY_OPERATIONS.upsertInspectionFinding,
     arguments: {
       finding: {
-        id: 'finding.external-chimney.1',
-        elementConceptId: 'building_element.chimney',
-        observation: 'Flue terminal is cracked.',
+        id: 'finding.porch.1',
+        elementConceptId: 'building_element.porch',
+        observation: 'The porch roof sags.',
       } as unknown as InspectionFinding,
     },
   });
   assert.equal(rejected, null);
 
-  const accepted = executeInspectionOperation(createEmptyInspectionRecord(), {
-    operationId: SURVEY_OPERATIONS.upsertInspectionFinding,
-    arguments: {
-      finding: {
-        id: EXTERNAL_WALL_FINDING_ID,
-        elementConceptId: EXTERNAL_WALL_CONCEPT,
-        observation: 'Stepped cracking above the opening.',
+  for (const config of EXTERNAL_FINDING_CONFIGS) {
+    const accepted = executeInspectionOperation(createEmptyInspectionRecord(), {
+      operationId: SURVEY_OPERATIONS.upsertInspectionFinding,
+      arguments: {
+        finding: {
+          id: config.findingId,
+          elementConceptId: config.elementConceptId,
+          observation: `${config.label} observation.`,
+        },
       },
-    },
-  });
-  assert.ok(accepted);
-  assert.equal(accepted?.finding?.id, EXTERNAL_WALL_FINDING_ID);
+    });
+    assert.ok(accepted, config.label);
+    assert.equal(accepted?.finding?.id, config.findingId);
+    assert.equal(accepted?.finding?.elementConceptId, config.elementConceptId);
+  }
 });
 
 test('External walls observation-first gates condition, defect, recommendation, and photo', async () => {
@@ -455,10 +460,12 @@ test('External walls Type 7 photos attach only to the wall finding and persist a
 });
 
 test('External finding leaves stay optional and do not invent required completion', () => {
-  for (const token of ['observe', 'condition', 'defect', 'recommend', 'evidence']) {
-    const node = findCommandNode([...WALLS_ROUTE, token]);
-    assert.equal(node?.optional, true, token);
-    assert.notEqual(node?.required, true, token);
+  for (const config of EXTERNAL_FINDING_CONFIGS) {
+    for (const token of ['observe', 'condition', 'defect', 'recommend', 'evidence']) {
+      const node = findCommandNode([...config.route, token]);
+      assert.equal(node?.optional, true, `${config.label}/${token}`);
+      assert.notEqual(node?.required, true, `${config.label}/${token}`);
+    }
   }
   const external = resolveDirectoryCompletion(['external'], emptyBrief());
   const walls = resolveDirectoryCompletion([...WALLS_ROUTE], emptyBrief());
@@ -468,4 +475,87 @@ test('External finding leaves stay optional and do not invent required completio
   assert.equal(walls?.completed, 0);
   assert.equal(walls?.total, 0);
   assert.deepEqual(walls?.children, []);
+});
+
+test('four External findings persist independently with evidence IDs only', async () => {
+  let job = createInitialActiveJob();
+  for (const config of EXTERNAL_FINDING_CONFIGS) {
+    const observe = findCommandNode([...config.route, 'observe'])!.findingTarget!;
+    const condition = findCommandNode([...config.route, 'condition'])!.findingTarget!;
+    const defect = findCommandNode([...config.route, 'defect'])!.findingTarget!;
+    const recommend = findCommandNode([...config.route, 'recommend'])!.findingTarget!;
+    const photo = findCommandNode([...config.route, 'photo'])!.evidenceCaptureTarget!;
+
+    const observed = commitInspectionFindingField(
+      job.inspection,
+      observe,
+      `${config.label} observation.`,
+    );
+    assert.equal(observed.ok, true, config.label);
+    if (!observed.ok) return;
+    job = { ...job, inspection: observed.result.inspection };
+
+    const conditioned = commitInspectionFindingField(
+      job.inspection,
+      condition,
+      `${config.label} condition.`,
+    );
+    assert.equal(conditioned.ok, true, config.label);
+    if (!conditioned.ok) return;
+    job = { ...job, inspection: conditioned.result.inspection };
+
+    const defected = commitInspectionFindingField(
+      job.inspection,
+      defect,
+      `${config.label} defect.`,
+    );
+    assert.equal(defected.ok, true, config.label);
+    if (!defected.ok) return;
+    job = { ...job, inspection: defected.result.inspection };
+
+    const recommended = commitInspectionFindingField(
+      job.inspection,
+      recommend,
+      `${config.label} recommendation.`,
+    );
+    assert.equal(recommended.ok, true, config.label);
+    if (!recommended.ok) return;
+    job = { ...job, inspection: recommended.result.inspection };
+
+    const evidenceId = `evidence.photo.${config.routeId}`;
+    const photographed = await captureAndCommitInspectionEvidencePhoto({
+      inspection: job.inspection,
+      target: photo,
+      jobId: job.id,
+      temporaryUri: `file:///tmp/${evidenceId}.jpg`,
+      fileStore: mockFileStore(),
+      createId: () => evidenceId,
+    });
+    assert.equal(photographed.ok, true, config.label);
+    if (!photographed.ok) return;
+    job = { ...job, inspection: photographed.result.inspection };
+  }
+
+  assert.equal(Object.keys(job.inspection.findings).length, EXTERNAL_FINDING_CONFIGS.length);
+  assert.equal(job.inspection.findings['finding.service.electrical_installation.1'], undefined);
+  assert.equal(activeJobContainsEmbeddedImageData(job), false);
+
+  const restored = deserializeActiveJob(serializeActiveJob(job));
+  assert.ok(restored);
+  for (const config of EXTERNAL_FINDING_CONFIGS) {
+    const finding: InspectionFinding | undefined =
+      restored!.inspection.findings[config.findingId];
+    assert.equal(finding?.id, config.findingId);
+    assert.equal(finding?.elementConceptId, config.elementConceptId);
+    assert.equal(finding?.observation, `${config.label} observation.`);
+    assert.equal(finding?.condition, `${config.label} condition.`);
+    assert.equal(finding?.defect, `${config.label} defect.`);
+    assert.equal(finding?.recommendation, `${config.label} recommendation.`);
+    assert.deepEqual(finding?.evidence, [{ id: `evidence.photo.${config.routeId}` }]);
+    assert.equal(
+      restored!.inspection.evidence?.[`evidence.photo.${config.routeId}`]?.kind,
+      'photo',
+    );
+  }
+  assert.equal(activeJobContainsEmbeddedImageData(restored!), false);
 });

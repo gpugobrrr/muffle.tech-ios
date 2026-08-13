@@ -156,7 +156,7 @@ test('coverage manifest is deterministic and distinguishes capture boundaries', 
   );
   assert.equal(level2CoverageForRoute('property/address')?.status, 'pre-populated');
   assert.equal(level2CoverageForRoute('external/walls')?.status, 'interactive');
-  assert.equal(level2CoverageForRoute('external/windows')?.status, 'navigation-only');
+  assert.equal(level2CoverageForRoute('external/windows')?.status, 'interactive');
   assert.equal(
     level2CoverageForRoute('services/electricity')?.status,
     'interactive',
@@ -191,6 +191,20 @@ test('interactive Level 2 routes remain explicitly bounded', () => {
     'property/energy/mains-services/electricity',
     'property/energy/mains-services/water',
     'property/energy/mains-services/drainage',
+    'external/chimney',
+    'external/chimney/observe',
+    'external/chimney/condition',
+    'external/chimney/defect',
+    'external/chimney/recommend',
+    'external/chimney/photo',
+    'external/chimney/evidence',
+    'external/rainwater',
+    'external/rainwater/observe',
+    'external/rainwater/condition',
+    'external/rainwater/defect',
+    'external/rainwater/recommend',
+    'external/rainwater/photo',
+    'external/rainwater/evidence',
     'external/walls',
     'external/walls/observe',
     'external/walls/condition',
@@ -198,6 +212,13 @@ test('interactive Level 2 routes remain explicitly bounded', () => {
     'external/walls/recommend',
     'external/walls/photo',
     'external/walls/evidence',
+    'external/windows',
+    'external/windows/observe',
+    'external/windows/condition',
+    'external/windows/defect',
+    'external/windows/recommend',
+    'external/windows/photo',
+    'external/windows/evidence',
     'services/electricity',
     'services/electricity/presence',
     'services/electricity/observe',
@@ -241,7 +262,7 @@ test('interactive Level 2 routes remain explicitly bounded', () => {
   }
   for (const route of [
     ['property', 'construction'],
-    ['external', 'windows'],
+    ['external', 'porch'],
     ['internal', 'ceilings'],
     ['services', 'common'],
     ['grounds', 'garage'],
@@ -251,7 +272,7 @@ test('interactive Level 2 routes remain explicitly bounded', () => {
     assert.equal(node?.operationId, undefined, route.join('/'));
     assert.equal(node?.findingTarget, undefined, route.join('/'));
   }
-  assert.deepEqual(getCommandAssistance('external/windows'), []);
+  assert.deepEqual(getCommandAssistance('external/porch'), []);
 });
 
 test('supported finding leaves commit through the existing finding operation', () => {

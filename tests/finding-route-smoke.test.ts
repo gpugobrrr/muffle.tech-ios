@@ -32,7 +32,7 @@ import {
   SERVICES_FINDING_CONFIGS,
   SERVICES_GAS_FINDING_CONFIG,
 } from '../src/lib/services-findings';
-import type { InspectionElementConceptId } from '../src/lib/inspection-finding-elements';
+import { EXTERNAL_FINDING_CONFIGS } from '../src/lib/external-findings';
 
 /** All configured Type 6 finding routes from the live registry. */
 const FINDING_ROUTES = [
@@ -48,12 +48,12 @@ const FINDING_ROUTES = [
     findingId: SERVICES_GAS_FINDING_CONFIG.findingId,
     elementConceptId: SERVICES_GAS_FINDING_CONFIG.elementConceptId,
   },
-  {
-    label: 'External walls',
-    route: ['external', 'walls'],
-    findingId: 'finding.external-wall.1',
-    elementConceptId: 'building_element.external_wall' as InspectionElementConceptId,
-  },
+  ...EXTERNAL_FINDING_CONFIGS.map((config) => ({
+    label: config.label,
+    route: [...config.route],
+    findingId: config.findingId,
+    elementConceptId: config.elementConceptId,
+  })),
 ] as const;
 
 function mockFileStore(): EvidenceFileStore {
@@ -320,34 +320,39 @@ test('persistence smoke: ActiveJob round-trip keeps finding fields and evidence 
 });
 
 test('frozen entry-session identity still commits observation when live selection is defect', () => {
-  const observe = findCommandNode(['services', 'electricity', 'observe'])!;
-  const defect = findCommandNode(['services', 'electricity', 'defect'])!;
-  const session = openFindingEntrySession(
-    ['services', 'electricity', 'observe'],
-    observe.findingTarget!,
-    observe.token,
-  );
-  const liveSelection = defect.findingTarget!;
-  assert.equal(liveSelection.field, 'defect');
-  assert.equal(
-    resolveFindingEntryCommitTarget(session, liveSelection)?.field,
-    'observation',
-  );
+  for (const route of FINDING_ROUTES) {
+    const observe = findCommandNode([...route.route, 'observe'])!;
+    const defect = findCommandNode([...route.route, 'defect'])!;
+    const session = openFindingEntrySession(
+      [...route.route, 'observe'],
+      observe.findingTarget!,
+      observe.token,
+    );
+    const liveSelection = defect.findingTarget!;
+    assert.equal(liveSelection.field, 'defect');
+    assert.equal(
+      resolveFindingEntryCommitTarget(session, liveSelection)?.field,
+      'observation',
+      route.label,
+    );
 
-  const committed = commitFindingEntrySession(
-    createEmptyInspectionRecord(),
-    session,
-    'test',
-    liveSelection,
-  );
-  assert.equal(committed.ok, true);
-  if (!committed.ok) return;
-  assert.equal(
-    committed.result.inspection.findings[
-      'finding.service.electrical_installation.1'
-    ]?.observation,
-    'test',
-  );
+    const committed = commitFindingEntrySession(
+      createEmptyInspectionRecord(),
+      session,
+      `${route.label} frozen observation.`,
+      liveSelection,
+    );
+    assert.equal(committed.ok, true, route.label);
+    if (!committed.ok) continue;
+    assert.equal(
+      committed.result.inspection.findings[route.findingId]?.observation,
+      `${route.label} frozen observation.`,
+    );
+    assert.equal(
+      committed.result.inspection.findings[route.findingId]?.defect,
+      undefined,
+    );
+  }
 });
 
 test('oil remains blocked and has no finding capture leaves', () => {
@@ -422,17 +427,7 @@ test('frozen entry-session identity still commits External walls observation', (
 
 test('unresolved External subjects remain blocked without Type 6/7 children', () => {
   const children = findCommandNode(['external'])?.children ?? [];
-  for (const token of [
-    'limitation',
-    'chimney',
-    'roof',
-    'rainwater',
-    'windows',
-    'doors',
-    'porch',
-    'joinery',
-    'other',
-  ]) {
+  for (const token of ['limitation', 'roof', 'doors', 'porch', 'joinery', 'other']) {
     const node = children.find((child) => child.token === token);
     assert.ok(node, token);
     assert.equal(node?.workflowOnly, true, token);

@@ -275,6 +275,23 @@ export function normalizeCommandToken(rawToken: string): string {
   return COMMAND_ALIASES[token] ?? token;
 }
 
+/**
+ * Resolve a typed segment against siblings at the current path.
+ * An exact canonical token wins; aliases apply only when that exact token
+ * is absent so they cannot hide a real route.
+ */
+export function resolveCommandToken(
+  rawToken: string,
+  siblingTokens: readonly string[],
+): string | undefined {
+  const exact = rawToken.trim().toLowerCase();
+  if (!exact) return undefined;
+  if (siblingTokens.includes(exact)) return exact;
+  const aliased = COMMAND_ALIASES[exact];
+  if (aliased && siblingTokens.includes(aliased)) return aliased;
+  return undefined;
+}
+
 export function isBranchNode(node: CommandNode): boolean {
   return (node.children?.length ?? 0) > 0;
 }
@@ -289,8 +306,13 @@ export function findCommandNode(path: string[]): CommandNode | null {
   let found: CommandNode | null = null;
 
   for (const rawToken of path) {
-    const token = normalizeCommandToken(rawToken);
-    const next = level.find((node) => node.token === token);
+    const resolved = resolveCommandToken(
+      rawToken,
+      level.map((node) => node.token),
+    );
+    const next = resolved
+      ? level.find((node) => node.token === resolved)
+      : undefined;
     if (!next) return null;
     found = next;
     level = next.children ?? [];
@@ -327,8 +349,14 @@ export function walkCommandPath(tokens: string[]): CommandWalk {
   for (const rawToken of tokens) {
     if (node?.requiresValue) break;
 
-    const token = normalizeCommandToken(rawToken);
-    const next = childNodes(path).find((child) => child.token === token);
+    const children = childNodes(path);
+    const resolved = resolveCommandToken(
+      rawToken,
+      children.map((child) => child.token),
+    );
+    const next = resolved
+      ? children.find((child) => child.token === resolved)
+      : undefined;
     if (!next) break;
 
     path.push(next.token);
@@ -426,7 +454,7 @@ export function parseSvyrInput(rawInput: string): ParsedSvyrInput {
   const trailingSeparator = rawPath.endsWith(PATH_SEPARATOR);
   const path = rawPath
     .split(PATH_SEPARATOR)
-    .map(normalizeCommandToken)
+    .map((token) => token.trim().toLowerCase())
     .filter(Boolean);
 
   return {

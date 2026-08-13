@@ -4,7 +4,12 @@ import type {
 } from '@/lib/command-registry';
 import type { FieldDefinition } from '@/lib/field-schema';
 import { buildFindingCaptureLeaf as createFindingCaptureLeaf } from '@/lib/finding-capture';
+import type { FindingCaptureConfig } from '@/lib/finding-capture';
 import { buildEvidenceCaptureLeaf as createEvidenceCaptureLeaf } from '@/lib/evidence-capture';
+import {
+  externalFindingConfig,
+  type ExternalFindingConfig,
+} from '@/lib/external-findings';
 import { HEATING_FIELD_DEFINITIONS } from '@/lib/property-energy-heating';
 import {
   servicesPresenceFieldDefinition,
@@ -19,8 +24,6 @@ import {
 export type Level2CoverageManifestEntry = Level2CaptureCoverage & {
   route: string;
 };
-
-const EXTERNAL_WALL_FINDING_ID = 'finding.external-wall.1';
 
 function workflowLeaf(
   token: string,
@@ -230,21 +233,90 @@ function compoundCaptureBranch(
   };
 }
 
-function externalWallFindingLeaf(
-  token: string,
-  label: string,
-  description: string,
-  field: 'observation' | 'condition' | 'defect' | 'recommendation' | 'evidence',
+function externalFindingLeaves(config: FindingCaptureConfig): CommandNode[] {
+  const prefix = config.label;
+  return [
+    createFindingCaptureLeaf(
+      'observe',
+      'observation',
+      `Record the direct ${prefix.toLowerCase()} observation.`,
+      config.findingId,
+      config.elementConceptId,
+      'observation',
+      `${prefix} observation`,
+    ),
+    createFindingCaptureLeaf(
+      'condition',
+      'condition',
+      'Record free-text current condition.',
+      config.findingId,
+      config.elementConceptId,
+      'condition',
+      `${prefix} condition`,
+    ),
+    createFindingCaptureLeaf(
+      'defect',
+      'defect',
+      `Record an identified ${prefix.toLowerCase()} defect.`,
+      config.findingId,
+      config.elementConceptId,
+      'defect',
+      `${prefix} defect`,
+    ),
+    createFindingCaptureLeaf(
+      'recommend',
+      'recommendation',
+      `Record recommended ${prefix.toLowerCase()} action.`,
+      config.findingId,
+      config.elementConceptId,
+      'recommendation',
+      `${prefix} recommendation`,
+    ),
+    createEvidenceCaptureLeaf(
+      'photo',
+      'Add photo',
+      `Capture photo evidence for the ${prefix.toLowerCase()} finding.`,
+      config.findingId,
+      config.elementConceptId,
+      `${prefix} photo evidence`,
+    ),
+    createFindingCaptureLeaf(
+      'evidence',
+      'evidence',
+      'Attach a stable evidence reference.',
+      config.findingId,
+      config.elementConceptId,
+      'evidence',
+      `${prefix} evidence`,
+    ),
+  ];
+}
+
+function externalFindingBranch(
+  config: ExternalFindingConfig,
+  extrasAfterPhoto: CommandNode[] = [],
 ): CommandNode {
-  return createFindingCaptureLeaf(
+  const token = config.route[config.route.length - 1];
+  const leaves = externalFindingLeaves(config);
+  const photoIndex = leaves.findIndex((leaf) => leaf.token === 'photo');
+  return {
     token,
-    label,
-    description,
-    EXTERNAL_WALL_FINDING_ID,
-    'building_element.external_wall',
-    field,
-    `External wall ${label.toLowerCase()}`,
-  );
+    label: token,
+    learnerLabel: config.label,
+    description: `${config.label} finding capture.`,
+    coverage: {
+      requirement: config.coverageRequirement,
+      status: 'interactive',
+      canonicalConceptId: config.elementConceptId,
+      engineBinding: 'survey.inspection.finding.upsert',
+      recommendedLaterWork: 'Add repeated findings and location context.',
+    },
+    children: [
+      ...leaves.slice(0, photoIndex + 1),
+      ...extrasAfterPhoto,
+      ...leaves.slice(photoIndex + 1),
+    ],
+  };
 }
 
 const PROPERTY_NODE: CommandNode = {
@@ -424,7 +496,7 @@ const EXTERNAL_NODE: CommandNode = {
     requirement: 'Outside the property',
     status: 'navigation-only',
     recommendedLaterWork:
-      'Keep Engine-backed external-wall Type 6/7 findings. Leave chimney, roof, rainwater, windows, doors, porch, joinery, and other blocked until those subjects have InspectionElementConceptId Engine bindings.',
+      'Keep Engine-backed chimney, rainwater-goods, window, and external-wall Type 6/7 findings. Leave roof, doors, porch, joinery, and other blocked until those subjects have approved inspection-element semantics.',
   },
   children: [
     workflowLeaf('limitation', 'limitation', 'External inspection limitations.', {
@@ -433,81 +505,37 @@ const EXTERNAL_NODE: CommandNode = {
       blocker: 'Section/finding limitation is distinct from brief limitation and unsupported.',
       recommendedLaterWork: 'Design section and finding limitation semantics.',
     }),
-    workflowLeaf('chimney', 'chimney', 'Chimney inspection subject.', {
-      requirement: 'Chimneys',
-      status: 'navigation-only',
-      canonicalConceptId: 'building_element.chimney',
-      blocker: 'Canonical concept is type-only and absent from BuildingElementConceptId.',
-      recommendedLaterWork: 'Add Engine-backed chimney finding support.',
-    }),
+    externalFindingBranch(externalFindingConfig('chimney')),
     workflowLeaf('roof', 'roof', 'Roof covering inspection subject.', {
       requirement: 'Roof coverings',
       status: 'blocked',
       blocker: 'Roof covering is not canonical.',
       recommendedLaterWork: 'Resolve roof covering and roof structure independently.',
     }),
-    workflowLeaf('rainwater', 'rainwater', 'Rainwater goods inspection subject.', {
-      requirement: 'Rainwater pipes and gutters',
-      status: 'navigation-only',
-      canonicalConceptId: 'building_element.rainwater_goods',
-      blocker: 'Canonical concept is type-only and has no Engine binding.',
-      recommendedLaterWork: 'Add Engine-backed rainwater-goods finding support.',
-    }),
-    {
-      token: 'walls',
-      label: 'walls',
-      learnerLabel: 'External walls',
-      description: 'External wall finding capture.',
-      coverage: {
-        requirement: 'External walls',
-        status: 'interactive',
-        canonicalConceptId: 'building_element.external_wall',
-        engineBinding: 'survey.inspection.finding.upsert',
-        recommendedLaterWork: 'Add repeated findings and location context.',
-      },
-      children: [
-        externalWallFindingLeaf('observe', 'observation', 'Record the direct wall observation.', 'observation'),
-        externalWallFindingLeaf('condition', 'condition', 'Record free-text current condition.', 'condition'),
-        externalWallFindingLeaf('defect', 'defect', 'Record an identified defect.', 'defect'),
-        externalWallFindingLeaf('recommend', 'recommendation', 'Record recommended action.', 'recommendation'),
-        createEvidenceCaptureLeaf(
-          'photo',
-          'Add photo',
-          'Capture photo evidence for the external wall finding.',
-          EXTERNAL_WALL_FINDING_ID,
-          'building_element.external_wall',
-          'External wall photo evidence',
-        ),
-        workflowLeaf('limit', 'limitation', 'Finding limitation coverage.', {
-          requirement: 'External wall finding limitation',
-          status: 'blocked',
-          blocker: 'Finding-level limitation is not Engine-backed.',
-          recommendedLaterWork: 'Add a distinct finding limitation field after semantic review.',
-        }),
-        workflowLeaf('further', 'further investigation', 'Further-investigation coverage.', {
-          requirement: 'External wall further investigation',
-          status: 'blocked',
-          canonicalConceptId: 'further_investigation',
-          blocker: 'Canonical concept is type-only and not part of InspectionFinding.',
-          recommendedLaterWork: 'Add an Engine field without inferring a relationship edge.',
-        }),
-        workflowLeaf('risk', 'risk', 'Risk capture coverage.', {
-          requirement: 'External wall risk',
-          status: 'blocked',
-          canonicalConceptId: 'risk',
-          blocker: 'Canonical concept is type-only and not part of InspectionFinding.',
-          recommendedLaterWork: 'Add an Engine field independently from report summaries.',
-        }),
-        externalWallFindingLeaf('evidence', 'evidence', 'Attach a stable evidence reference.', 'evidence'),
-      ],
-    },
-    workflowLeaf('windows', 'windows', 'Window inspection subject.', {
-      requirement: 'Windows',
-      status: 'navigation-only',
-      canonicalConceptId: 'building_element.window',
-      blocker: 'Canonical concept is type-only and has no Engine binding.',
-      recommendedLaterWork: 'Add Engine-backed window finding support.',
-    }),
+    externalFindingBranch(externalFindingConfig('rainwater')),
+    externalFindingBranch(externalFindingConfig('walls'), [
+      workflowLeaf('limit', 'limitation', 'Finding limitation coverage.', {
+        requirement: 'External wall finding limitation',
+        status: 'blocked',
+        blocker: 'Finding-level limitation is not Engine-backed.',
+        recommendedLaterWork: 'Add a distinct finding limitation field after semantic review.',
+      }),
+      workflowLeaf('further', 'further investigation', 'Further-investigation coverage.', {
+        requirement: 'External wall further investigation',
+        status: 'blocked',
+        canonicalConceptId: 'further_investigation',
+        blocker: 'Canonical concept is type-only and not part of InspectionFinding.',
+        recommendedLaterWork: 'Add an Engine field without inferring a relationship edge.',
+      }),
+      workflowLeaf('risk', 'risk', 'Risk capture coverage.', {
+        requirement: 'External wall risk',
+        status: 'blocked',
+        canonicalConceptId: 'risk',
+        blocker: 'Canonical concept is type-only and not part of InspectionFinding.',
+        recommendedLaterWork: 'Add an Engine field independently from report summaries.',
+      }),
+    ]),
+    externalFindingBranch(externalFindingConfig('windows')),
     workflowLeaf('doors', 'doors', 'Outside-door inspection subject.', {
       requirement: 'Outside doors',
       status: 'blocked',

@@ -222,7 +222,7 @@ test('unavailable PREP workflows and blocked oil remain placeholders', () => {
     'prep/ready',
     'services/gas-oil/oil',
     'property/type',
-    'external/windows',
+    'external/porch',
   ]) {
     const parsed = parseCommand(command);
     assert.equal(parsed.type, 'placeholder', command);

@@ -103,6 +103,13 @@ function renderFindingBlock(
     ...(finding.recommendation
       ? [renderFindingRow('Recommendation', finding.recommendation)]
       : []),
+    ...(finding.limitation
+      ? [renderFindingRow('Limitation', finding.limitation)]
+      : []),
+    ...(finding.furtherInvestigation
+      ? [renderFindingRow('Further investigation', finding.furtherInvestigation)]
+      : []),
+    ...(finding.risk ? [renderFindingRow('Risk', finding.risk)] : []),
     ...(finding.evidenceIds?.length
       ? [renderFindingRow('Evidence', finding.evidenceIds.join(', '))]
       : []),

@@ -92,6 +92,42 @@ test('canonical external-wall finding upserts and reads deterministically', () =
   assert.equal(read.inspection, created.inspection);
 });
 
+test('optional limitation, further investigation, and risk persist on InspectionFinding', () => {
+  const created = executeInspectionOperation(createEmptyInspectionRecord(), {
+    operationId: SURVEY_OPERATIONS.upsertInspectionFinding,
+    arguments: {
+      finding: {
+        ...DEMO_EXTERNAL_WALL_FINDING,
+        limitation: 'Rear elevation not fully visible.',
+        furtherInvestigation: 'Open up the lintel bearing.',
+        risk: 'Progressive movement may continue.',
+      },
+    },
+  });
+  assert.ok(created);
+  assert.equal(created.finding.limitation, 'Rear elevation not fully visible.');
+  assert.equal(created.finding.furtherInvestigation, 'Open up the lintel bearing.');
+  assert.equal(created.finding.risk, 'Progressive movement may continue.');
+  assert.equal(created.finding.observation, DEMO_EXTERNAL_WALL_FINDING.observation);
+  assert.equal(created.finding.defect, DEMO_EXTERNAL_WALL_FINDING.defect);
+
+  const projected = findingFrom(createJob(created.inspection));
+  assert.equal(projected.limitation, 'Rear elevation not fully visible.');
+  assert.equal(projected.furtherInvestigation, 'Open up the lintel bearing.');
+  assert.equal(projected.risk, 'Progressive movement may continue.');
+});
+
+test('older findings without extended fields remain valid through Engine upsert', () => {
+  const created = executeInspectionOperation(createEmptyInspectionRecord(), {
+    operationId: SURVEY_OPERATIONS.upsertInspectionFinding,
+    arguments: { finding: DEMO_EXTERNAL_WALL_FINDING },
+  });
+  assert.ok(created);
+  assert.equal(created.finding.limitation, undefined);
+  assert.equal(created.finding.furtherInvestigation, undefined);
+  assert.equal(created.finding.risk, undefined);
+});
+
 test('editing a stable finding ID replaces content without duplication', () => {
   const created = executeInspectionOperation(createEmptyInspectionRecord(), {
     operationId: SURVEY_OPERATIONS.upsertInspectionFinding,

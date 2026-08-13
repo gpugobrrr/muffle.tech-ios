@@ -215,6 +215,9 @@ test('interactive Level 2 routes remain explicitly bounded', () => {
     'external/walls/defect',
     'external/walls/recommend',
     'external/walls/photo',
+    'external/walls/limit',
+    'external/walls/further',
+    'external/walls/risk',
     'external/walls/evidence',
     'external/windows',
     'external/windows/observe',
@@ -266,7 +269,7 @@ test('interactive Level 2 routes remain explicitly bounded', () => {
     'services/drainage/photo',
   ]);
 
-  for (const token of ['observe', 'condition', 'defect', 'recommend', 'evidence']) {
+  for (const token of ['observe', 'condition', 'defect', 'recommend', 'limit', 'further', 'risk', 'evidence']) {
     const node = findCommandNode(['external', 'walls', token]);
     assert.equal(node?.requiresValue, true, token);
     assert.ok(node?.findingTarget, token);

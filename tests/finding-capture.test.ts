@@ -18,6 +18,11 @@ import {
 import { createEmptyInspectionRecord } from '../src/lib/inspection-record';
 import { DEMO_EXTERNAL_WALL_FINDING } from '../src/lib/fixtures/demo-external-wall-finding';
 import {
+  createInitialActiveJob,
+  deserializeActiveJob,
+  serializeActiveJob,
+} from '../src/lib/job-persistence';
+import {
   SERVICES_FINDING_CONFIGS,
   SERVICES_GAS_FINDING_CONFIG,
   servicesFindingConfig,
@@ -55,6 +60,9 @@ test('supported finding fields match the canonical InspectionFinding shape', () 
     'condition',
     'defect',
     'recommendation',
+    'limitation',
+    'furtherInvestigation',
+    'risk',
     'evidence',
   ]);
 });
@@ -210,4 +218,194 @@ test('finding capture does not introduce a second canonical finding store', () =
     (inspection as { findingFields?: unknown }).findingFields,
     undefined,
   );
+});
+
+const WALLS_EXTENDED_FIELDS = [
+  { token: 'limit', field: 'limitation' },
+  { token: 'further', field: 'furtherInvestigation' },
+  { token: 'risk', field: 'risk' },
+] as const;
+
+test('limitation, further investigation, and risk require observation first', () => {
+  for (const { token, field } of WALLS_EXTENDED_FIELDS) {
+    const target = findCommandNode(['external', 'walls', token])!.findingTarget!;
+    assert.equal(target.field, field);
+    assert.equal(target.findingId, 'finding.external-wall.1');
+    assert.equal(target.elementConceptId, 'building_element.external_wall');
+    const rejected = commitInspectionFindingField(
+      createEmptyInspectionRecord(),
+      target,
+      `${field} before observation`,
+    );
+    assert.equal(rejected.ok, false, field);
+    if (!rejected.ok) assert.equal(rejected.message, 'Record observation first');
+  }
+});
+
+test('limitation, further investigation, and risk update the same finding after observation', () => {
+  const observe = findCommandNode(['external', 'walls', 'observe'])!.findingTarget!;
+  const created = commitInspectionFindingField(
+    createEmptyInspectionRecord(),
+    observe,
+    'Stepped cracking above the opening.',
+  );
+  assert.equal(created.ok, true);
+  if (!created.ok) return;
+
+  let inspection = created.result.inspection;
+  for (const { token, field } of WALLS_EXTENDED_FIELDS) {
+    const target = findCommandNode(['external', 'walls', token])!.findingTarget!;
+    const committed = commitInspectionFindingField(
+      inspection,
+      target,
+      `${field} text`,
+    );
+    assert.equal(committed.ok, true, field);
+    if (!committed.ok) return;
+    inspection = committed.result.inspection;
+    const finding = inspection.findings['finding.external-wall.1'];
+    assert.equal(finding?.[field], `${field} text`);
+    assert.equal(finding?.observation, 'Stepped cracking above the opening.');
+  }
+});
+
+test('updating one extended finding field preserves siblings', () => {
+  const observe = findCommandNode(['external', 'walls', 'observe'])!.findingTarget!;
+  const defect = findCommandNode(['external', 'walls', 'defect'])!.findingTarget!;
+  const recommend = findCommandNode(['external', 'walls', 'recommend'])!.findingTarget!;
+  const limit = findCommandNode(['external', 'walls', 'limit'])!.findingTarget!;
+  const further = findCommandNode(['external', 'walls', 'further'])!.findingTarget!;
+  const risk = findCommandNode(['external', 'walls', 'risk'])!.findingTarget!;
+
+  let inspection = createEmptyInspectionRecord();
+  const observed = commitInspectionFindingField(
+    inspection,
+    observe,
+    'Visible cracking.',
+  );
+  assert.equal(observed.ok, true);
+  if (!observed.ok) return;
+  inspection = observed.result.inspection;
+
+  const defected = commitInspectionFindingField(inspection, defect, 'Masonry crack.');
+  assert.equal(defected.ok, true);
+  if (!defected.ok) return;
+  inspection = defected.result.inspection;
+
+  const recommended = commitInspectionFindingField(
+    inspection,
+    recommend,
+    'Obtain structural advice.',
+  );
+  assert.equal(recommended.ok, true);
+  if (!recommended.ok) return;
+  inspection = recommended.result.inspection;
+
+  const limited = commitInspectionFindingField(
+    inspection,
+    limit,
+    'Rear elevation not fully visible.',
+  );
+  assert.equal(limited.ok, true);
+  if (!limited.ok) return;
+  const afterLimit = limited.result.inspection.findings['finding.external-wall.1'];
+  assert.equal(afterLimit?.observation, 'Visible cracking.');
+  assert.equal(afterLimit?.defect, 'Masonry crack.');
+  assert.equal(afterLimit?.recommendation, 'Obtain structural advice.');
+  assert.equal(afterLimit?.limitation, 'Rear elevation not fully visible.');
+
+  const investigated = commitInspectionFindingField(
+    limited.result.inspection,
+    further,
+    'Open up the lintel bearing.',
+  );
+  assert.equal(investigated.ok, true);
+  if (!investigated.ok) return;
+  const afterFurther =
+    investigated.result.inspection.findings['finding.external-wall.1'];
+  assert.equal(afterFurther?.limitation, 'Rear elevation not fully visible.');
+  assert.equal(afterFurther?.furtherInvestigation, 'Open up the lintel bearing.');
+  assert.equal(afterFurther?.defect, 'Masonry crack.');
+
+  const risked = commitInspectionFindingField(
+    investigated.result.inspection,
+    risk,
+    'Progressive movement may continue.',
+  );
+  assert.equal(risked.ok, true);
+  if (!risked.ok) return;
+  const afterRisk = risked.result.inspection.findings['finding.external-wall.1'];
+  assert.equal(afterRisk?.observation, 'Visible cracking.');
+  assert.equal(afterRisk?.defect, 'Masonry crack.');
+  assert.equal(afterRisk?.recommendation, 'Obtain structural advice.');
+  assert.equal(afterRisk?.limitation, 'Rear elevation not fully visible.');
+  assert.equal(afterRisk?.furtherInvestigation, 'Open up the lintel bearing.');
+  assert.equal(afterRisk?.risk, 'Progressive movement may continue.');
+});
+
+test('older findings without extended fields remain valid and hydrate', () => {
+  const base = createInitialActiveJob();
+  const job = {
+    ...base,
+    inspection: {
+      ...base.inspection,
+      findings: {
+        'finding.external-wall.1': {
+          id: 'finding.external-wall.1',
+          elementConceptId: 'building_element.external_wall' as const,
+          observation: 'Historic finding without extended fields.',
+        },
+      },
+    },
+  };
+  const restored = deserializeActiveJob(serializeActiveJob(job));
+  const finding = restored?.inspection.findings['finding.external-wall.1'];
+  assert.equal(finding?.observation, 'Historic finding without extended fields.');
+  assert.equal(finding?.limitation, undefined);
+  assert.equal(finding?.furtherInvestigation, undefined);
+  assert.equal(finding?.risk, undefined);
+});
+
+test('serialization preserves extended finding fields with evidence refs', () => {
+  const base = createInitialActiveJob();
+  const job = {
+    ...base,
+    inspection: {
+      ...base.inspection,
+      findings: {
+        'finding.external-wall.1': {
+          id: 'finding.external-wall.1',
+          elementConceptId: 'building_element.external_wall' as const,
+          observation: 'Stepped cracking.',
+          condition: 'Localised movement.',
+          defect: 'Masonry cracking.',
+          recommendation: 'Obtain advice.',
+          limitation: 'Rear elevation obscured.',
+          furtherInvestigation: 'Open up lintel.',
+          risk: 'Movement may continue.',
+          evidence: [{ id: 'evidence.photo.wall' }],
+        },
+      },
+      evidence: {
+        'evidence.photo.wall': {
+          id: 'evidence.photo.wall',
+          kind: 'photo' as const,
+          uri: '/persistent/evidence.photo.wall.jpg',
+        },
+      },
+    },
+  };
+  const restored = deserializeActiveJob(serializeActiveJob(job));
+  assert.deepEqual(restored?.inspection.findings['finding.external-wall.1'], {
+    id: 'finding.external-wall.1',
+    elementConceptId: 'building_element.external_wall',
+    observation: 'Stepped cracking.',
+    condition: 'Localised movement.',
+    defect: 'Masonry cracking.',
+    recommendation: 'Obtain advice.',
+    limitation: 'Rear elevation obscured.',
+    furtherInvestigation: 'Open up lintel.',
+    risk: 'Movement may continue.',
+    evidence: [{ id: 'evidence.photo.wall' }],
+  });
 });

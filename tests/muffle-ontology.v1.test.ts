@@ -159,17 +159,17 @@ test('human-approved v1.2 concepts remain canonical; inspection subjects may gai
     'building_element.rainwater_goods',
     'building_element.window',
   ];
-  const findingFields = [
-    'cause',
+  const typeOnlyFindingFields = ['cause', 'implication', 'significance'];
+  const engineBackedFindingFields = [
+    'limitation',
     'further_investigation',
-    'implication',
     'risk',
-    'significance',
   ];
   const approved = [
     ...typeOnlyBuildingElements,
     ...engineBackedBuildingElements,
-    ...findingFields,
+    ...typeOnlyFindingFields,
+    ...engineBackedFindingFields,
   ];
 
   const propertyDescriptionFields = [
@@ -219,7 +219,7 @@ test('human-approved v1.2 concepts remain canonical; inspection subjects may gai
     assert.equal(concept?.kind, 'value', id);
     assert.deepEqual(concept?.valueType, { kind: 'text' }, id);
   }
-  for (const id of findingFields) {
+  for (const id of typeOnlyFindingFields) {
     const concept = getOntologyConcept(id);
     assert.ok(concept, id);
     assert.equal(concept.maturity, 'type-only', id);
@@ -229,6 +229,28 @@ test('human-approved v1.2 concepts remain canonical; inspection subjects may gai
     assert.equal(concept.kind, 'field', id);
     assert.deepEqual(concept.valueType, { kind: 'text', nullable: true }, id);
   }
+  for (const id of engineBackedFindingFields) {
+    const concept = getOntologyConcept(id);
+    assert.ok(concept, id);
+    assert.equal(concept.maturity, 'engine-backed', id);
+    assert.equal(concept.parentId, 'inspection.finding', id);
+    assert.equal(concept.kind, 'field', id);
+    assert.deepEqual(concept.valueType, { kind: 'text', nullable: true }, id);
+    assert.match(concept.bindings?.domainProperty ?? '', /^InspectionFinding\./);
+  }
+  assert.deepEqual(getOntologyConcept('limitation')?.bindings, {
+    domainProperty: 'InspectionFinding.limitation',
+  });
+  assert.deepEqual(getOntologyConcept('further_investigation')?.bindings, {
+    domainProperty: 'InspectionFinding.furtherInvestigation',
+  });
+  assert.deepEqual(getOntologyConcept('risk')?.bindings, {
+    domainProperty: 'InspectionFinding.risk',
+  });
+  assert.equal(
+    getOntologyConcept('inspection_brief.limitation')?.id,
+    'inspection_brief.limitation',
+  );
   for (const id of propertyDescriptionFields) {
     const concept = getOntologyConcept(id);
     assert.ok(concept, id);
@@ -268,7 +290,6 @@ test('deferred and unapproved survey semantics remain absent', () => {
     'building_element.driveway',
     'building_element.garage',
     'measurement',
-    'limitation',
     'building_element.balcony',
     'building_element.boundary',
     'building_element.external_drainage',

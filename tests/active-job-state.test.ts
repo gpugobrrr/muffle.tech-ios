@@ -305,6 +305,41 @@ test('serialized ActiveJob round-trips findings used by evidence commit', () => 
   }
 });
 
+test('serialized ActiveJob round-trips extended finding fields', () => {
+  const base = createInitialActiveJob();
+  const job = {
+    ...base,
+    inspection: {
+      ...base.inspection,
+      findings: {
+        'finding.external-wall.1': {
+          id: 'finding.external-wall.1',
+          elementConceptId: 'building_element.external_wall' as const,
+          observation: 'Stepped cracking.',
+          condition: 'Localised movement.',
+          defect: 'Masonry cracking.',
+          recommendation: 'Obtain advice.',
+          limitation: 'Rear elevation obscured.',
+          furtherInvestigation: 'Open up lintel.',
+          risk: 'Movement may continue.',
+          evidence: [{ id: 'evidence.photo.wall' }],
+        },
+      },
+    },
+  };
+
+  const restored = deserializeActiveJob(serializeActiveJob(job));
+  const finding = restored?.inspection.findings['finding.external-wall.1'];
+  assert.equal(finding?.observation, 'Stepped cracking.');
+  assert.equal(finding?.condition, 'Localised movement.');
+  assert.equal(finding?.defect, 'Masonry cracking.');
+  assert.equal(finding?.recommendation, 'Obtain advice.');
+  assert.equal(finding?.limitation, 'Rear elevation obscured.');
+  assert.equal(finding?.furtherInvestigation, 'Open up lintel.');
+  assert.equal(finding?.risk, 'Movement may continue.');
+  assert.deepEqual(finding?.evidence, [{ id: 'evidence.photo.wall' }]);
+});
+
 test('Type 6 observation updates ActiveJob before any render for Type 7', async () => {
   const electricity = servicesFindingConfig('electricity');
   let activeJob: ActiveJob = createInitialActiveJob();

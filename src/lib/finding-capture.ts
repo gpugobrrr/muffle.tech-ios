@@ -23,8 +23,25 @@ export const FINDING_CAPTURE_FIELDS = [
   'condition',
   'defect',
   'recommendation',
+  'limitation',
+  'furtherInvestigation',
+  'risk',
   'evidence',
 ] as const satisfies readonly InspectionFindingField[];
+
+/** Ontology concept IDs for finding fields. `limitation` is finding-scoped. */
+export const FINDING_FIELD_ONTOLOGY_IDS: Readonly<
+  Record<InspectionFindingField, string>
+> = {
+  observation: 'observation',
+  condition: 'condition',
+  defect: 'defect',
+  recommendation: 'recommendation',
+  limitation: 'limitation',
+  furtherInvestigation: 'further_investigation',
+  risk: 'risk',
+  evidence: 'evidence',
+};
 
 /**
  * Route-level finding identity configuration.
@@ -83,7 +100,7 @@ export function buildFindingCaptureLeaf(
     coverage: {
       requirement,
       status: 'interactive',
-      canonicalConceptId: field === 'evidence' ? 'evidence' : field,
+      canonicalConceptId: FINDING_FIELD_ONTOLOGY_IDS[field],
       engineBinding: SURVEY_FINDING_UPSERT,
       recommendedLaterWork:
         'Retain the existing finding operation and add richer repeated-finding UX separately.',

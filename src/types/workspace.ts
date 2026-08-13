@@ -96,6 +96,15 @@ export type InspectionFinding = {
   condition?: string;
   defect?: string;
   recommendation?: string;
+  /**
+   * Finding-scoped inspection limitation. Distinct from PREP brief
+   * limitation and from section-level limitation routes.
+   */
+  limitation?: string;
+  /** Follow-up investigation, testing, or specialist inspection needed. */
+  furtherInvestigation?: string;
+  /** Finding-specific risk statement. Not a severity rating. */
+  risk?: string;
   evidence?: readonly InspectionEvidenceReference[];
 };
 

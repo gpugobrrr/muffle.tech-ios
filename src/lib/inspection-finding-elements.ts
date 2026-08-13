@@ -21,6 +21,9 @@ export type InspectionFindingField =
   | 'condition'
   | 'defect'
   | 'recommendation'
+  | 'limitation'
+  | 'furtherInvestigation'
+  | 'risk'
   | 'evidence';
 
 const ELEMENT_LABELS: Readonly<Record<InspectionElementConceptId, string>> = {

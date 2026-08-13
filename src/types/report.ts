@@ -45,6 +45,9 @@ export type FindingBlock = {
   condition?: string;
   defect?: string;
   recommendation?: string;
+  limitation?: string;
+  furtherInvestigation?: string;
+  risk?: string;
   evidenceIds?: readonly string[];
 };
 

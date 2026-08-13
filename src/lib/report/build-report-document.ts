@@ -60,6 +60,9 @@ function projectFinding(finding: InspectionFinding): FindingBlock {
   const condition = optionalText(finding.condition);
   const defect = optionalText(finding.defect);
   const recommendation = optionalText(finding.recommendation);
+  const limitation = optionalText(finding.limitation);
+  const furtherInvestigation = optionalText(finding.furtherInvestigation);
+  const risk = optionalText(finding.risk);
   const evidenceIds = [
     ...new Set(
       (finding.evidence ?? [])
@@ -77,6 +80,9 @@ function projectFinding(finding: InspectionFinding): FindingBlock {
     ...(condition ? { condition } : {}),
     ...(defect ? { defect } : {}),
     ...(recommendation ? { recommendation } : {}),
+    ...(limitation ? { limitation } : {}),
+    ...(furtherInvestigation ? { furtherInvestigation } : {}),
+    ...(risk ? { risk } : {}),
     ...(evidenceIds.length > 0 ? { evidenceIds } : {}),
   };
 }

@@ -44,10 +44,10 @@ test('every governed route has exactly one capability kind and unclassified is 0
   const census = surveyCapabilityCensus();
   assert.equal(census.unclassified, 0);
   assert.equal(census.total, 148);
-  assert.equal(census.capture, 85);
+  assert.equal(census.capture, 88);
   assert.equal(census.navigation, 22);
   assert.equal(census.derived, 2);
-  assert.equal(census.blocked, 39);
+  assert.equal(census.blocked, 36);
   assert.equal(
     census.total,
     census.capture + census.navigation + census.derived + census.blocked,
@@ -160,9 +160,6 @@ test('remaining External unresolved routes stay blocked with reasons', () => {
     'external/porch': SURVEY_BLOCKED_REASONS.ontologyTypeOnly,
     'external/joinery': SURVEY_BLOCKED_REASONS.publicationGrouping,
     'external/other': SURVEY_BLOCKED_REASONS.publicationGrouping,
-    'external/walls/limit': SURVEY_BLOCKED_REASONS.findingModelExtensionRequired,
-    'external/walls/further': SURVEY_BLOCKED_REASONS.findingModelExtensionRequired,
-    'external/walls/risk': SURVEY_BLOCKED_REASONS.findingModelExtensionRequired,
   } as const;
   for (const [route, reason] of Object.entries(expected)) {
     const capability = capabilityForRoute(route);
@@ -178,6 +175,39 @@ test('remaining External unresolved routes stay blocked with reasons', () => {
   }
   assert.equal(ontologyConceptIsTypeOnly('building_element.porch'), true);
   assert.equal(ontologyConceptIsTypeOnly('building_element.chimney'), false);
+});
+
+test('External walls finding-level limit, further, and risk are Type 6 capture', () => {
+  const walls = EXTERNAL_FINDING_CONFIGS.find((config) => config.routeId === 'walls');
+  assert.ok(walls);
+  const expected = {
+    'external/walls/limit': 'limitation',
+    'external/walls/further': 'furtherInvestigation',
+    'external/walls/risk': 'risk',
+  } as const;
+  for (const [route, field] of Object.entries(expected)) {
+    const capability = capabilityForRoute(route);
+    assert.equal(capability?.kind, SURVEY_CAPABILITY_KINDS.capture, route);
+    assert.equal(capability?.captureType, SVYR_DATA_ENTRY_TYPES.findingCapture, route);
+    assert.equal(capability?.findingId, walls.findingId, route);
+    assert.equal(capability?.elementConceptId, walls.elementConceptId, route);
+    assert.equal(capability?.operationId, 'survey.inspection.finding.upsert', route);
+    assert.equal(capability?.optional, true, route);
+    const node = findCommandNode(route.split('/'));
+    assert.equal(node?.findingTarget?.field, field, route);
+    assert.equal(node?.findingTarget?.findingId, 'finding.external-wall.1', route);
+    assert.equal(
+      node?.findingTarget?.elementConceptId,
+      'building_element.external_wall',
+      route,
+    );
+  }
+  const sectionLimitation = capabilityForRoute('external/limitation');
+  assert.equal(sectionLimitation?.kind, SURVEY_CAPABILITY_KINDS.blocked);
+  assert.equal(
+    sectionLimitation?.blockedReason,
+    SURVEY_BLOCKED_REASONS.workflowModelUndefined,
+  );
 });
 
 test('aliases resolve to the canonical capability without duplicating it', () => {

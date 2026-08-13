@@ -133,6 +133,9 @@ function normalizeFinding(
   const condition = optionalText(finding.condition);
   const defect = optionalText(finding.defect);
   const recommendation = optionalText(finding.recommendation);
+  const limitation = optionalText(finding.limitation);
+  const furtherInvestigation = optionalText(finding.furtherInvestigation);
+  const risk = optionalText(finding.risk);
 
   return {
     id,
@@ -141,6 +144,9 @@ function normalizeFinding(
     ...(condition ? { condition } : {}),
     ...(defect ? { defect } : {}),
     ...(recommendation ? { recommendation } : {}),
+    ...(limitation ? { limitation } : {}),
+    ...(furtherInvestigation ? { furtherInvestigation } : {}),
+    ...(risk ? { risk } : {}),
     ...(evidenceIds.length > 0
       ? { evidence: evidenceIds.map((evidenceId) => ({ id: evidenceId })) }
       : {}),

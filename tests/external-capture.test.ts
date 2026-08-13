@@ -80,18 +80,6 @@ const UNRESOLVED_EXTERNAL_LEAVES = [
     path: ['external', 'other'],
     missing: 'No canonical miscellaneous external subject.',
   },
-  {
-    path: ['external', 'walls', 'limit'],
-    missing: 'Finding-level limitation is not an InspectionFinding field.',
-  },
-  {
-    path: ['external', 'walls', 'further'],
-    missing: 'further_investigation is type-only and not an InspectionFinding field.',
-  },
-  {
-    path: ['external', 'walls', 'risk'],
-    missing: 'risk is type-only and not an InspectionFinding field.',
-  },
 ] as const;
 
 function emptyBrief(): InspectionBrief {
@@ -233,6 +221,29 @@ test('exact External limitation token remains a reachable workflow placeholder',
     assert.deepEqual(parsed.path, ['external', 'limitation']);
   }
   assert.equal(parseCommand('prep/brief/limitation').type, 'operation');
+});
+
+test('External walls limit, further, and risk are finding capture on the walls finding', () => {
+  const expected = [
+    ['limit', 'limitation'],
+    ['further', 'furtherInvestigation'],
+    ['risk', 'risk'],
+  ] as const;
+  for (const [token, field] of expected) {
+    const node = findCommandNode([...WALLS_ROUTE, token]);
+    assert.equal(isFindingCaptureNode(node), true, token);
+    assert.deepEqual(node?.findingTarget, {
+      findingId: EXTERNAL_WALL_FINDING_ID,
+      elementConceptId: EXTERNAL_WALL_CONCEPT,
+      field,
+    });
+    assert.equal(node?.coverage?.engineBinding, 'survey.inspection.finding.upsert');
+    assert.equal(node?.optional, true, token);
+  }
+  for (const token of ['limit', 'further', 'risk'] as const) {
+    assert.equal(findCommandNode(['external', 'chimney', token]), null);
+    assert.equal(findCommandNode(['external', 'windows', token]), null);
+  }
 });
 
 test('type-only External ontology concepts stay out of InspectionElementConceptId', () => {

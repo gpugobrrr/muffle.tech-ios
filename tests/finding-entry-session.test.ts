@@ -309,3 +309,68 @@ test('direct defect commit against empty inspection still gates observation-firs
   if (rejected.ok) return;
   assert.equal(rejected.message, 'Record observation first');
 });
+
+test('frozen entry session commits extended Walls fields to the opened target', () => {
+  const observe = findCommandNode(['external', 'walls', 'observe'])!;
+  const observed = commitFindingEntrySession(
+    createEmptyInspectionRecord(),
+    openFindingEntrySession(
+      ['external', 'walls', 'observe'],
+      observe.findingTarget!,
+      observe.token,
+    ),
+    'Stepped cracking above the opening.',
+  );
+  assert.equal(observed.ok, true);
+  if (!observed.ok) return;
+
+  const cases = [
+    {
+      token: 'limit',
+      path: ['external', 'walls', 'limit'] as const,
+      expectedField: 'limitation',
+      liveToken: 'defect',
+    },
+    {
+      token: 'further',
+      path: ['external', 'walls', 'further'] as const,
+      expectedField: 'furtherInvestigation',
+      liveToken: 'recommend',
+    },
+    {
+      token: 'risk',
+      path: ['external', 'walls', 'risk'] as const,
+      expectedField: 'risk',
+      liveToken: 'defect',
+    },
+  ] as const;
+
+  for (const item of cases) {
+    const opened = findCommandNode([...item.path])!;
+    const live = findCommandNode(['external', 'walls', item.liveToken])!;
+    assert.ok(opened.findingTarget);
+    assert.ok(live.findingTarget);
+    assert.notEqual(opened.findingTarget?.field, live.findingTarget?.field);
+
+    const session = openFindingEntrySession(
+      [...item.path],
+      opened.findingTarget!,
+      opened.token,
+    );
+    const committed = commitFindingEntrySession(
+      observed.result.inspection,
+      session,
+      `${item.expectedField} frozen text`,
+      live.findingTarget!,
+    );
+    assert.equal(committed.ok, true, item.token);
+    if (!committed.ok) return;
+    const finding = committed.result.inspection.findings['finding.external-wall.1'];
+    assert.equal(finding?.[item.expectedField], `${item.expectedField} frozen text`);
+    assert.equal(
+      finding?.[live.findingTarget!.field as 'defect' | 'recommendation'],
+      undefined,
+    );
+    assert.equal(finding?.observation, 'Stepped cracking above the opening.');
+  }
+});

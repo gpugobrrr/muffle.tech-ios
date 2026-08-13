@@ -900,6 +900,28 @@ const INSPECTION_CONCEPTS: OntologyConcept[] = [
   },
   {
     ...V1_2_BASE,
+    id: 'limitation',
+    kind: 'field',
+    label: 'Limitation',
+    description:
+      'A finding-scoped limitation affecting inspection or the reliability of that finding. Distinct from inspection-brief limitation and section-level limitation.',
+    parentId: 'inspection.finding',
+    canonical: true,
+    ownership: 'engine-record',
+    maturity: 'engine-backed',
+    valueType: { kind: 'text', nullable: true },
+    bindings: { domainProperty: 'InspectionFinding.limitation' },
+    source: [
+      { type: 'ontology-review', id: 'canonical-promotion-batch-1' },
+      { type: 'domain-type', id: 'InspectionFinding.limitation' },
+      {
+        type: 'engine-operation',
+        id: SURVEY_OPERATIONS.upsertInspectionFinding,
+      },
+    ],
+  },
+  {
+    ...V1_2_BASE,
     id: 'further_investigation',
     kind: 'field',
     label: 'Further investigation',
@@ -907,9 +929,17 @@ const INSPECTION_CONCEPTS: OntologyConcept[] = [
     parentId: 'inspection.finding',
     canonical: true,
     ownership: 'engine-record',
-    maturity: 'type-only',
+    maturity: 'engine-backed',
     valueType: { kind: 'text', nullable: true },
-    source: [{ type: 'ontology-review', id: 'canonical-promotion-batch-1' }],
+    bindings: { domainProperty: 'InspectionFinding.furtherInvestigation' },
+    source: [
+      { type: 'ontology-review', id: 'canonical-promotion-batch-1' },
+      { type: 'domain-type', id: 'InspectionFinding.furtherInvestigation' },
+      {
+        type: 'engine-operation',
+        id: SURVEY_OPERATIONS.upsertInspectionFinding,
+      },
+    ],
   },
   {
     ...V1_2_BASE,
@@ -929,13 +959,22 @@ const INSPECTION_CONCEPTS: OntologyConcept[] = [
     id: 'risk',
     kind: 'field',
     label: 'Risk',
-    description: 'An assessed potential adverse outcome recorded as part of an inspection finding.',
+    description:
+      'A finding-specific risk statement relevant to the observed issue. Not a severity rating.',
     parentId: 'inspection.finding',
     canonical: true,
     ownership: 'engine-record',
-    maturity: 'type-only',
+    maturity: 'engine-backed',
     valueType: { kind: 'text', nullable: true },
-    source: [{ type: 'ontology-review', id: 'canonical-promotion-batch-1' }],
+    bindings: { domainProperty: 'InspectionFinding.risk' },
+    source: [
+      { type: 'ontology-review', id: 'canonical-promotion-batch-1' },
+      { type: 'domain-type', id: 'InspectionFinding.risk' },
+      {
+        type: 'engine-operation',
+        id: SURVEY_OPERATIONS.upsertInspectionFinding,
+      },
+    ],
   },
   {
     ...V1_2_BASE,

@@ -423,7 +423,8 @@ const EXTERNAL_NODE: CommandNode = {
   coverage: {
     requirement: 'Outside the property',
     status: 'navigation-only',
-    recommendedLaterWork: 'Enable subjects only as canonical Engine support is approved.',
+    recommendedLaterWork:
+      'Keep Engine-backed external-wall Type 6/7 findings. Leave chimney, roof, rainwater, windows, doors, porch, joinery, and other blocked until those subjects have InspectionElementConceptId Engine bindings.',
   },
   children: [
     workflowLeaf('limitation', 'limitation', 'External inspection limitations.', {

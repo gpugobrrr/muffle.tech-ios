@@ -357,3 +357,93 @@ test('oil remains blocked and has no finding capture leaves', () => {
   assert.equal(findCommandNode(['services', 'gas-oil', 'oil', 'observe']), null);
   assert.equal(findCommandNode(['services', 'gas-oil', 'oil', 'photo']), null);
 });
+
+test('Type 6 smoke: condition and recommendation require observation when those leaves exist', () => {
+  for (const route of FINDING_ROUTES) {
+    for (const token of ['condition', 'recommend'] as const) {
+      const node = findCommandNode([...route.route, token]);
+      if (!node?.findingTarget) continue;
+      const rejected = commitInspectionFindingField(
+        createEmptyInspectionRecord(),
+        node.findingTarget,
+        `${route.label} premature ${token}.`,
+      );
+      assert.equal(rejected.ok, false, `${route.label}: ${token}-first should fail`);
+      if (!rejected.ok) {
+        assert.equal(rejected.message, 'Record observation first');
+      }
+    }
+  }
+});
+
+test('Type 7 smoke: photo before observation is rejected on every finding route', async () => {
+  for (const route of FINDING_ROUTES) {
+    const photo = findCommandNode([...route.route, 'photo'])!.evidenceCaptureTarget!;
+    const rejected = await captureAndCommitInspectionEvidencePhoto({
+      inspection: createEmptyInspectionRecord(),
+      target: photo,
+      jobId: 'job.smoke.evidence',
+      temporaryUri: `file:///tmp/${route.label}-premature.jpg`,
+      fileStore: mockFileStore(),
+      createId: () => `evidence.photo.premature.${route.findingId}`,
+    });
+    assert.equal(rejected.ok, false, `${route.label}: photo-first should fail`);
+    if (!rejected.ok) {
+      assert.equal(rejected.message, 'Record observation first');
+    }
+  }
+});
+
+test('frozen entry-session identity still commits External walls observation', () => {
+  const observe = findCommandNode(['external', 'walls', 'observe'])!;
+  const defect = findCommandNode(['external', 'walls', 'defect'])!;
+  const session = openFindingEntrySession(
+    ['external', 'walls', 'observe'],
+    observe.findingTarget!,
+    observe.token,
+  );
+  const committed = commitFindingEntrySession(
+    createEmptyInspectionRecord(),
+    session,
+    'Frozen external wall observation.',
+    defect.findingTarget!,
+  );
+  assert.equal(committed.ok, true);
+  if (!committed.ok) return;
+  assert.equal(
+    committed.result.inspection.findings['finding.external-wall.1']?.observation,
+    'Frozen external wall observation.',
+  );
+  assert.equal(
+    committed.result.inspection.findings['finding.external-wall.1']?.defect,
+    undefined,
+  );
+});
+
+test('unresolved External subjects remain blocked without Type 6/7 children', () => {
+  const children = findCommandNode(['external'])?.children ?? [];
+  for (const token of [
+    'limitation',
+    'chimney',
+    'roof',
+    'rainwater',
+    'windows',
+    'doors',
+    'porch',
+    'joinery',
+    'other',
+  ]) {
+    const node = children.find((child) => child.token === token);
+    assert.ok(node, token);
+    assert.equal(node?.workflowOnly, true, token);
+    assert.equal(node?.findingTarget, undefined, token);
+    assert.equal(node?.evidenceCaptureTarget, undefined, token);
+    assert.equal(
+      (node?.children ?? []).some(
+        (child) => child.findingTarget || child.evidenceCaptureTarget,
+      ),
+      false,
+      token,
+    );
+  }
+});

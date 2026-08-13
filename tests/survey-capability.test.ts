@@ -1,0 +1,205 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+
+import { parseCommand } from '../src/lib/command-parser';
+import { findCommandNode } from '../src/lib/command-registry';
+import { resolveDirectoryCompletion } from '../src/lib/completion';
+import { SVYR_DATA_ENTRY_TYPES } from '../src/lib/data-entry-types';
+import { EXTERNAL_FINDING_CONFIGS } from '../src/lib/external-findings';
+import { findFieldDefinition } from '../src/lib/field-schema';
+import { MAINS_SERVICE_FIELD_IDS } from '../src/lib/property-energy-mains-services';
+import {
+  SERVICES_FINDING_CONFIGS,
+  SERVICES_GAS_FINDING_CONFIG,
+} from '../src/lib/services-findings';
+import {
+  BLOCKED_ROUTE_REASONS,
+  allFindingCaptureConfigs,
+  capabilityForCommand,
+  capabilityForRoute,
+  ontologyConceptIsTypeOnly,
+  surveyCapabilityCensus,
+  SURVEY_BLOCKED_REASONS,
+  SURVEY_CAPABILITY_KINDS,
+  validateSurveyCapabilities,
+} from '../src/lib/survey-capability';
+import type { InspectionBrief } from '../src/types/workspace';
+
+function emptyBrief(): InspectionBrief {
+  return {
+    instruction: {
+      instructingParty: null,
+      client: null,
+      reference: null,
+      source: null,
+    },
+    purpose: null,
+    deliverable: null,
+    limitation: null,
+  };
+}
+
+test('every governed route has exactly one capability kind and unclassified is 0', () => {
+  const census = surveyCapabilityCensus();
+  assert.equal(census.unclassified, 0);
+  assert.equal(census.total, 142);
+  assert.equal(census.capture, 75);
+  assert.equal(census.navigation, 21);
+  assert.equal(census.derived, 2);
+  assert.equal(census.blocked, 44);
+  assert.equal(
+    census.total,
+    census.capture + census.navigation + census.derived + census.blocked,
+  );
+  const kinds = new Map<string, string>();
+  for (const capability of census.capabilities) {
+    const existing = kinds.get(capability.route);
+    assert.equal(existing, undefined, capability.route);
+    kinds.set(capability.route, capability.kind);
+    assert.notEqual(capability.kind, 'unclassified');
+  }
+});
+
+test('capability validation reports no configuration drift', () => {
+  const issues = validateSurveyCapabilities();
+  assert.deepEqual(issues, []);
+});
+
+test('PREP brief fields are canonical Type 1 capture', () => {
+  for (const route of [
+    'prep/brief/instr/client',
+    'prep/brief/instr/ref',
+    'prep/brief/purp',
+    'prep/brief/deliv',
+    'prep/brief/limit',
+  ]) {
+    const capability = capabilityForRoute(route);
+    assert.equal(capability?.kind, SURVEY_CAPABILITY_KINDS.capture, route);
+    assert.equal(capability?.captureType, SVYR_DATA_ENTRY_TYPES.freeText, route);
+    assert.ok(capability?.fieldId, route);
+    assert.ok(capability?.operationId, route);
+    assert.ok(findFieldDefinition(route.split('/')), route);
+  }
+});
+
+test('Property energy fields remain canonical Types 3–5 capture', () => {
+  const heating = capabilityForRoute('property/energy/heating');
+  assert.equal(heating?.kind, SURVEY_CAPABILITY_KINDS.capture);
+  assert.equal(heating?.captureType, SVYR_DATA_ENTRY_TYPES.compoundGroup);
+  const mains = capabilityForRoute('property/energy/mains-services');
+  assert.equal(mains?.kind, SURVEY_CAPABILITY_KINDS.capture);
+  assert.equal(mains?.captureType, SVYR_DATA_ENTRY_TYPES.compoundGroup);
+  const gas = capabilityForRoute('property/energy/mains-services/gas');
+  assert.equal(gas?.kind, SURVEY_CAPABILITY_KINDS.capture);
+  assert.equal(gas?.captureType, SVYR_DATA_ENTRY_TYPES.controlledFact);
+  assert.equal(gas?.fieldId, MAINS_SERVICE_FIELD_IDS.gas);
+});
+
+test('External four subjects reference EXTERNAL_FINDING_CONFIGS as Type 6/7', () => {
+  for (const config of EXTERNAL_FINDING_CONFIGS) {
+    const parent = capabilityForRoute(config.route);
+    assert.equal(parent?.kind, SURVEY_CAPABILITY_KINDS.navigation, config.label);
+    const observe = capabilityForRoute([...config.route, 'observe']);
+    assert.equal(observe?.kind, SURVEY_CAPABILITY_KINDS.capture, config.label);
+    assert.equal(observe?.captureType, SVYR_DATA_ENTRY_TYPES.findingCapture);
+    assert.equal(observe?.findingId, config.findingId);
+    assert.equal(observe?.elementConceptId, config.elementConceptId);
+    const photo = capabilityForRoute([...config.route, 'photo']);
+    assert.equal(photo?.kind, SURVEY_CAPABILITY_KINDS.capture, config.label);
+    assert.equal(photo?.captureType, SVYR_DATA_ENTRY_TYPES.evidenceCapture);
+    assert.equal(photo?.findingId, config.findingId);
+    assert.equal(photo?.elementConceptId, config.elementConceptId);
+  }
+});
+
+test('Services findings remain canonical Type 6/7 and oil stays blocked', () => {
+  for (const config of [...SERVICES_FINDING_CONFIGS, SERVICES_GAS_FINDING_CONFIG]) {
+    const observe = capabilityForRoute([...config.route, 'observe']);
+    assert.equal(observe?.findingId, config.findingId, config.label);
+    assert.equal(observe?.elementConceptId, config.elementConceptId, config.label);
+    assert.equal(observe?.captureType, SVYR_DATA_ENTRY_TYPES.findingCapture);
+    const photo = capabilityForRoute([...config.route, 'photo']);
+    assert.equal(photo?.captureType, SVYR_DATA_ENTRY_TYPES.evidenceCapture);
+    assert.equal(photo?.findingId, config.findingId);
+  }
+  const oil = capabilityForRoute('services/gas-oil/oil');
+  assert.equal(oil?.kind, SURVEY_CAPABILITY_KINDS.blocked);
+  assert.equal(oil?.blockedReason, SURVEY_BLOCKED_REASONS.intentionallyUnsupported);
+  assert.equal(parseCommand('services/gas-oil/oil').type, 'placeholder');
+  assert.equal(findCommandNode(['services', 'gas-oil', 'oil', 'observe']), null);
+});
+
+test('remaining External unresolved routes stay blocked with reasons', () => {
+  const expected = {
+    'external/limitation': SURVEY_BLOCKED_REASONS.workflowModelUndefined,
+    'external/roof': SURVEY_BLOCKED_REASONS.unresolvedSubjectScope,
+    'external/doors': SURVEY_BLOCKED_REASONS.unresolvedSubjectScope,
+    'external/porch': SURVEY_BLOCKED_REASONS.ontologyTypeOnly,
+    'external/joinery': SURVEY_BLOCKED_REASONS.publicationGrouping,
+    'external/other': SURVEY_BLOCKED_REASONS.publicationGrouping,
+    'external/walls/limit': SURVEY_BLOCKED_REASONS.findingModelExtensionRequired,
+    'external/walls/further': SURVEY_BLOCKED_REASONS.findingModelExtensionRequired,
+    'external/walls/risk': SURVEY_BLOCKED_REASONS.findingModelExtensionRequired,
+  } as const;
+  for (const [route, reason] of Object.entries(expected)) {
+    const capability = capabilityForRoute(route);
+    assert.equal(capability?.kind, SURVEY_CAPABILITY_KINDS.blocked, route);
+    assert.equal(capability?.blockedReason, reason, route);
+    assert.equal(BLOCKED_ROUTE_REASONS[route], reason);
+    const parsed = parseCommand(route);
+    assert.notEqual(parsed.type, 'operation', route);
+    const node = findCommandNode(route.split('/'));
+    assert.equal(node?.operationId, undefined, route);
+    assert.equal(node?.findingTarget, undefined, route);
+    assert.equal(node?.fieldId, undefined, route);
+  }
+  assert.equal(ontologyConceptIsTypeOnly('building_element.porch'), true);
+  assert.equal(ontologyConceptIsTypeOnly('building_element.chimney'), false);
+});
+
+test('aliases resolve to the canonical capability without duplicating it', () => {
+  const prepAlias = capabilityForCommand('prep/brief/limitation');
+  const prepCanonical = capabilityForRoute('prep/brief/limit');
+  assert.equal(prepAlias?.kind, SURVEY_CAPABILITY_KINDS.capture);
+  assert.equal(prepAlias?.route, 'prep/brief/limit');
+  assert.equal(prepAlias?.fieldId, prepCanonical?.fieldId);
+  const externalLimitation = capabilityForCommand('external/limitation');
+  assert.equal(externalLimitation?.kind, SURVEY_CAPABILITY_KINDS.blocked);
+  assert.equal(externalLimitation?.route, 'external/limitation');
+});
+
+test('Property and Services mains presence share one canonical field ID', () => {
+  const propertyGas = capabilityForRoute('property/energy/mains-services/gas');
+  const servicesGas = capabilityForRoute('services/gas-oil/gas/presence');
+  assert.equal(propertyGas?.fieldId, MAINS_SERVICE_FIELD_IDS.gas);
+  assert.equal(servicesGas?.fieldId, MAINS_SERVICE_FIELD_IDS.gas);
+  assert.equal(propertyGas?.fieldId, servicesGas?.fieldId);
+  const propertyWater = capabilityForRoute('property/energy/mains-services/water');
+  const servicesWater = capabilityForRoute('services/water/presence');
+  assert.equal(propertyWater?.fieldId, servicesWater?.fieldId);
+});
+
+test('finding configs remain the single finding identity source', () => {
+  const configs = allFindingCaptureConfigs();
+  const ids = configs.map((config) => config.findingId);
+  assert.equal(new Set(ids).size, ids.length);
+  for (const config of EXTERNAL_FINDING_CONFIGS) {
+    assert.equal(
+      configs.some((item) => item === config),
+      true,
+      config.label,
+    );
+  }
+});
+
+test('derived summary and report do not capture', () => {
+  assert.equal(capabilityForRoute('summary')?.kind, SURVEY_CAPABILITY_KINDS.derived);
+  assert.equal(capabilityForRoute('report')?.kind, SURVEY_CAPABILITY_KINDS.derived);
+  assert.equal(parseCommand('summary').type, 'placeholder');
+});
+
+test('capability classification does not change External completion', () => {
+  const completion = resolveDirectoryCompletion(['external'], emptyBrief());
+  assert.equal(completion?.completed, 0);
+  assert.equal(completion?.total, 0);
+});

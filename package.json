@@ -80,6 +80,7 @@
     "test:property-capture": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/property-capture.test.ts",
     "test:external-capture": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/external-capture.test.ts",
     "test:internal-capture": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/internal-capture.test.ts",
+    "test:grounds-capture": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/grounds-capture.test.ts",
     "test:survey-capability": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/survey-capability.test.ts",
     "test:core-boundary": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/core-boundary.test.ts",
     "test:evidence-capture": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/evidence-capture.test.ts",

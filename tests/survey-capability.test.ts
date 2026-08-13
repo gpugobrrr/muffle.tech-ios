@@ -221,6 +221,25 @@ test('remaining Internal unresolved routes stay blocked with reasons', () => {
   assert.equal(ontologyConceptIsTypeOnly('building_element.ceiling'), false);
 });
 
+test('remaining Grounds unresolved routes stay blocked with reasons', () => {
+  const expected = {
+    'grounds/limitation': SURVEY_BLOCKED_REASONS.workflowModelUndefined,
+    'grounds/garage': SURVEY_BLOCKED_REASONS.unresolvedSubjectScope,
+    'grounds/outbuildings': SURVEY_BLOCKED_REASONS.unresolvedSubjectScope,
+    'grounds/other': SURVEY_BLOCKED_REASONS.publicationGrouping,
+    'property/location/grounds': SURVEY_BLOCKED_REASONS.unresolvedSubjectScope,
+  } as const;
+  for (const [route, reason] of Object.entries(expected)) {
+    const capability = capabilityForRoute(route);
+    assert.equal(capability?.kind, SURVEY_CAPABILITY_KINDS.blocked, route);
+    assert.equal(capability?.blockedReason, reason, route);
+    const node = findCommandNode(route.split('/'));
+    assert.equal(node?.operationId, undefined, route);
+    assert.equal(node?.findingTarget, undefined, route);
+  }
+  assert.equal(capabilityForRoute('grounds')?.kind, SURVEY_CAPABILITY_KINDS.navigation);
+});
+
 test('finding configs remain the single finding identity source', () => {
   const configs = allFindingCaptureConfigs();
   const ids = configs.map((config) => config.findingId);

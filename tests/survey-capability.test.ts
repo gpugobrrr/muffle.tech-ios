@@ -44,10 +44,10 @@ test('every governed route has exactly one capability kind and unclassified is 0
   const census = surveyCapabilityCensus();
   assert.equal(census.unclassified, 0);
   assert.equal(census.total, 148);
-  assert.equal(census.capture, 81);
+  assert.equal(census.capture, 85);
   assert.equal(census.navigation, 22);
   assert.equal(census.derived, 2);
-  assert.equal(census.blocked, 43);
+  assert.equal(census.blocked, 39);
   assert.equal(
     census.total,
     census.capture + census.navigation + census.derived + census.blocked,
@@ -94,6 +94,28 @@ test('Property energy fields remain canonical Types 3–5 capture', () => {
   assert.equal(gas?.kind, SURVEY_CAPABILITY_KINDS.capture);
   assert.equal(gas?.captureType, SVYR_DATA_ENTRY_TYPES.controlledFact);
   assert.equal(gas?.fieldId, MAINS_SERVICE_FIELD_IDS.gas);
+});
+
+test('Property description Type 2/4 routes are capture and remaining description routes stay blocked', () => {
+  assert.equal(capabilityForRoute('property/type')?.kind, SURVEY_CAPABILITY_KINDS.capture);
+  assert.equal(capabilityForRoute('property/age')?.kind, SURVEY_CAPABILITY_KINDS.capture);
+  assert.equal(capabilityForRoute('property/extension')?.kind, SURVEY_CAPABILITY_KINDS.capture);
+  assert.equal(capabilityForRoute('property/conversion')?.kind, SURVEY_CAPABILITY_KINDS.capture);
+  assert.equal(capabilityForRoute('property/address')?.kind, SURVEY_CAPABILITY_KINDS.navigation);
+  const blocked = {
+    'property/flat': SURVEY_BLOCKED_REASONS.missingFieldSemantics,
+    'property/construction': SURVEY_BLOCKED_REASONS.missingFieldSemantics,
+    'property/accommodation': SURVEY_BLOCKED_REASONS.missingFieldSemantics,
+    'property/roof-spaces': SURVEY_BLOCKED_REASONS.missingFieldSemantics,
+    'property/location': SURVEY_BLOCKED_REASONS.workflowModelUndefined,
+    'property/location/facilities': SURVEY_BLOCKED_REASONS.missingFieldSemantics,
+    'property/location/environment': SURVEY_BLOCKED_REASONS.missingFieldSemantics,
+  } as const;
+  for (const [route, reason] of Object.entries(blocked)) {
+    const capability = capabilityForRoute(route);
+    assert.equal(capability?.kind, SURVEY_CAPABILITY_KINDS.blocked, route);
+    assert.equal(capability?.blockedReason, reason, route);
+  }
 });
 
 test('External four subjects reference EXTERNAL_FINDING_CONFIGS as Type 6/7', () => {

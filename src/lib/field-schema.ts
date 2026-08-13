@@ -6,6 +6,10 @@ import type { NumericFieldConstraints } from '@/lib/numeric-field';
 import { normalizeNumericFieldInput } from '@/lib/numeric-field';
 import { HEATING_FIELD_DEFINITIONS } from '@/lib/property-energy-heating';
 import { MAINS_SERVICE_FIELD_DEFINITIONS } from '@/lib/property-energy-mains-services';
+import {
+  PROPERTY_DESCRIPTION_FIELD_DEFINITIONS,
+  isSingleChoiceEngineField,
+} from '@/lib/property-description';
 import { SERVICES_PRESENCE_FIELD_DEFINITIONS } from '@/lib/services-controlled-facts';
 import type { InspectionBrief } from '@/types/workspace';
 export type FieldOption = {
@@ -305,6 +309,7 @@ const FIELD_DEFINITIONS: FieldDefinition[] = [
     readOperationId: 'survey.brief.limitation.read',
     notesEnabled: false,
   },
+  ...PROPERTY_DESCRIPTION_FIELD_DEFINITIONS,
   ...MAINS_SERVICE_FIELD_DEFINITIONS,
   ...HEATING_FIELD_DEFINITIONS,
   ...SERVICES_PRESENCE_FIELD_DEFINITIONS,
@@ -367,7 +372,9 @@ export function findFieldDefinitionForOperationId(
     operationId === 'survey.controlled_fact.set' ||
     operationId === 'survey.controlled_fact.read' ||
     operationId === 'survey.controlled_fact_set.set' ||
-    operationId === 'survey.controlled_fact_set.read'
+    operationId === 'survey.controlled_fact_set.read' ||
+    operationId === 'survey.single_choice.set' ||
+    operationId === 'survey.single_choice.read'
   ) {
     return null;
   }
@@ -472,7 +479,10 @@ export function applyFieldValue(
   value: string,
 ): InspectionBrief {
   const fieldDefinition = findFieldDefinitionByFieldId(fieldId);
-  if (isControlledScalarField(fieldDefinition)) {
+  if (
+    isControlledScalarField(fieldDefinition) ||
+    isSingleChoiceEngineField(fieldDefinition)
+  ) {
     return {
       ...brief,
       controlledFacts: {

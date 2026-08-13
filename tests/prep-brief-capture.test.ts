@@ -237,7 +237,7 @@ test('unavailable PREP workflows and blocked oil remain placeholders', () => {
     'prep/plan',
     'prep/ready',
     'services/gas-oil/oil',
-    'property/type',
+    'property/flat',
     'external/porch',
   ]) {
     const parsed = parseCommand(command);

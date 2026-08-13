@@ -11,7 +11,11 @@ import {
     type CommandNode,
 } from '@/lib/command-registry';
 import { isControlledScalarField } from '@/lib/controlled-fact';
-import { findFieldDefinition, normalizeFieldInputValue } from '@/lib/field-schema';
+import {
+  findFieldDefinition,
+  normalizeFieldInputValue,
+} from '@/lib/field-schema';
+import { isSingleChoiceEngineField } from '@/lib/property-description';
 import type { SurveyOperation } from '@/lib/survey-operations';
 
 export type ParsedCommand =
@@ -97,7 +101,9 @@ function writeCommand(path: string[], value: string): ParsedCommand {
   const operationId = node?.operationId ?? fieldDefinition?.operationId;
   if (operationId) {
     const operationArguments =
-      fieldDefinition && isControlledScalarField(fieldDefinition)
+      fieldDefinition &&
+      (isControlledScalarField(fieldDefinition) ||
+        isSingleChoiceEngineField(fieldDefinition))
         ? {
             fieldId: fieldDefinition.fieldId,
             value: normalizedValue,
@@ -124,6 +130,7 @@ function readCommand(path: string[]): ParsedCommand {
     const operationArguments =
       fieldDefinition &&
       (isControlledScalarField(fieldDefinition) ||
+        isSingleChoiceEngineField(fieldDefinition) ||
         fieldDefinition.valueType === 'multiSelect')
         ? { fieldId: fieldDefinition.fieldId }
         : {};

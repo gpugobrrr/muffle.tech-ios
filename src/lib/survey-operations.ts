@@ -55,6 +55,8 @@ export const SURVEY_OPERATIONS = {
   readControlledFact: 'survey.controlled_fact.read',
   setControlledFactSet: 'survey.controlled_fact_set.set',
   readControlledFactSet: 'survey.controlled_fact_set.read',
+  setSingleChoice: 'survey.single_choice.set',
+  readSingleChoice: 'survey.single_choice.read',
   upsertInspectionFinding: 'survey.inspection.finding.upsert',
   readInspectionFinding: 'survey.inspection.finding.read',
   addInspectionEvidence: 'survey.inspection.evidence.add',
@@ -303,6 +305,8 @@ const briefOperationEngine = createOperationEngine<
     [SURVEY_OPERATIONS.readControlledFact]: executeControlledFactRead,
     [SURVEY_OPERATIONS.setControlledFactSet]: executeControlledFactSetWrite,
     [SURVEY_OPERATIONS.readControlledFactSet]: executeControlledFactSetRead,
+    [SURVEY_OPERATIONS.setSingleChoice]: executeControlledFactWrite,
+    [SURVEY_OPERATIONS.readSingleChoice]: executeControlledFactRead,
   },
   fallback: executeSchemaBoundBriefOperation,
 });

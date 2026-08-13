@@ -2,6 +2,12 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { getConceptByCanonicalField } from '../src/domain/ontology/muffle-ontology.v1';
+import {
+  applyActiveJobTransition,
+  resolveHydratedActiveJob,
+} from '../src/lib/active-job-state';
+import { parseEditableCommand } from '../src/lib/command-edit';
+import { CONTROLLED_PRESENCE_STATUSES } from '../src/lib/controlled-fact';
 import { parseCommand } from '../src/lib/command-parser';
 import { findCommandNode } from '../src/lib/command-registry';
 import { resolveDirectoryCompletion } from '../src/lib/completion';
@@ -12,6 +18,7 @@ import {
 } from '../src/lib/data-entry-types';
 import {
   findFieldDefinition,
+  normalizeFieldInputValue,
   resolveFieldSetValue,
   resolveFieldValue,
 } from '../src/lib/field-schema';
@@ -19,6 +26,9 @@ import { createEmptyInspectionRecord } from '../src/lib/inspection-record';
 import {
   deserializeActiveJob,
   serializeActiveJob,
+  createInitialActiveJob,
+  readActiveJobBrief,
+  withInspectionBrief,
 } from '../src/lib/job-persistence';
 import {
   toggleMultiChoiceValue,
@@ -31,6 +41,13 @@ import {
   MAINS_SERVICES_COMPOUND_PATH,
   mainsServiceFieldPath,
 } from '../src/lib/property-energy-mains-services';
+import {
+  PROPERTY_CONSTRUCTION_PERIOD_FIELD_ID,
+  PROPERTY_CONVERSION_FIELD_ID,
+  PROPERTY_EXTENSION_FIELD_ID,
+  PROPERTY_TYPE_FIELD_ID,
+  PROPERTY_TYPE_OPTIONS,
+} from '../src/lib/property-description';
 import { SERVICES_PRESENCE_ROUTES } from '../src/lib/services-controlled-facts';
 import {
   executeSurveyOperation,
@@ -41,9 +58,17 @@ import {
   SVYR_LABEL_DELIMITERS,
 } from '../src/lib/svyr-label-presentation';
 import {
+  capabilityForRoute,
+  SURVEY_CAPABILITY_KINDS,
+} from '../src/lib/survey-capability';
+import {
+  clearEntryDraft,
   readEntryDraft,
+  resolveDataEntryReentryDraft,
   stashEntryDraft,
+  suffixForDataEntryReentry,
 } from '../src/lib/svyr-entry-drafts';
+import { suffixForPath } from '../src/lib/pin-context';
 import type { ActiveJob } from '../src/types/workspace';
 import type { InspectionBrief } from '../src/types/workspace';
 
@@ -54,28 +79,13 @@ const UNRESOLVED_PROPERTY_LEAVES = [
       'Address is job-state StructuredAddress from property selection, not a survey field.',
   },
   {
-    path: ['property', 'type'],
-    missing: 'No canonical property-type field, vocabulary, or Engine operation.',
-  },
-  {
-    path: ['property', 'age'],
-    missing: 'No canonical construction-date field or Engine operation.',
-  },
-  {
-    path: ['property', 'extension'],
-    missing: 'No canonical extension model.',
-  },
-  {
-    path: ['property', 'conversion'],
-    missing: 'No canonical conversion model.',
-  },
-  {
     path: ['property', 'flat'],
-    missing: 'No canonical tenure/building-context field.',
+    missing:
+      'Dwelling type already records flat/maisonette; other flat context is undefined.',
   },
   {
     path: ['property', 'construction'],
-    missing: 'Construction remains unresolved in ontology review.',
+    missing: 'Construction still mixes wall, frame, material, and system-built form.',
   },
   {
     path: ['property', 'accommodation'],
@@ -83,7 +93,8 @@ const UNRESOLVED_PROPERTY_LEAVES = [
   },
   {
     path: ['property', 'roof-spaces'],
-    missing: 'No canonical roof-space model.',
+    missing:
+      'Roof-space meaning mixes presence, access, and inspection-subject semantics.',
   },
   {
     path: ['property', 'location', 'grounds'],
@@ -316,3 +327,257 @@ test('unresolved Property description leaves stay placeholders without invented 
   assert.equal(findCommandNode(['property', 'location'])?.workflowOnly, undefined);
   assert.equal(parseCommand('property/location').type, 'incomplete');
 });
+
+const PROPERTY_DESCRIPTION_CAPTURES = [
+  {
+    path: ['property', 'type'],
+    fieldId: PROPERTY_TYPE_FIELD_ID,
+    captureType: SVYR_DATA_ENTRY_TYPES.singleChoice,
+    operationId: SURVEY_OPERATIONS.setSingleChoice,
+    value: 'detached',
+    label: 'Detached',
+  },
+  {
+    path: ['property', 'age'],
+    fieldId: PROPERTY_CONSTRUCTION_PERIOD_FIELD_ID,
+    captureType: SVYR_DATA_ENTRY_TYPES.singleChoice,
+    operationId: SURVEY_OPERATIONS.setSingleChoice,
+    value: '1900_1918',
+    label: '1900–1918',
+  },
+  {
+    path: ['property', 'extension'],
+    fieldId: PROPERTY_EXTENSION_FIELD_ID,
+    captureType: SVYR_DATA_ENTRY_TYPES.controlledFact,
+    operationId: SURVEY_OPERATIONS.setControlledFact,
+    value: 'present',
+    label: 'Present',
+  },
+  {
+    path: ['property', 'conversion'],
+    fieldId: PROPERTY_CONVERSION_FIELD_ID,
+    captureType: SVYR_DATA_ENTRY_TYPES.controlledFact,
+    operationId: SURVEY_OPERATIONS.setControlledFact,
+    value: 'not_present',
+    label: 'Not present',
+  },
+] as const;
+
+function reopenPropertyEntryValue(
+  brief: InspectionBrief,
+  path: readonly string[],
+  stashedDraft?: string,
+): string | undefined {
+  const field = findFieldDefinition([...path]);
+  assert.ok(field, path.join('/'));
+  const suffix = suffixForDataEntryReentry({
+    path: [...path],
+    draft: resolveDataEntryReentryDraft({
+      canonicalValue: resolveFieldValue(brief, field.fieldId),
+      stashedDraft,
+    }),
+    defaultInsertion: suffixForPath([...path]),
+    suffixForPath,
+  });
+  return parseEditableCommand(suffix).valueText || undefined;
+}
+
+test('activated Property description routes are Types 2 and 4 with ontology', () => {
+  for (const route of PROPERTY_DESCRIPTION_CAPTURES) {
+    const node = findCommandNode([...route.path]);
+    const field = findFieldDefinition([...route.path]);
+    const capability = capabilityForRoute(route.path);
+    assert.ok(node, route.path.join('/'));
+    assert.ok(field, route.path.join('/'));
+    assert.equal(node?.workflowOnly, undefined, route.path.join('/'));
+    assert.equal(node?.fieldId, route.fieldId);
+    assert.equal(field?.fieldId, route.fieldId);
+    assert.equal(node?.operationId, route.operationId);
+    assert.equal(field?.operationId, route.operationId);
+    assert.equal(field?.optional, true);
+    assert.equal(resolveSvyrDataEntryType(field!), route.captureType);
+    assert.equal(capability?.kind, SURVEY_CAPABILITY_KINDS.capture);
+    assert.equal(capability?.captureType, route.captureType);
+    assert.equal(capability?.fieldId, route.fieldId);
+    assert.equal(capability?.operationId, route.operationId);
+    const concept = getConceptByCanonicalField(route.fieldId);
+    assert.ok(concept, route.fieldId);
+    assert.equal(concept?.bindings?.canonicalFieldId, route.fieldId);
+    assert.equal(concept?.maturity, 'engine-backed');
+    assert.deepEqual(concept?.valueType?.options, field?.options?.map((option) => option.value));
+  }
+});
+
+test('Property Type stores canonical machine values not display labels', () => {
+  const displayed = formatSvyrDisplayedLabel('Semi-detached', 'choice');
+  assert.equal(displayed, '<Semi-detached>');
+  assert.equal(normalizeFieldInputValue(findFieldDefinition(['property', 'type']), 'Semi-detached'), 'semi_detached');
+  const parsed = parseCommand('property/type Semi-detached');
+  assert.equal(parsed.type, 'operation');
+  if (parsed.type !== 'operation') return;
+  assert.equal(parsed.operation.operationId, SURVEY_OPERATIONS.setSingleChoice);
+  assert.equal(parsed.operation.arguments.fieldId, PROPERTY_TYPE_FIELD_ID);
+  assert.equal(parsed.operation.arguments.value, 'semi_detached');
+  assert.notEqual(parsed.operation.arguments.value, displayed);
+  const committed = executeSurveyOperation(emptyBrief(), parsed.operation);
+  assert.equal(resolveFieldValue(committed!.brief, PROPERTY_TYPE_FIELD_ID), 'semi_detached');
+  const replacement = parseCommand('property/type flat');
+  assert.equal(replacement.type, 'operation');
+  if (replacement.type !== 'operation') return;
+  const replaced = executeSurveyOperation(committed!.brief, replacement.operation);
+  assert.equal(resolveFieldValue(replaced!.brief, PROPERTY_TYPE_FIELD_ID), 'flat');
+  assert.equal(replaced!.brief.controlledFacts?.['property.flat'], undefined);
+  assert.equal(findFieldDefinition(['property', 'flat']), null);
+});
+
+test('Property Age stores construction-period IDs not display ranges', () => {
+  const parsed = parseCommand('property/age 1900–1918');
+  assert.equal(parsed.type, 'operation');
+  if (parsed.type !== 'operation') return;
+  assert.equal(parsed.operation.arguments.value, '1900_1918');
+  const committed = executeSurveyOperation(emptyBrief(), parsed.operation);
+  assert.equal(
+    resolveFieldValue(committed!.brief, PROPERTY_CONSTRUCTION_PERIOD_FIELD_ID),
+    '1900_1918',
+  );
+});
+
+test('Extension and conversion Type 4 statuses remain distinct', () => {
+  let brief = emptyBrief();
+  assert.equal(resolveFieldValue(brief, PROPERTY_EXTENSION_FIELD_ID), null);
+  assert.equal(resolveFieldValue(brief, PROPERTY_CONVERSION_FIELD_ID), null);
+  for (const status of CONTROLLED_PRESENCE_STATUSES) {
+    const parsed = parseCommand(`property/extension ${status}`);
+    assert.equal(parsed.type, 'operation');
+    if (parsed.type !== 'operation') continue;
+    const committed = executeSurveyOperation(emptyBrief(), parsed.operation);
+    assert.equal(resolveFieldValue(committed!.brief, PROPERTY_EXTENSION_FIELD_ID), status);
+    assert.equal(resolveFieldValue(committed!.brief, PROPERTY_CONVERSION_FIELD_ID), null);
+  }
+  const conversion = parseCommand('property/conversion unknown');
+  assert.equal(conversion.type, 'operation');
+  if (conversion.type !== 'operation') return;
+  brief = executeSurveyOperation(emptyBrief(), conversion.operation)!.brief;
+  const extension = parseCommand('property/extension present');
+  assert.equal(extension.type, 'operation');
+  if (extension.type !== 'operation') return;
+  brief = executeSurveyOperation(brief, extension.operation)!.brief;
+  assert.equal(resolveFieldValue(brief, PROPERTY_EXTENSION_FIELD_ID), 'present');
+  assert.equal(resolveFieldValue(brief, PROPERTY_CONVERSION_FIELD_ID), 'unknown');
+});
+
+test('Property description drafts do not mutate ActiveJob before commit', () => {
+  const path = ['property', 'type'];
+  const drafts = stashEntryDraft({}, path, 'detached');
+  const job = createInitialActiveJob();
+  assert.equal(readEntryDraft(drafts, path), 'detached');
+  assert.equal(resolveFieldValue(readActiveJobBrief(job), PROPERTY_TYPE_FIELD_ID), null);
+});
+
+test('Property Type and Extension survive Engine write, reopen, serialize, and hydration', () => {
+  let brief = emptyBrief();
+  let job = createInitialActiveJob();
+  let drafts = {};
+
+  for (const route of [
+    PROPERTY_DESCRIPTION_CAPTURES[0],
+    PROPERTY_DESCRIPTION_CAPTURES[2],
+  ]) {
+    drafts = stashEntryDraft(drafts, [...route.path], route.value);
+    assert.equal(resolveFieldValue(brief, route.fieldId), null, route.fieldId);
+    const parsed = parseCommand(`${route.path.join('/')} ${route.value}`);
+    assert.equal(parsed.type, 'operation', route.fieldId);
+    if (parsed.type !== 'operation') return;
+    const committed = executeSurveyOperation(brief, parsed.operation);
+    assert.ok(committed, route.fieldId);
+    brief = committed!.brief;
+    job = withInspectionBrief(job, brief);
+    drafts = clearEntryDraft(drafts, [...route.path]);
+    assert.equal(resolveFieldValue(brief, route.fieldId), route.value);
+    assert.equal(reopenPropertyEntryValue(brief, route.path), route.value);
+    assert.equal(readEntryDraft(drafts, [...route.path]), undefined);
+  }
+
+  let refJob = job;
+  let stateJob = job;
+  const next = applyActiveJobTransition(
+    refJob,
+    (current) => withInspectionBrief(current, brief),
+    (value) => {
+      refJob = value;
+      stateJob = value;
+    },
+  );
+  assert.equal(refJob, next);
+  assert.equal(stateJob, next);
+
+  const serialized = serializeActiveJob(next);
+  assert.match(serialized, /"property.type"/);
+  assert.match(serialized, /detached/);
+  assert.match(serialized, /"property.extension"/);
+  assert.equal(serialized.includes('Detached'), false);
+  assert.equal(serialized.includes('data:image'), false);
+  const restored = deserializeActiveJob(serialized);
+  assert.ok(restored);
+  const restoredBrief = readActiveJobBrief(restored!);
+  assert.equal(resolveFieldValue(restoredBrief, PROPERTY_TYPE_FIELD_ID), 'detached');
+  assert.equal(resolveFieldValue(restoredBrief, PROPERTY_EXTENSION_FIELD_ID), 'present');
+  assert.equal(reopenPropertyEntryValue(restoredBrief, ['property', 'type']), 'detached');
+  assert.equal(reopenPropertyEntryValue(restoredBrief, ['property', 'extension']), 'present');
+  const hydrated = resolveHydratedActiveJob({
+    restored,
+    mutatedBeforeHydration: false,
+  });
+  assert.ok(hydrated);
+  assert.equal(
+    resolveFieldValue(readActiveJobBrief(hydrated!), PROPERTY_TYPE_FIELD_ID),
+    'detached',
+  );
+  assert.deepEqual(hydrated!.inspection.findings, {});
+});
+
+test('Property description facts do not alter energy, services aliases, address, or findings', () => {
+  const energy = parseCommand('property/energy/mains-services/gas present');
+  assert.equal(energy.type, 'operation');
+  if (energy.type !== 'operation') return;
+  let brief = executeSurveyOperation(emptyBrief(), energy.operation)!.brief;
+  const type = parseCommand('property/type bungalow');
+  assert.equal(type.type, 'operation');
+  if (type.type !== 'operation') return;
+  brief = executeSurveyOperation(brief, type.operation)!.brief;
+  const age = parseCommand('property/age pre_1900');
+  assert.equal(age.type, 'operation');
+  if (age.type !== 'operation') return;
+  brief = executeSurveyOperation(brief, age.operation)!.brief;
+  assert.equal(resolveFieldValue(brief, MAINS_SERVICE_FIELD_IDS.gas), 'present');
+  assert.equal(resolveFieldValue(brief, PROPERTY_TYPE_FIELD_ID), 'bungalow');
+  assert.equal(resolveFieldValue(brief, PROPERTY_CONSTRUCTION_PERIOD_FIELD_ID), 'pre_1900');
+  const job = withInspectionBrief(createInitialActiveJob(), brief);
+  assert.equal(job.property?.displayAddress, '18 Market Street');
+  assert.equal(findFieldDefinition(['property', 'address']), null);
+  assert.equal(capabilityForRoute('property/address')?.kind, SURVEY_CAPABILITY_KINDS.navigation);
+  assert.deepEqual(job.inspection.findings, {});
+  assert.equal(job.property?.instructionType, 'Level 2 Building Survey');
+});
+
+test('optional Property description fields do not change directory completion totals', () => {
+  const before = resolveDirectoryCompletion(['property'], emptyBrief());
+  const typeBefore = before?.children.find((child) => child.token === 'type');
+  assert.equal(typeBefore?.total, 0);
+  const parsed = parseCommand('property/type detached');
+  assert.equal(parsed.type, 'operation');
+  if (parsed.type !== 'operation') return;
+  const after = resolveDirectoryCompletion(
+    ['property'],
+    executeSurveyOperation(emptyBrief(), parsed.operation)!.brief,
+  );
+  const typeAfter = after?.children.find((child) => child.token === 'type');
+  assert.equal(typeAfter?.total, 0);
+  assert.equal(before?.total, after?.total);
+});
+
+test('Property Type options remain the approved dwelling-type vocabulary', () => {
+  const field = findFieldDefinition(['property', 'type']);
+  assert.deepEqual(field?.options, [...PROPERTY_TYPE_OPTIONS]);
+});
+

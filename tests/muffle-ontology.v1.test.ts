@@ -172,11 +172,18 @@ test('human-approved v1.2 concepts remain canonical; inspection subjects may gai
     ...findingFields,
   ];
 
+  const propertyDescriptionFields = [
+    'property.type',
+    'property.construction_period',
+    'property.extension',
+    'property.conversion',
+  ];
+
   assert.equal(
     MUFFLE_ONTOLOGY_V1.concepts.filter(
       ({ introducedIn }) => introducedIn === '1.2.0',
     ).length,
-    approved.length,
+    approved.length + propertyDescriptionFields.length,
   );
   for (const id of approved) {
     const concept = getOntologyConcept(id);
@@ -221,6 +228,15 @@ test('human-approved v1.2 concepts remain canonical; inspection subjects may gai
     assert.equal(concept.parentId, 'inspection.finding', id);
     assert.equal(concept.kind, 'field', id);
     assert.deepEqual(concept.valueType, { kind: 'text', nullable: true }, id);
+  }
+  for (const id of propertyDescriptionFields) {
+    const concept = getOntologyConcept(id);
+    assert.ok(concept, id);
+    assert.equal(concept.canonical, true, id);
+    assert.equal(concept.introducedIn, '1.2.0', id);
+    assert.equal(concept.kind, 'field', id);
+    assert.equal(concept.maturity, 'engine-backed', id);
+    assert.equal(concept.bindings?.canonicalFieldId, id);
   }
 });
 

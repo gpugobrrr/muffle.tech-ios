@@ -13,6 +13,9 @@ import {
 import { internalFindingConfig } from '@/lib/internal-findings';
 import { HEATING_FIELD_DEFINITIONS } from '@/lib/property-energy-heating';
 import {
+  PROPERTY_DESCRIPTION_FIELD_DEFINITIONS,
+} from '@/lib/property-description';
+import {
   servicesPresenceFieldDefinition,
   type ServicesPresenceRouteId,
 } from '@/lib/services-controlled-facts';
@@ -39,6 +42,19 @@ function workflowLeaf(
     description,
     workflowOnly: true,
     coverage,
+  };
+}
+
+function optionalPropertyDescriptionLeaf(field: FieldDefinition): CommandNode {
+  return {
+    ...compoundFieldLeaf(field),
+    coverage: {
+      requirement: field.label,
+      status: 'interactive',
+      engineBinding: field.operationId,
+      recommendedLaterWork:
+        'Keep this optional dwelling fact on persisted ActiveJob.brief.',
+    },
   };
 }
 
@@ -337,7 +353,7 @@ const PROPERTY_NODE: CommandNode = {
     status: 'navigation-only',
     canonicalConceptId: 'property',
     recommendedLaterWork:
-      'Keep energy heating and mains-service presence on existing Engine-backed fields. Leave type, age, construction, and location blocked until those facts have approved schemas and vocabularies.',
+      'Keep energy heating and mains-service presence on existing Engine-backed fields. Capture dwelling type, construction period, and extension/conversion presence as optional Types 2 and 4. Leave construction, accommodation, flat context, roof-space, and location blocked until those facts have approved schemas.',
   },
   children: [
     {
@@ -411,53 +427,38 @@ const PROPERTY_NODE: CommandNode = {
       recommendedLaterWork:
         'Continue to populate from property selection rather than duplicate survey entry.',
     }),
-    workflowLeaf('type', 'type', 'Property type coverage.', {
-      requirement: 'Type of property',
-      status: 'blocked',
-      blocker: 'No canonical property-type field or Engine operation.',
-      recommendedLaterWork: 'Design a property-description schema and operation.',
-    }),
-    workflowLeaf('age', 'age', 'Approximate property age coverage.', {
-      requirement: 'Approximate year built',
-      status: 'blocked',
-      blocker: 'No canonical construction-date field or Engine operation.',
-      recommendedLaterWork: 'Design a nullable approximate construction-date field.',
-    }),
-    workflowLeaf('extension', 'extension', 'Extension information coverage.', {
-      requirement: 'Extension information',
-      status: 'blocked',
-      blocker: 'No canonical extension model.',
-      recommendedLaterWork: 'Model extensions independently from report wording.',
-    }),
-    workflowLeaf('conversion', 'conversion', 'Conversion information coverage.', {
-      requirement: 'Conversion information',
-      status: 'blocked',
-      blocker: 'No canonical conversion model.',
-      recommendedLaterWork: 'Model conversion history with uncertain dates.',
-    }),
+    ...PROPERTY_DESCRIPTION_FIELD_DEFINITIONS.map(
+      optionalPropertyDescriptionLeaf,
+    ),
     workflowLeaf('flat', 'flat', 'Flat and maisonette information coverage.', {
       requirement: 'Flat or maisonette information',
       status: 'blocked',
-      blocker: 'No canonical tenure/building-context field.',
-      recommendedLaterWork: 'Separate dwelling type, tenure and shared-area context.',
+      blocker:
+        'Dwelling type already records flat/maisonette; floor, common parts, access, and tenure remain undefined.',
+      recommendedLaterWork:
+        'Do not duplicate property/type. Add distinct flat-context semantics only after they are unambiguous.',
     }),
     workflowLeaf('construction', 'construction', 'Construction description coverage.', {
       requirement: 'Construction',
       status: 'blocked',
-      blocker: 'Construction remains unresolved in ontology review.',
-      recommendedLaterWork: 'Approve a construction semantic shape before capture.',
+      blocker:
+        'Construction still mixes wall construction, frame, principal material, and system-built form.',
+      recommendedLaterWork:
+        'Approve a field-level construction model before capture; do not invent traditional/non-traditional.',
     }),
     workflowLeaf('accommodation', 'accommodation', 'Accommodation schedule coverage.', {
       requirement: 'Accommodation',
       status: 'blocked',
-      blocker: 'No canonical room/accommodation model.',
+      blocker: 'No canonical floor/room inventory model.',
       recommendedLaterWork: 'Design floor and room inventory semantics.',
     }),
     workflowLeaf('roof-spaces', 'roof-spaces', 'Roof-space availability coverage.', {
       requirement: 'Roof spaces',
       status: 'blocked',
-      blocker: 'No canonical roof-space model.',
-      recommendedLaterWork: 'Resolve roof-space subject and access semantics.',
+      blocker:
+        'Route meaning mixes roof-space presence, access/inspection status, and a physical inspection subject.',
+      recommendedLaterWork:
+        'Decide presence versus access versus inspection-subject semantics before capture.',
     }),
     {
       token: 'location',
@@ -467,8 +468,10 @@ const PROPERTY_NODE: CommandNode = {
       coverage: {
       requirement: 'Location',
       status: 'blocked',
-      blocker: 'No canonical property-location assessment field.',
-      recommendedLaterWork: 'Separate imported location facts from surveyor assessment.',
+      blocker:
+        'Location mixes imported data, surveyor observation, and unresolved provenance.',
+      recommendedLaterWork:
+        'Do not capture until imported versus observed location facts have provenance.',
       },
       children: [
         workflowLeaf('grounds', 'grounds', 'Property grounds description coverage.', {

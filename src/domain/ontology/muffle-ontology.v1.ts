@@ -403,6 +403,29 @@ const FIELD_SEMANTICS: Readonly<
     parentId: 'inspection_brief',
     description: 'A limitation applying to the inspection brief.',
   },
+  'property.type': {
+    id: 'property.type',
+    parentId: 'property',
+    description: 'The canonical dwelling type of the selected property.',
+  },
+  'property.construction_period': {
+    id: 'property.construction_period',
+    parentId: 'property',
+    description:
+      'The approximate construction period of the original dwelling, not an exact year.',
+  },
+  'property.extension': {
+    id: 'property.extension',
+    parentId: 'property',
+    description:
+      'Whether a material extension or addition to the original dwelling is present.',
+  },
+  'property.conversion': {
+    id: 'property.conversion',
+    parentId: 'property',
+    description:
+      'Whether the dwelling shows evidence of a material conversion from its original form or use.',
+  },
   'property.energy.mains_services.gas': {
     id: 'property.energy.mains_services.gas',
     parentId: 'property',
@@ -499,7 +522,11 @@ for (const field of allFieldDefinitions()) {
   }
   const aliases = aliasesForToken(field.token);
   FIELD_CONCEPTS.push({
-    ...(field.fieldId.startsWith('property.energy.') ? V1_1_BASE : BASE),
+    ...(field.fieldId.startsWith('property.energy.')
+      ? V1_1_BASE
+      : field.fieldId.startsWith('property.')
+        ? V1_2_BASE
+        : BASE),
     id: semantic.id,
     kind: 'field',
     label: field.label,

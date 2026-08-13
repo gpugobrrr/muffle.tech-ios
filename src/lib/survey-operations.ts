@@ -1,3 +1,4 @@
+import { createOperationEngine } from '@/core/operation-engine';
 import { labelForControlledFactScalar } from '@/lib/controlled-fact';
 import { isInspectionElementConceptId } from '@/lib/inspection-finding-elements';
 import {
@@ -258,27 +259,10 @@ function executeControlledFactSetRead(
   };
 }
 
-/**
- * Execute a canonical survey operation against the live brief.
- * Returns null when the operation is unrecognised or a write has no value.
- */
-export function executeSurveyOperation(
+function executeSchemaBoundBriefOperation(
   brief: InspectionBrief,
   operation: SurveyOperation,
 ): SurveyOperationResult | null {
-  if (operation.operationId === SURVEY_OPERATIONS.setControlledFact) {
-    return executeControlledFactWrite(brief, operation);
-  }
-  if (operation.operationId === SURVEY_OPERATIONS.readControlledFact) {
-    return executeControlledFactRead(brief, operation);
-  }
-  if (operation.operationId === SURVEY_OPERATIONS.setControlledFactSet) {
-    return executeControlledFactSetWrite(brief, operation);
-  }
-  if (operation.operationId === SURVEY_OPERATIONS.readControlledFactSet) {
-    return executeControlledFactSetRead(brief, operation);
-  }
-
   const fieldDefinition = findFieldDefinitionForOperationId(operation.operationId);
   if (!fieldDefinition) return null;
 
@@ -307,6 +291,31 @@ export function executeSurveyOperation(
   }
 
   return null;
+}
+
+const briefOperationEngine = createOperationEngine<
+  InspectionBrief,
+  SurveyOperation,
+  SurveyOperationResult
+>({
+  handlers: {
+    [SURVEY_OPERATIONS.setControlledFact]: executeControlledFactWrite,
+    [SURVEY_OPERATIONS.readControlledFact]: executeControlledFactRead,
+    [SURVEY_OPERATIONS.setControlledFactSet]: executeControlledFactSetWrite,
+    [SURVEY_OPERATIONS.readControlledFactSet]: executeControlledFactSetRead,
+  },
+  fallback: executeSchemaBoundBriefOperation,
+});
+
+/**
+ * Execute a canonical survey operation against the live brief.
+ * Returns null when the operation is unrecognised or a write has no value.
+ */
+export function executeSurveyOperation(
+  brief: InspectionBrief,
+  operation: SurveyOperation,
+): SurveyOperationResult | null {
+  return briefOperationEngine.execute(brief, operation);
 }
 
 function executeAddInspectionEvidence(
@@ -350,6 +359,56 @@ function executeAddInspectionEvidence(
   };
 }
 
+function executeUpsertInspectionFinding(
+  inspection: InspectionRecord,
+  operation: SurveyOperation,
+): InspectionOperationResult | null {
+  const finding = operation.arguments.finding
+    ? normalizeFinding(operation.arguments.finding)
+    : null;
+  if (!finding) return null;
+
+  return {
+    operationId: operation.operationId,
+    inspection: {
+      findings: {
+        ...inspection.findings,
+        [finding.id]: finding,
+      },
+      evidence: {
+        ...(inspection.evidence ?? {}),
+      },
+    },
+    finding,
+  };
+}
+
+function executeReadInspectionFinding(
+  inspection: InspectionRecord,
+  operation: SurveyOperation,
+): InspectionOperationResult | null {
+  const findingId = operation.arguments.findingId?.trim();
+  const finding = findingId ? inspection.findings[findingId] : undefined;
+  if (!finding) return null;
+  return {
+    operationId: operation.operationId,
+    inspection,
+    finding,
+  };
+}
+
+const inspectionOperationEngine = createOperationEngine<
+  InspectionRecord,
+  SurveyOperation,
+  InspectionOperationResult
+>({
+  handlers: {
+    [SURVEY_OPERATIONS.addInspectionEvidence]: executeAddInspectionEvidence,
+    [SURVEY_OPERATIONS.upsertInspectionFinding]: executeUpsertInspectionFinding,
+    [SURVEY_OPERATIONS.readInspectionFinding]: executeReadInspectionFinding,
+  },
+});
+
 /**
  * Execute canonical finding operations against the inspection record.
  * Upsert replaces one stable ID and therefore cannot duplicate an edited
@@ -359,43 +418,5 @@ export function executeInspectionOperation(
   inspection: InspectionRecord,
   operation: SurveyOperation,
 ): InspectionOperationResult | null {
-  if (operation.operationId === SURVEY_OPERATIONS.addInspectionEvidence) {
-    return executeAddInspectionEvidence(inspection, operation);
-  }
-
-  if (
-    operation.operationId === SURVEY_OPERATIONS.upsertInspectionFinding
-  ) {
-    const finding = operation.arguments.finding
-      ? normalizeFinding(operation.arguments.finding)
-      : null;
-    if (!finding) return null;
-
-    return {
-      operationId: operation.operationId,
-      inspection: {
-        findings: {
-          ...inspection.findings,
-          [finding.id]: finding,
-        },
-        evidence: {
-          ...(inspection.evidence ?? {}),
-        },
-      },
-      finding,
-    };
-  }
-
-  if (operation.operationId === SURVEY_OPERATIONS.readInspectionFinding) {
-    const findingId = operation.arguments.findingId?.trim();
-    const finding = findingId ? inspection.findings[findingId] : undefined;
-    if (!finding) return null;
-    return {
-      operationId: operation.operationId,
-      inspection,
-      finding,
-    };
-  }
-
-  return null;
+  return inspectionOperationEngine.execute(inspection, operation);
 }

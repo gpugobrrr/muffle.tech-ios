@@ -1,3 +1,4 @@
+import { createJsonStateStore } from '@/core/persisted-state';
 import type { ActiveJob } from '@/types/workspace';
 import { createEmptyInspectionRecord } from '@/lib/inspection-record';
 
@@ -16,29 +17,31 @@ export function createInitialActiveJob(): ActiveJob {
   };
 }
 
+function asActiveJob(parsed: unknown): ActiveJob | null {
+  if (!parsed || typeof parsed !== 'object') return null;
+  const candidate = parsed as ActiveJob;
+  if (typeof candidate.id !== 'string' || !candidate.id.trim()) return null;
+  if (!candidate.inspection || typeof candidate.inspection !== 'object') return null;
+  if (!candidate.inspection.findings || typeof candidate.inspection.findings !== 'object') {
+    return null;
+  }
+  if (
+    candidate.inspection.evidence &&
+    typeof candidate.inspection.evidence !== 'object'
+  ) {
+    return null;
+  }
+  return candidate;
+}
+
+const activeJobStore = createJsonStateStore(asActiveJob);
+
 export function serializeActiveJob(job: ActiveJob): string {
-  return JSON.stringify(job);
+  return activeJobStore.serialize(job);
 }
 
 export function deserializeActiveJob(raw: string): ActiveJob | null {
-  try {
-    const parsed = JSON.parse(raw) as ActiveJob;
-    if (!parsed || typeof parsed !== 'object') return null;
-    if (typeof parsed.id !== 'string' || !parsed.id.trim()) return null;
-    if (!parsed.inspection || typeof parsed.inspection !== 'object') return null;
-    if (!parsed.inspection.findings || typeof parsed.inspection.findings !== 'object') {
-      return null;
-    }
-    if (
-      parsed.inspection.evidence &&
-      typeof parsed.inspection.evidence !== 'object'
-    ) {
-      return null;
-    }
-    return parsed;
-  } catch {
-    return null;
-  }
+  return activeJobStore.deserialize(raw);
 }
 
 export function activeJobContainsEmbeddedImageData(job: ActiveJob): boolean {

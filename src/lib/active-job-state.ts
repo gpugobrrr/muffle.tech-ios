@@ -1,6 +1,13 @@
+import {
+  applyStateTransition,
+  resolveHydratedState,
+  resolveStateUpdate,
+  shouldPersistHydratedState,
+  type StateUpdate,
+} from '@/core/persisted-state';
 import type { ActiveJob } from '@/types/workspace';
 
-export type ActiveJobUpdate = ActiveJob | ((current: ActiveJob) => ActiveJob);
+export type ActiveJobUpdate = StateUpdate<ActiveJob>;
 
 /**
  * Resolve the next ActiveJob from a value or updater.
@@ -10,7 +17,7 @@ export function resolveActiveJobUpdate(
   current: ActiveJob,
   update: ActiveJobUpdate,
 ): ActiveJob {
-  return typeof update === 'function' ? update(current) : update;
+  return resolveStateUpdate(current, update);
 }
 
 /**
@@ -23,14 +30,12 @@ export function applyActiveJobTransition(
   update: ActiveJobUpdate,
   assignCurrent: (next: ActiveJob) => void,
 ): ActiveJob {
-  const next = resolveActiveJobUpdate(current, update);
-  assignCurrent(next);
-  return next;
+  return applyStateTransition(current, update, assignCurrent);
 }
 
 /** Whether AsyncStorage persistence may run for the live job. */
 export function shouldPersistActiveJob(jobHydrated: boolean): boolean {
-  return jobHydrated;
+  return shouldPersistHydratedState(jobHydrated);
 }
 
 /**
@@ -41,8 +46,5 @@ export function resolveHydratedActiveJob(input: {
   restored: ActiveJob | null;
   mutatedBeforeHydration: boolean;
 }): ActiveJob | null {
-  if (!input.restored || input.mutatedBeforeHydration) {
-    return null;
-  }
-  return input.restored;
+  return resolveHydratedState(input);
 }

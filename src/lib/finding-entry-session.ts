@@ -1,3 +1,8 @@
+import {
+  frozenEditSessionPathKey,
+  openFrozenEditSession,
+  resolveFrozenCommitTarget,
+} from '@/core/frozen-edit-session';
 import type { InspectionFindingCaptureTarget } from '@/lib/command-registry';
 import {
   commitInspectionFindingField,
@@ -21,22 +26,34 @@ export function openFindingEntrySession(
   findingTarget: InspectionFindingCaptureTarget,
   token?: string,
 ): FindingEntrySession {
-  return {
-    path: [...path],
-    token: token ?? path[path.length - 1] ?? findingTarget.field,
-    findingTarget: {
+  const frozen = openFrozenEditSession(
+    path,
+    {
       findingId: findingTarget.findingId,
       elementConceptId: findingTarget.elementConceptId,
       field: findingTarget.field,
     },
+    token ?? path[path.length - 1] ?? findingTarget.field,
+  );
+  return {
+    path: frozen.path,
+    token: frozen.token,
+    findingTarget: frozen.target,
   };
 }
 
 export function findingEntrySessionPathKey(
   session: FindingEntrySession | null | undefined,
 ): string | null {
-  if (!session?.path.length) return null;
-  return session.path.join('/');
+  return frozenEditSessionPathKey(
+    session
+      ? {
+          path: session.path,
+          token: session.token,
+          target: session.findingTarget,
+        }
+      : null,
+  );
 }
 
 /**
@@ -46,8 +63,16 @@ export function resolveFindingEntryCommitTarget(
   session: FindingEntrySession | null | undefined,
   fallback?: InspectionFindingCaptureTarget | null,
 ): InspectionFindingCaptureTarget | null {
-  if (session?.findingTarget) return session.findingTarget;
-  return fallback ?? null;
+  return resolveFrozenCommitTarget(
+    session
+      ? {
+          path: session.path,
+          token: session.token,
+          target: session.findingTarget,
+        }
+      : null,
+    fallback,
+  );
 }
 
 /**

@@ -329,23 +329,32 @@ test('expo evidence file store uses File/Directory API not legacy filesystem hel
   const { readFileSync } = await import('node:fs');
   const { fileURLToPath } = await import('node:url');
   const path = await import('node:path');
-  const source = readFileSync(
-    path.join(
-      path.dirname(fileURLToPath(import.meta.url)),
-      '../src/lib/evidence-files.ts',
-    ),
+  const testsDir = path.dirname(fileURLToPath(import.meta.url));
+  const adapter = readFileSync(
+    path.join(testsDir, '../src/lib/evidence-files.ts'),
     'utf8',
   );
-  assert.match(source, /\{ Directory, File, Paths \}/);
-  assert.match(source, /directory\.create\(\{ intermediates: true/);
-  assert.match(source, /source\.bytes\(\)/);
-  assert.match(source, /destination\.write\(bytes\)/);
-  assert.match(source, /source\.copy\(destination\)/);
-  assert.doesNotMatch(source, /\.makeDirectoryAsync\b/);
-  assert.doesNotMatch(source, /\.copyAsync\b/);
-  assert.doesNotMatch(source, /\.deleteAsync\b/);
-  assert.doesNotMatch(source, /expo-file-system\/legacy/);
-  assert.doesNotMatch(source, /\.documentDirectory\b/);
+  const store = readFileSync(
+    path.join(testsDir, '../src/core/local-media-store.ts'),
+    'utf8',
+  );
+  assert.match(adapter, /createExpoLocalMediaStore/);
+  assert.match(adapter, /SURVEY_EVIDENCE_MEDIA_PATH/);
+  assert.doesNotMatch(adapter, /\.makeDirectoryAsync\b/);
+  assert.doesNotMatch(adapter, /\.copyAsync\b/);
+  assert.doesNotMatch(adapter, /\.deleteAsync\b/);
+  assert.doesNotMatch(adapter, /expo-file-system\/legacy/);
+  assert.doesNotMatch(adapter, /\.documentDirectory\b/);
+  assert.match(store, /\{ Directory, File, Paths \}/);
+  assert.match(store, /directory\.create\(\{ intermediates: true/);
+  assert.match(store, /source\.bytes\(\)/);
+  assert.match(store, /destination\.write\(bytes\)/);
+  assert.match(store, /source\.copy\(destination\)/);
+  assert.doesNotMatch(store, /\.makeDirectoryAsync\b/);
+  assert.doesNotMatch(store, /\.copyAsync\b/);
+  assert.doesNotMatch(store, /\.deleteAsync\b/);
+  assert.doesNotMatch(store, /expo-file-system\/legacy/);
+  assert.doesNotMatch(store, /\.documentDirectory\b/);
 });
 
 test('photo save failure keeps generic UI message after file store throws', async () => {

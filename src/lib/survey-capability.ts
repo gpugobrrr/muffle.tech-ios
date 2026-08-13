@@ -1,4 +1,14 @@
 import {
+  CAPABILITY_KINDS,
+  censusFromCapabilities,
+  collectDuplicateKindIssues,
+  collectUnclassifiedCountIssue,
+  collectUnknownKindIssues,
+  type CapabilityCensusCounts,
+  type CapabilityIssue,
+  type CapabilityKind,
+} from '@/core/capability';
+import {
   getConceptByCanonicalField,
   getOntologyConcept,
 } from '@/domain/ontology/muffle-ontology.v1';
@@ -24,15 +34,9 @@ import {
 } from '@/lib/services-findings';
 
 /** Product/runtime capability of one governed SVYR route. */
-export const SURVEY_CAPABILITY_KINDS = {
-  capture: 'capture',
-  navigation: 'navigation',
-  derived: 'derived',
-  blocked: 'blocked',
-} as const;
+export const SURVEY_CAPABILITY_KINDS = CAPABILITY_KINDS;
 
-export type SurveyCapabilityKind =
-  (typeof SURVEY_CAPABILITY_KINDS)[keyof typeof SURVEY_CAPABILITY_KINDS];
+export type SurveyCapabilityKind = CapabilityKind;
 
 /**
  * Why a visible route is intentionally not canonical capture.
@@ -64,20 +68,11 @@ export type SurveyCapability = {
   optional?: boolean;
 };
 
-export type SurveyCapabilityCensus = {
-  total: number;
-  capture: number;
-  navigation: number;
-  derived: number;
-  blocked: number;
-  unclassified: number;
+export type SurveyCapabilityCensus = CapabilityCensusCounts & {
   capabilities: readonly SurveyCapability[];
 };
 
-export type SurveyCapabilityIssue = {
-  route: string;
-  message: string;
-};
+export type SurveyCapabilityIssue = CapabilityIssue;
 
 /** Authoritative finding configs — capability indexes these, it does not copy them. */
 export function allFindingCaptureConfigs(): readonly FindingCaptureConfig[] {
@@ -261,25 +256,8 @@ function walkRegistry(
 export function surveyCapabilityCensus(): SurveyCapabilityCensus {
   const capabilities: SurveyCapability[] = [];
   walkRegistry(COMMAND_REGISTRY, [], capabilities);
-
-  const counts = {
-    capture: 0,
-    navigation: 0,
-    derived: 0,
-    blocked: 0,
-    unclassified: 0,
-  };
-  for (const capability of capabilities) {
-    if (capability.kind === SURVEY_CAPABILITY_KINDS.capture) counts.capture += 1;
-    else if (capability.kind === SURVEY_CAPABILITY_KINDS.navigation) counts.navigation += 1;
-    else if (capability.kind === SURVEY_CAPABILITY_KINDS.derived) counts.derived += 1;
-    else if (capability.kind === SURVEY_CAPABILITY_KINDS.blocked) counts.blocked += 1;
-    else counts.unclassified += 1;
-  }
-
   return {
-    total: capabilities.length,
-    ...counts,
+    ...censusFromCapabilities(capabilities),
     capabilities,
   };
 }
@@ -337,30 +315,17 @@ export function validateSurveyCapabilities(
     }
   }
 
-  const kindsByRoute = new Map<string, SurveyCapabilityKind>();
-  for (const capability of census.capabilities) {
-    const existing = kindsByRoute.get(capability.route);
-    if (existing && existing !== capability.kind) {
-      issues.push({
-        route: capability.route,
-        message: `route classified as both ${existing} and ${capability.kind}`,
-      });
-    }
-    kindsByRoute.set(capability.route, capability.kind);
+  issues.push(
+    ...collectDuplicateKindIssues(census.capabilities),
+    ...collectUnknownKindIssues(census.capabilities),
+    ...collectUnclassifiedCountIssue(census.unclassified),
+  );
 
+  for (const capability of census.capabilities) {
     const node = findCommandNode([...capability.path]);
     if (!node) {
       issues.push({ route: capability.route, message: 'capability path does not resolve' });
       continue;
-    }
-
-    if (
-      capability.kind !== SURVEY_CAPABILITY_KINDS.capture &&
-      capability.kind !== SURVEY_CAPABILITY_KINDS.navigation &&
-      capability.kind !== SURVEY_CAPABILITY_KINDS.derived &&
-      capability.kind !== SURVEY_CAPABILITY_KINDS.blocked
-    ) {
-      issues.push({ route: capability.route, message: 'unclassified governed route' });
     }
 
     if (capability.kind === SURVEY_CAPABILITY_KINDS.capture) {
@@ -470,13 +435,6 @@ export function validateSurveyCapabilities(
         });
       }
     }
-  }
-
-  if (census.unclassified !== 0) {
-    issues.push({
-      route: '*',
-      message: `unclassified governed routes = ${census.unclassified}`,
-    });
   }
 
   const blockedFromCensus = census.capabilities

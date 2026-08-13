@@ -1,3 +1,4 @@
+import { orderSelectionValues, toggleSelectionValue } from '@/core/selection-set';
 import type { FieldDefinition } from '@/lib/field-schema';
 
 export type MultiChoiceOptionSuggestion = {
@@ -37,10 +38,7 @@ export function toggleMultiChoiceValue(
   selected: readonly string[],
   canonicalValue: string,
 ): string[] {
-  if (selected.includes(canonicalValue)) {
-    return selected.filter((value) => value !== canonicalValue);
-  }
-  return [...selected, canonicalValue];
+  return toggleSelectionValue(selected, canonicalValue);
 }
 
 /**
@@ -52,12 +50,10 @@ export function orderMultiChoiceValues(
   selected: readonly string[],
 ): string[] {
   const selectedSet = new Set(selected);
-  return (field.options ?? [])
-    .filter(
-      (option) =>
-        option.available !== false && selectedSet.has(option.value),
-    )
+  const canonicalOrder = (field.options ?? [])
+    .filter((option) => option.available !== false)
     .map((option) => option.value);
+  return orderSelectionValues(canonicalOrder, [...selectedSet]);
 }
 
 /**

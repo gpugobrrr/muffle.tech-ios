@@ -255,6 +255,10 @@ test('type-only External ontology concepts stay out of InspectionElementConceptI
       'building_element.chimney',
       'building_element.rainwater_goods',
       'building_element.window',
+      'building_element.roof_structure',
+      'building_element.internal_wall',
+      'building_element.floor',
+      'building_element.bathroom_fitting',
     ],
   );
   for (const id of TYPE_ONLY_EXTERNAL_CONCEPTS) {

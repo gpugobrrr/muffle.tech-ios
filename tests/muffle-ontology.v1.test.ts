@@ -156,7 +156,10 @@ test('human-approved v1.2 concepts remain canonical; inspection subjects may gai
   const engineBackedBuildingElements = [
     'building_element.ceiling',
     'building_element.chimney',
+    'building_element.floor',
+    'building_element.internal_wall',
     'building_element.rainwater_goods',
+    'building_element.roof_structure',
     'building_element.window',
   ];
   const typeOnlyFindingFields = ['cause', 'implication', 'significance'];
@@ -183,7 +186,7 @@ test('human-approved v1.2 concepts remain canonical; inspection subjects may gai
     MUFFLE_ONTOLOGY_V1.concepts.filter(
       ({ introducedIn }) => introducedIn === '1.2.0',
     ).length,
-    approved.length + propertyDescriptionFields.length,
+    approved.length + propertyDescriptionFields.length + 1,
   );
   for (const id of approved) {
     const concept = getOntologyConcept(id);
@@ -247,6 +250,31 @@ test('human-approved v1.2 concepts remain canonical; inspection subjects may gai
   assert.deepEqual(getOntologyConcept('risk')?.bindings, {
     domainProperty: 'InspectionFinding.risk',
   });
+  const bathroomFitting = getOntologyConcept('building_element.bathroom_fitting');
+  assert.ok(bathroomFitting);
+  assert.equal(bathroomFitting.canonical, true);
+  assert.equal(bathroomFitting.introducedIn, '1.2.0');
+  assert.equal(bathroomFitting.ownership, 'engine-record');
+  assert.equal(bathroomFitting.maturity, 'engine-backed');
+  assert.equal(bathroomFitting.parentId, 'building_element');
+  assert.deepEqual(bathroomFitting.bindings, {
+    domainProperty: 'InspectionFinding.elementConceptId',
+  });
+  assert.equal(
+    bathroomFitting.source?.some(
+      (source) =>
+        source.type === 'ontology-review' &&
+        source.id === 'canonical-promotion-batch-1',
+    ),
+    false,
+  );
+  assert.ok(
+    bathroomFitting.source?.some(
+      (source) =>
+        source.type === 'domain-type' &&
+        source.id === 'BuildingElementConceptId:building_element.bathroom_fitting',
+    ),
+  );
   assert.equal(
     getOntologyConcept('inspection_brief.limitation')?.id,
     'inspection_brief.limitation',
@@ -285,7 +313,6 @@ test('v1.0.0 concepts remain present in the additive v1.2.0 registry', () => {
 test('deferred and unapproved survey semantics remain absent', () => {
   for (const absentId of [
     'construction',
-    'building_element.floor',
     'building_element.foundation',
     'building_element.driveway',
     'building_element.garage',
@@ -299,7 +326,6 @@ test('deferred and unapproved survey semantics remain absent', () => {
     'building_element.internal_door',
     'building_element.renewable_energy_system',
     'building_element.retaining_wall',
-    'building_element.roof_structure',
     'building_element.roof_void',
     'legal_matter',
     'summary',

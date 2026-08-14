@@ -599,25 +599,10 @@ const INTERNAL_NODE: CommandNode = {
       blocker: 'Section/finding limitation is unsupported.',
       recommendedLaterWork: 'Design section and finding limitation semantics.',
     }),
-    workflowLeaf('roof-structure', 'roof-structure', 'Roof structure inspection subject.', {
-      requirement: 'Roof structure',
-      status: 'blocked',
-      blocker: 'Roof structure is not canonical.',
-      recommendedLaterWork: 'Resolve roof structure independently from coverings.',
-    }),
+    inspectionFindingBranch(internalFindingConfig('roof-structure')),
     inspectionFindingBranch(internalFindingConfig('ceilings')),
-    workflowLeaf('walls-partitions', 'walls-partitions', 'Internal walls and partitions coverage.', {
-      requirement: 'Walls and partitions',
-      status: 'blocked',
-      blocker: 'Partition and internal-wall semantic shapes remain unresolved.',
-      recommendedLaterWork: 'Resolve these subjects without reusing external-wall meaning.',
-    }),
-    workflowLeaf('floors', 'floors', 'Floor inspection subject.', {
-      requirement: 'Floors',
-      status: 'blocked',
-      blocker: 'Floor semantic shape remains unresolved.',
-      recommendedLaterWork: 'Resolve floor entity/value semantics.',
-    }),
+    inspectionFindingBranch(internalFindingConfig('walls-partitions')),
+    inspectionFindingBranch(internalFindingConfig('floors')),
     workflowLeaf('fireplaces-flues', 'fireplaces-flues', 'Fireplace and flue coverage.', {
       requirement: 'Fireplaces, chimney breasts and flues',
       status: 'navigation-only',
@@ -638,12 +623,7 @@ const INTERNAL_NODE: CommandNode = {
       blocker: 'Staircase is type-only and does not cover generic woodwork.',
       recommendedLaterWork: 'Enable staircase and resolve joinery separately.',
     }),
-    workflowLeaf('bathroom', 'bathroom', 'Bathroom fittings coverage.', {
-      requirement: 'Bathroom fittings',
-      status: 'blocked',
-      blocker: 'No canonical bathroom-fitting subject.',
-      recommendedLaterWork: 'Design sanitary/bathroom fitting semantics.',
-    }),
+    inspectionFindingBranch(internalFindingConfig('bathroom')),
     workflowLeaf('other', 'other', 'Other internal inspection coverage.', {
       requirement: 'Other internal matters',
       status: 'blocked',

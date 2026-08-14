@@ -226,6 +226,13 @@ test('interactive Level 2 routes remain explicitly bounded', () => {
     'external/windows/recommend',
     'external/windows/photo',
     'external/windows/evidence',
+    'internal/roof-structure',
+    'internal/roof-structure/observe',
+    'internal/roof-structure/condition',
+    'internal/roof-structure/defect',
+    'internal/roof-structure/recommend',
+    'internal/roof-structure/photo',
+    'internal/roof-structure/evidence',
     'internal/ceilings',
     'internal/ceilings/observe',
     'internal/ceilings/condition',
@@ -233,6 +240,27 @@ test('interactive Level 2 routes remain explicitly bounded', () => {
     'internal/ceilings/recommend',
     'internal/ceilings/photo',
     'internal/ceilings/evidence',
+    'internal/walls-partitions',
+    'internal/walls-partitions/observe',
+    'internal/walls-partitions/condition',
+    'internal/walls-partitions/defect',
+    'internal/walls-partitions/recommend',
+    'internal/walls-partitions/photo',
+    'internal/walls-partitions/evidence',
+    'internal/floors',
+    'internal/floors/observe',
+    'internal/floors/condition',
+    'internal/floors/defect',
+    'internal/floors/recommend',
+    'internal/floors/photo',
+    'internal/floors/evidence',
+    'internal/bathroom',
+    'internal/bathroom/observe',
+    'internal/bathroom/condition',
+    'internal/bathroom/defect',
+    'internal/bathroom/recommend',
+    'internal/bathroom/photo',
+    'internal/bathroom/evidence',
     'services/electricity',
     'services/electricity/presence',
     'services/electricity/observe',
@@ -357,6 +385,5 @@ test('workflow coverage does not change completion, notes, or ontology semantics
     assert.equal(getOntologyConcept(code), undefined, code);
   }
   assert.equal(findOntologyAliases('Main Walls').length, 0);
-  assert.equal(getOntologyConcept('building_element.floor'), undefined);
   assert.equal(getOntologyConcept('building_element.garage'), undefined);
 });

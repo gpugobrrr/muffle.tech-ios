@@ -696,6 +696,89 @@ const INSPECTION_CONCEPTS: OntologyConcept[] = [
   },
   {
     ...V1_2_BASE,
+    id: 'building_element.bathroom_fitting',
+    kind: 'value',
+    label: 'Bathroom fitting',
+    description:
+      'Bathroom sanitary fittings and installations inspected as one finding subject.',
+    parentId: 'building_element',
+    canonical: true,
+    ownership: 'engine-record',
+    maturity: 'engine-backed',
+    valueType: { kind: 'text' },
+    bindings: { domainProperty: 'InspectionFinding.elementConceptId' },
+    source: [
+      {
+        type: 'domain-type',
+        id: 'BuildingElementConceptId:building_element.bathroom_fitting',
+      },
+    ],
+  },
+  {
+    ...V1_2_BASE,
+    id: 'building_element.floor',
+    kind: 'value',
+    label: 'Floor',
+    description:
+      'An internal floor inspected as one finding subject, without splitting structure and finishes.',
+    parentId: 'building_element',
+    canonical: true,
+    ownership: 'engine-record',
+    maturity: 'engine-backed',
+    valueType: { kind: 'text' },
+    bindings: { domainProperty: 'InspectionFinding.elementConceptId' },
+    source: [
+      { type: 'ontology-review', id: 'canonical-promotion-batch-1' },
+      {
+        type: 'domain-type',
+        id: 'BuildingElementConceptId:building_element.floor',
+      },
+    ],
+  },
+  {
+    ...V1_2_BASE,
+    id: 'building_element.internal_wall',
+    kind: 'value',
+    label: 'Internal wall',
+    description:
+      'Internal walls and partitions inspected as one finding subject, distinct from external walls.',
+    parentId: 'building_element',
+    canonical: true,
+    ownership: 'engine-record',
+    maturity: 'engine-backed',
+    valueType: { kind: 'text' },
+    bindings: { domainProperty: 'InspectionFinding.elementConceptId' },
+    source: [
+      { type: 'ontology-review', id: 'canonical-promotion-batch-1' },
+      {
+        type: 'domain-type',
+        id: 'BuildingElementConceptId:building_element.internal_wall',
+      },
+    ],
+  },
+  {
+    ...V1_2_BASE,
+    id: 'building_element.roof_structure',
+    kind: 'value',
+    label: 'Roof structure',
+    description:
+      'Accessible internal roof structure inspected as a finding subject, distinct from external roof coverings.',
+    parentId: 'building_element',
+    canonical: true,
+    ownership: 'engine-record',
+    maturity: 'engine-backed',
+    valueType: { kind: 'text' },
+    bindings: { domainProperty: 'InspectionFinding.elementConceptId' },
+    source: [
+      { type: 'ontology-review', id: 'canonical-promotion-batch-1' },
+      {
+        type: 'domain-type',
+        id: 'BuildingElementConceptId:building_element.roof_structure',
+      },
+    ],
+  },
+  {
+    ...V1_2_BASE,
     id: 'building_element.chimney',
     kind: 'value',
     label: 'Chimney',

@@ -43,11 +43,11 @@ function emptyBrief(): InspectionBrief {
 test('every governed route has exactly one capability kind and unclassified is 0', () => {
   const census = surveyCapabilityCensus();
   assert.equal(census.unclassified, 0);
-  assert.equal(census.total, 148);
-  assert.equal(census.capture, 88);
-  assert.equal(census.navigation, 22);
+  assert.equal(census.total, 172);
+  assert.equal(census.capture, 112);
+  assert.equal(census.navigation, 26);
   assert.equal(census.derived, 2);
-  assert.equal(census.blocked, 36);
+  assert.equal(census.blocked, 32);
   assert.equal(
     census.total,
     census.capture + census.navigation + census.derived + census.blocked,
@@ -232,7 +232,7 @@ test('Property and Services mains presence share one canonical field ID', () => 
   assert.equal(propertyWater?.fieldId, servicesWater?.fieldId);
 });
 
-test('Internal ceilings references INTERNAL_FINDING_CONFIGS as Type 6/7', () => {
+test('Internal finding configs are Type 6/7 capture', () => {
   for (const config of INTERNAL_FINDING_CONFIGS) {
     const parent = capabilityForRoute(config.route);
     assert.equal(parent?.kind, SURVEY_CAPABILITY_KINDS.navigation, config.label);
@@ -251,13 +251,9 @@ test('Internal ceilings references INTERNAL_FINDING_CONFIGS as Type 6/7', () => 
 test('remaining Internal unresolved routes stay blocked with reasons', () => {
   const expected = {
     'internal/limitation': SURVEY_BLOCKED_REASONS.workflowModelUndefined,
-    'internal/roof-structure': SURVEY_BLOCKED_REASONS.unresolvedSubjectScope,
-    'internal/walls-partitions': SURVEY_BLOCKED_REASONS.unresolvedSubjectScope,
-    'internal/floors': SURVEY_BLOCKED_REASONS.unresolvedSubjectScope,
     'internal/fireplaces-flues': SURVEY_BLOCKED_REASONS.ontologyTypeOnly,
     'internal/built-ins': SURVEY_BLOCKED_REASONS.missingFieldSemantics,
     'internal/woodwork': SURVEY_BLOCKED_REASONS.ontologyTypeOnly,
-    'internal/bathroom': SURVEY_BLOCKED_REASONS.missingFieldSemantics,
     'internal/other': SURVEY_BLOCKED_REASONS.publicationGrouping,
   } as const;
   for (const [route, reason] of Object.entries(expected)) {

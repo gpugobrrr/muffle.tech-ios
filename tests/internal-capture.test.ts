@@ -23,7 +23,11 @@ import {
 import {
   isInspectionElementConceptId,
 } from '../src/lib/inspection-finding-elements';
-import { INTERNAL_FINDING_CONFIGS } from '../src/lib/internal-findings';
+import {
+  INTERNAL_FINDING_CONFIGS,
+  internalFindingConfig,
+  type InternalFindingConfig,
+} from '../src/lib/internal-findings';
 import { EXTERNAL_FINDING_CONFIGS } from '../src/lib/external-findings';
 import { createEmptyInspectionRecord } from '../src/lib/inspection-record';
 import {
@@ -32,25 +36,27 @@ import {
   deserializeActiveJob,
   serializeActiveJob,
 } from '../src/lib/job-persistence';
+import { buildSurveyReport } from '../src/lib/report/build-survey-report';
 import { SERVICES_FINDING_CONFIGS } from '../src/lib/services-findings';
+import {
+  capabilityForRoute,
+  SURVEY_CAPABILITY_KINDS,
+  SURVEY_BLOCKED_REASONS,
+} from '../src/lib/survey-capability';
 import {
   executeInspectionOperation,
   SURVEY_OPERATIONS,
 } from '../src/lib/survey-operations';
 import type { InspectionBrief, InspectionFinding } from '../src/types/workspace';
 
-const CEILING = INTERNAL_FINDING_CONFIGS[0]!;
+const CEILING = internalFindingConfig('ceilings');
 const CEILING_ROUTE = [...CEILING.route] as const;
 
 const UNRESOLVED_INTERNAL = [
   ['internal', 'limitation'],
-  ['internal', 'roof-structure'],
-  ['internal', 'walls-partitions'],
-  ['internal', 'floors'],
   ['internal', 'fireplaces-flues'],
   ['internal', 'built-ins'],
   ['internal', 'woodwork'],
-  ['internal', 'bathroom'],
   ['internal', 'other'],
 ] as const;
 
@@ -80,6 +86,10 @@ function mockFileStore(): EvidenceFileStore {
   };
 }
 
+function siblingConfig(config: InternalFindingConfig): InternalFindingConfig {
+  return INTERNAL_FINDING_CONFIGS.find((item) => item.routeId !== config.routeId)!;
+}
+
 test('Internal ceilings is Engine-backed Type 6/7 with a stable finding ID', () => {
   assert.equal(CEILING.findingId, 'finding.ceiling.1');
   assert.equal(CEILING.elementConceptId, 'building_element.ceiling');
@@ -88,6 +98,57 @@ test('Internal ceilings is Engine-backed Type 6/7 with a stable finding ID', () 
   assert.equal(findCommandNode([...CEILING_ROUTE])?.workflowOnly, undefined);
   assert.ok(findCommandNode([...CEILING_ROUTE, 'observe'])?.findingTarget);
   assert.ok(findCommandNode([...CEILING_ROUTE, 'photo'])?.evidenceCaptureTarget);
+});
+
+test('activated Internal subjects resolve with stable finding IDs and concepts', () => {
+  const expected = {
+    'roof-structure': {
+      findingId: 'finding.roof-structure.1',
+      elementConceptId: 'building_element.roof_structure',
+    },
+    ceilings: {
+      findingId: 'finding.ceiling.1',
+      elementConceptId: 'building_element.ceiling',
+    },
+    'walls-partitions': {
+      findingId: 'finding.internal-wall.1',
+      elementConceptId: 'building_element.internal_wall',
+    },
+    floors: {
+      findingId: 'finding.floor.1',
+      elementConceptId: 'building_element.floor',
+    },
+    bathroom: {
+      findingId: 'finding.bathroom-fitting.1',
+      elementConceptId: 'building_element.bathroom_fitting',
+    },
+  } as const;
+
+  for (const config of INTERNAL_FINDING_CONFIGS) {
+    const spec = expected[config.routeId];
+    assert.equal(config.findingId, spec.findingId, config.routeId);
+    assert.equal(config.elementConceptId, spec.elementConceptId, config.routeId);
+    assert.equal(isInspectionElementConceptId(config.elementConceptId), true);
+    assert.equal(
+      getOntologyConcept(config.elementConceptId)?.maturity,
+      'engine-backed',
+      config.routeId,
+    );
+    const parent = findCommandNode([...config.route]);
+    assert.ok(parent, config.route.join('/'));
+    assert.equal(parent?.workflowOnly, undefined, config.routeId);
+    assert.equal(parent?.coverage?.canonicalConceptId, config.elementConceptId);
+    assert.equal(
+      capabilityForRoute(config.route)?.kind,
+      SURVEY_CAPABILITY_KINDS.navigation,
+      config.routeId,
+    );
+    assert.ok(findCommandNode([...config.route, 'observe'])?.findingTarget);
+    assert.ok(findCommandNode([...config.route, 'photo'])?.evidenceCaptureTarget);
+    assert.equal(findCommandNode([...config.route, 'limit']), null, config.routeId);
+    assert.equal(findCommandNode([...config.route, 'further']), null, config.routeId);
+    assert.equal(findCommandNode([...config.route, 'risk']), null, config.routeId);
+  }
 });
 
 test('unresolved Internal routes remain workflow placeholders without Engine writes', () => {
@@ -115,6 +176,70 @@ test('fireplace/flue grouping is not collapsed onto External chimney truth', () 
   assert.equal(getOntologyConcept('building_element.fireplace')?.maturity, 'type-only');
   assert.equal(isInspectionElementConceptId('building_element.fireplace'), false);
   assert.equal(isInspectionElementConceptId('building_element.chimney'), true);
+  assert.equal(
+    capabilityForRoute('internal/fireplaces-flues')?.blockedReason,
+    SURVEY_BLOCKED_REASONS.ontologyTypeOnly,
+  );
+});
+
+test('Internal walls stay distinct from External walls', () => {
+  const internalWalls = internalFindingConfig('walls-partitions');
+  const externalWalls = EXTERNAL_FINDING_CONFIGS.find((item) => item.routeId === 'walls')!;
+  assert.notEqual(internalWalls.elementConceptId, externalWalls.elementConceptId);
+  assert.notEqual(internalWalls.findingId, externalWalls.findingId);
+  assert.equal(internalWalls.elementConceptId, 'building_element.internal_wall');
+  assert.equal(externalWalls.elementConceptId, 'building_element.external_wall');
+});
+
+test('Internal roof structure stays distinct from External roof coverings', () => {
+  const roofStructure = internalFindingConfig('roof-structure');
+  const externalRoof = findCommandNode(['external', 'roof']);
+  assert.equal(roofStructure.elementConceptId, 'building_element.roof_structure');
+  assert.equal(getOntologyConcept('building_element.roof'), undefined);
+  assert.equal(externalRoof?.workflowOnly, true);
+  assert.equal(externalRoof?.coverage?.canonicalConceptId, undefined);
+  assert.equal(
+    capabilityForRoute('external/roof')?.kind,
+    SURVEY_CAPABILITY_KINDS.blocked,
+  );
+});
+
+test('Internal floors stay distinct from Property construction', () => {
+  const floors = internalFindingConfig('floors');
+  assert.equal(floors.elementConceptId, 'building_element.floor');
+  assert.equal(
+    capabilityForRoute('property/construction')?.kind,
+    SURVEY_CAPABILITY_KINDS.blocked,
+  );
+  assert.equal(findCommandNode(['property', 'construction'])?.findingTarget, undefined);
+  assert.equal(getOntologyConcept('construction'), undefined);
+});
+
+test('Bathroom fittings create no accommodation inventory', () => {
+  const bathroom = internalFindingConfig('bathroom');
+  assert.equal(bathroom.elementConceptId, 'building_element.bathroom_fitting');
+  assert.equal(
+    capabilityForRoute('property/accommodation')?.kind,
+    SURVEY_CAPABILITY_KINDS.blocked,
+  );
+  assert.equal(findCommandNode(['property', 'accommodation'])?.findingTarget, undefined);
+  assert.equal(findCommandNode(['internal', 'bathroom', 'inventory']), null);
+});
+
+test('Internal section limitation is not finding limitation', () => {
+  const sectionLimit = findCommandNode(['internal', 'limitation']);
+  const findingLimit = findCommandNode(['external', 'walls', 'limit']);
+  assert.equal(sectionLimit?.workflowOnly, true);
+  assert.equal(sectionLimit?.findingTarget, undefined);
+  assert.equal(findingLimit?.findingTarget?.field, 'limitation');
+  assert.equal(
+    getOntologyConcept('limitation')?.bindings?.domainProperty,
+    'InspectionFinding.limitation',
+  );
+  assert.notEqual(
+    getOntologyConcept('inspection_brief.limitation')?.id,
+    getOntologyConcept('limitation')?.id,
+  );
 });
 
 test('Engine finding upsert accepts ceiling and rejects type-only fireplace', () => {
@@ -142,6 +267,135 @@ test('Engine finding upsert accepts ceiling and rejects type-only fireplace', ()
   });
   assert.ok(accepted);
   assert.equal(accepted?.finding.id, CEILING.findingId);
+});
+
+test('activated Internal subjects are observation-first Type 6/7 with sibling isolation', async () => {
+  for (const config of INTERNAL_FINDING_CONFIGS) {
+    const observe = findCommandNode([...config.route, 'observe'])!.findingTarget!;
+    const condition = findCommandNode([...config.route, 'condition'])!.findingTarget!;
+    const defect = findCommandNode([...config.route, 'defect'])!.findingTarget!;
+    const recommend = findCommandNode([...config.route, 'recommend'])!.findingTarget!;
+    const photo = findCommandNode([...config.route, 'photo'])!.evidenceCaptureTarget!;
+    const sibling = siblingConfig(config);
+
+    for (const target of [condition, defect, recommend]) {
+      const rejected = commitInspectionFindingField(
+        createEmptyInspectionRecord(),
+        target,
+        'premature',
+      );
+      assert.equal(rejected.ok, false, `${config.routeId} ${target.field}`);
+      if (!rejected.ok) {
+        assert.equal(rejected.message, 'Record observation first');
+      }
+    }
+    const photoFirst = await captureAndCommitInspectionEvidencePhoto({
+      inspection: createEmptyInspectionRecord(),
+      target: photo,
+      jobId: `job.internal.${config.routeId}`,
+      temporaryUri: `file:///tmp/${config.routeId}-premature.jpg`,
+      fileStore: mockFileStore(),
+      createId: () => `evidence.photo.${config.routeId}-premature`,
+    });
+    assert.equal(photoFirst.ok, false, config.routeId);
+
+    const observed = commitInspectionFindingField(
+      createEmptyInspectionRecord(),
+      observe,
+      `${config.label} observation.`,
+    );
+    assert.equal(observed.ok, true, config.routeId);
+    if (!observed.ok) return;
+    assert.equal(Object.keys(observed.result.inspection.findings).length, 1);
+    assert.equal(
+      observed.result.inspection.findings[config.findingId]?.observation,
+      `${config.label} observation.`,
+    );
+
+    const siblingObserved = commitInspectionFindingField(
+      observed.result.inspection,
+      findCommandNode([...sibling.route, 'observe'])!.findingTarget!,
+      `${sibling.label} observation.`,
+    );
+    assert.equal(siblingObserved.ok, true, sibling.routeId);
+    if (!siblingObserved.ok) return;
+    let inspection = siblingObserved.result.inspection;
+
+    const defected = commitInspectionFindingField(
+      inspection,
+      defect,
+      `${config.label} defect.`,
+    );
+    assert.equal(defected.ok, true, config.routeId);
+    if (!defected.ok) return;
+    inspection = defected.result.inspection;
+
+    const recommended = commitInspectionFindingField(
+      inspection,
+      recommend,
+      `${config.label} recommendation.`,
+    );
+    assert.equal(recommended.ok, true, config.routeId);
+    if (!recommended.ok) return;
+    inspection = recommended.result.inspection;
+
+    const evidenced = await captureAndCommitInspectionEvidencePhoto({
+      inspection,
+      target: photo,
+      jobId: `job.internal.${config.routeId}`,
+      temporaryUri: `file:///tmp/${config.routeId}.jpg`,
+      fileStore: mockFileStore(),
+      createId: () => `evidence.photo.${config.routeId}`,
+    });
+    assert.equal(evidenced.ok, true, config.routeId);
+    if (!evidenced.ok) return;
+    inspection = evidenced.result.inspection;
+
+    assert.equal(
+      inspection.findings[config.findingId]?.defect,
+      `${config.label} defect.`,
+    );
+    assert.equal(
+      inspection.findings[config.findingId]?.recommendation,
+      `${config.label} recommendation.`,
+    );
+    assert.equal(inspection.findings[sibling.findingId]?.defect, undefined);
+    assert.equal(countFindingPhotoEvidence(inspection, config.findingId), 1);
+    assert.equal(countFindingPhotoEvidence(inspection, sibling.findingId), 0);
+  }
+});
+
+test('frozen Internal finding sessions commit the opened observation target', () => {
+  for (const config of INTERNAL_FINDING_CONFIGS) {
+    const observe = findCommandNode([...config.route, 'observe'])!;
+    const defect = findCommandNode([...config.route, 'defect'])!;
+    const session = openFindingEntrySession(
+      [...config.route, 'observe'],
+      observe.findingTarget!,
+      observe.token,
+    );
+    assert.equal(
+      resolveFindingEntryCommitTarget(session, defect.findingTarget)?.field,
+      'observation',
+      config.routeId,
+    );
+    const committed = commitFindingEntrySession(
+      createEmptyInspectionRecord(),
+      session,
+      `${config.label} observation from frozen session.`,
+      defect.findingTarget,
+    );
+    assert.equal(committed.ok, true, config.routeId);
+    if (!committed.ok) return;
+    assert.equal(
+      committed.result.inspection.findings[config.findingId]?.observation,
+      `${config.label} observation from frozen session.`,
+    );
+    assert.equal(
+      committed.result.inspection.findings[config.findingId]?.defect,
+      undefined,
+    );
+  }
 });
 
 test('Internal ceilings observation-first gates condition, defect, recommendation, and photo', async () => {
@@ -301,11 +555,11 @@ test('ActiveJob persistence round-trips Internal, External, and Services finding
   let job = createInitialActiveJob();
 
   const subjects = [
-    {
-      config: CEILING,
-      observation: 'Hairline cracking at the ceiling/wall junction.',
-      defect: 'Cracking follows the partition line.',
-    },
+    ...INTERNAL_FINDING_CONFIGS.map((config) => ({
+      config,
+      observation: `${config.label} observation.`,
+      defect: `${config.label} defect.`,
+    })),
     {
       config: walls,
       observation: 'Stepped cracking above the opening.',
@@ -374,13 +628,31 @@ test('ActiveJob persistence round-trips Internal, External, and Services finding
     1,
   );
   assert.equal(activeJobContainsEmbeddedImageData(restored!), false);
+
+  const report = buildSurveyReport(restored!);
+  assert.deepEqual(
+    report.findings.internal.map((finding) => finding.findingId),
+    INTERNAL_FINDING_CONFIGS.map((config) => config.findingId),
+  );
+  assert.equal(
+    report.findings.external.some((finding) => finding.findingId === walls.findingId),
+    true,
+  );
+  assert.equal(
+    report.findings.internal.some(
+      (finding) => finding.findingId === walls.findingId,
+    ),
+    false,
+  );
 });
 
 test('Internal findings stay optional and do not change directory completion', () => {
-  for (const token of ['observe', 'condition', 'defect', 'recommend', 'evidence']) {
-    const node = findCommandNode([...CEILING_ROUTE, token]);
-    assert.equal(node?.optional, true, token);
-    assert.notEqual(node?.required, true, token);
+  for (const config of INTERNAL_FINDING_CONFIGS) {
+    for (const token of ['observe', 'condition', 'defect', 'recommend', 'evidence']) {
+      const node = findCommandNode([...config.route, token]);
+      assert.equal(node?.optional, true, `${config.routeId}/${token}`);
+      assert.notEqual(node?.required, true, `${config.routeId}/${token}`);
+    }
   }
   const completion = resolveDirectoryCompletion(['internal'], emptyBrief());
   assert.equal(completion?.completed, 0);

@@ -8,6 +8,7 @@ import { CONTROLLED_PRESENCE_STATUSES } from '../src/lib/controlled-fact';
 import { findCommandNode } from '../src/lib/command-registry';
 import { resolveFieldValue } from '../src/lib/field-schema';
 import { commitInspectionFindingField } from '../src/lib/finding-capture';
+import { INTERNAL_FINDING_CONFIGS } from '../src/lib/internal-findings';
 import { DEMO_OX3_8SE_ADDRESSES } from '../src/lib/fixtures/demo-ox3-8se';
 import {
   createInitialActiveJob,
@@ -287,6 +288,28 @@ test('chimney and ceiling findings group without leakage or duplicates', () => {
   assert.deepEqual(report.summary.sectionsWithFindings, ['external', 'internal']);
 });
 
+test('activated Internal findings project into findings.internal without a subject mapper', () => {
+  let inspection = createInitialActiveJob().inspection;
+  for (const config of INTERNAL_FINDING_CONFIGS) {
+    const observed = commitInspectionFindingField(
+      inspection,
+      findCommandNode([...config.route, 'observe'])!.findingTarget!,
+      `${config.label} observation.`,
+    );
+    assert.equal(observed.ok, true, config.routeId);
+    if (!observed.ok) return;
+    inspection = observed.result.inspection;
+  }
+  const report = buildSurveyReport(
+    withInspection(createInitialActiveJob(), inspection),
+  );
+  assert.deepEqual(
+    report.findings.internal.map((finding) => finding.findingId),
+    INTERNAL_FINDING_CONFIGS.map((config) => config.findingId),
+  );
+  assert.deepEqual(report.findings.external, []);
+});
+
 test('services findings stay distinct from property mains-service facts', () => {
   const brief = writeBrief(emptyBrief(), SURVEY_OPERATIONS.setControlledFact, {
     fieldId: MAINS_SERVICE_FIELD_IDS.gas,
@@ -453,9 +476,9 @@ test('summary and report remain derived and unclassified stays 0', () => {
   assert.equal(capabilityForRoute('report')?.kind, SURVEY_CAPABILITY_KINDS.derived);
   const census = surveyCapabilityCensus();
   assert.equal(census.unclassified, 0);
-  assert.equal(census.capture, 88);
+  assert.equal(census.capture, 112);
   assert.equal(census.derived, 2);
-  assert.equal(census.blocked, 36);
+  assert.equal(census.blocked, 32);
 });
 
 test('SVYR derived routes consume the survey report projection without a report store', () => {

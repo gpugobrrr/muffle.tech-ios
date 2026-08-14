@@ -13,6 +13,7 @@ import {
   normalizeNumericFieldInput,
   prepareNumericCommit,
 } from '../src/lib/numeric-field';
+import { prepareMultiChoiceCommit } from '../src/lib/multi-choice';
 import {
   clearEntryDraft,
   readEntryDraft,
@@ -174,15 +175,23 @@ test('opening or typing a numeric draft does not alter completion', () => {
   assert.deepEqual(after, before);
 });
 
-test('no production field is bound to number; multiSelect remains unbound', () => {
-  assert.equal(
-    allFieldDefinitions().some((field) => field.valueType === 'number'),
-    false,
+test('registered production number and multiSelect fields use canonical bindings', () => {
+  const numberFields = allFieldDefinitions().filter(
+    (field) => field.valueType === 'number',
   );
+  assert.equal(numberFields.length, 1);
   assert.equal(
-    allFieldDefinitions().some((field) => field.valueType === 'multiSelect'),
-    false,
+    numberFields[0]?.fieldId,
+    'property.energy.heating.installation_year',
   );
+  assert.equal(numberFields[0]?.operationId, 'survey.controlled_fact.set');
+
+  const multiFields = allFieldDefinitions().filter(
+    (field) => field.valueType === 'multiSelect',
+  );
+  assert.equal(multiFields.length, 1);
+  assert.equal(multiFields[0]?.fieldId, 'property.energy.heating.heat_emitters');
+  assert.equal(multiFields[0]?.operationId, 'survey.controlled_fact_set.set');
 });
 
 test('UI routes number through NumericEntryPage with split keyboard numeric layer', () => {
@@ -247,10 +256,29 @@ test('text and single-choice production fields remain unchanged', () => {
   assert.equal(source?.valueType, 'singleSelect');
 });
 
-test('multi-choice production guard source remains engineWritable false', () => {
-  const multi = readFileSync(
-    path.join(repoRoot, 'src/lib/multi-choice.ts'),
-    'utf8',
+test('multi-choice engineWritable follows registered controlled set operation', () => {
+  const production = allFieldDefinitions().find(
+    (field) => field.fieldId === 'property.energy.heating.heat_emitters',
   );
-  assert.match(multi, /engineWritable:\s*false/);
+  assert.ok(production);
+  const productionCommit = prepareMultiChoiceCommit(production!, ['radiators']);
+  assert.equal(productionCommit.ok, true);
+  if (!productionCommit.ok) return;
+  assert.equal(productionCommit.engineWritable, true);
+
+  const harness: FieldDefinition = {
+    kind: 'field',
+    path: ['__harness', 'materials'],
+    pathKey: '__harness/materials',
+    token: 'materials',
+    label: 'Materials',
+    description: 'Harness-only multi-choice field.',
+    fieldId: 'harness.materials',
+    valueType: 'multiSelect',
+    options: [{ value: 'brick', label: 'brick' }],
+  };
+  const harnessCommit = prepareMultiChoiceCommit(harness, ['brick']);
+  assert.equal(harnessCommit.ok, true);
+  if (!harnessCommit.ok) return;
+  assert.equal(harnessCommit.engineWritable, false);
 });

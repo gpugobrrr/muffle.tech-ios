@@ -13,6 +13,7 @@ import {
   prepareMultiChoiceCommit,
   toggleMultiChoiceValue,
 } from '../src/lib/multi-choice';
+import { buildSingleChoiceSuggestions } from '../src/lib/single-choice';
 import {
   clearEntryDraft,
   readEntryDraft,
@@ -178,15 +179,23 @@ test('UI shell routes multiSelect through MultiChoiceEntryPage and shared SvyrBa
   assert.match(dock, /<SvyrBar/);
 });
 
-test('single-choice and ontology surfaces remain unchanged by multi-choice', () => {
+test('single-choice remains independent of multi-choice capture', () => {
+  const sourceField = allFieldDefinitions().find(
+    (field) => field.pathKey === 'prep/brief/instr/source',
+  );
+  assert.ok(sourceField);
+  assert.equal(sourceField?.valueType, 'singleSelect');
+
+  const suggestions = buildSingleChoiceSuggestions(sourceField!, 'email');
+  assert.ok(suggestions.some((item) => item.canonicalValue === 'email'));
+
   const single = readFileSync(
     path.join(repoRoot, 'src/lib/single-choice.ts'),
     'utf8',
   );
-  const sourceField = allFieldDefinitions().find(
-    (field) => field.pathKey === 'prep/brief/instr/source',
+  assert.match(single, /usesSingleChoicePresentation/);
+  assert.doesNotMatch(
+    single,
+    /multiSelect|toggleMultiChoiceValue|prepareMultiChoiceCommit/,
   );
-  assert.equal(sourceField?.valueType, 'singleSelect');
-  assert.match(single, /singleSelect/);
-  assert.doesNotMatch(single, /multiSelect/);
 });

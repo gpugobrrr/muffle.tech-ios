@@ -23,7 +23,33 @@ import {
   SERVICES_GAS_FINDING_CONFIG,
   servicesFindingConfig,
   type ServicesFindingConfig,
+  type ServicesFindingRouteId,
 } from '@/lib/services-findings';
+
+type ServicesPresenceFindingRouteId = Extract<
+  ServicesFindingRouteId,
+  ServicesPresenceRouteId
+>;
+
+function isServicesPresenceFindingConfig(
+  config: ServicesFindingConfig,
+): config is ServicesFindingConfig & { routeId: ServicesPresenceFindingRouteId } {
+  return (
+    config.routeId === 'electricity' ||
+    config.routeId === 'water' ||
+    config.routeId === 'drainage'
+  );
+}
+
+function servicesPresenceFindingConfig(
+  routeId: ServicesPresenceFindingRouteId,
+): ServicesFindingConfig & { routeId: ServicesPresenceFindingRouteId } {
+  const config = servicesFindingConfig(routeId);
+  if (!isServicesPresenceFindingConfig(config)) {
+    throw new Error(`Missing Services presence finding config: ${routeId}`);
+  }
+  return config;
+}
 
 export type Level2CoverageManifestEntry = Level2CaptureCoverage & {
   route: string;
@@ -181,7 +207,7 @@ function servicesFindingLeaves(
 }
 
 function servicesPresenceCaptureBranch(
-  config: ServicesFindingConfig,
+  config: ServicesFindingConfig & { routeId: ServicesPresenceFindingRouteId },
   recommendedLaterWork: string,
 ): CommandNode {
   return {
@@ -641,7 +667,7 @@ const SERVICES_NODE: CommandNode = {
       recommendedLaterWork: 'Design section and finding limitation semantics.',
     }),
     servicesPresenceCaptureBranch(
-      servicesFindingConfig('electricity'),
+      servicesPresenceFindingConfig('electricity'),
       'Add visual electrical-installation findings without implying testing.',
     ),
     {
@@ -688,7 +714,7 @@ const SERVICES_NODE: CommandNode = {
       ],
     },
     servicesPresenceCaptureBranch(
-      servicesFindingConfig('water'),
+      servicesPresenceFindingConfig('water'),
       'Add water-service findings without inventing pressure, quality or material enums.',
     ),
     servicesFindingOnlyBranch(
@@ -700,7 +726,7 @@ const SERVICES_NODE: CommandNode = {
       'Keep hot-water structured facts at property/energy/heating/hot-water.',
     ),
     servicesPresenceCaptureBranch(
-      servicesFindingConfig('drainage'),
+      servicesPresenceFindingConfig('drainage'),
       'Separate drainage findings from rainwater goods before adding narrative capture.',
     ),
     workflowLeaf('common', 'common', 'Common services coverage.', {

@@ -216,6 +216,9 @@ export type SvyrController = {
    * Never canonical Engine state, notes, or completion.
    */
   entryDraftsByPath: SvyrEntryDraftsByPath;
+  updateEntryDraftsByPath: (
+    update: (current: SvyrEntryDraftsByPath) => SvyrEntryDraftsByPath,
+  ) => void;
 };
 
 export function useSvyrController(): SvyrController {
@@ -1010,6 +1013,13 @@ export function useSvyrController(): SvyrController {
     setEntryDraftsByPath((current) => stashEntryDraft(current, path, draft));
   }, []);
 
+  const updateEntryDraftsByPath = useCallback(
+    (update: (current: SvyrEntryDraftsByPath) => SvyrEntryDraftsByPath) => {
+      setEntryDraftsByPath(update);
+    },
+    [],
+  );
+
   const activeMultiChoiceValues = useMemo((): readonly string[] => {
     if (!activeEntryField) return [];
     return (
@@ -1475,5 +1485,6 @@ export function useSvyrController(): SvyrController {
     notesByPath,
     setPathNote,
     entryDraftsByPath,
+    updateEntryDraftsByPath,
   };
 }

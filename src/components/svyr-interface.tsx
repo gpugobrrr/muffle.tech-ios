@@ -24,6 +24,7 @@ import { useSvyrHints } from '@/hooks/use-svyr-hints';
 import { useDataEntrySwipe } from '@/hooks/use-data-entry-swipe';
 import type { SvyrController } from '@/hooks/use-workspace';
 import type { CommandSuggestion } from '@/lib/command-parser';
+import type { CompoundChildNavigation } from '@/lib/compound-child-navigation';
 import { usesSingleChoicePresentation } from '@/lib/data-entry-types';
 import { compoundGroupRows } from '@/lib/controlled-group';
 import {
@@ -252,6 +253,16 @@ export function SvyrInterface({
     void hints.resetHints();
   }, [hints]);
 
+  const [compoundChildNavigation, setCompoundChildNavigation] =
+    useState<CompoundChildNavigation | null>(null);
+
+  const handleDataEntryNavigateBack = useCallback(() => {
+    if (compoundChildNavigation?.isChildActive) {
+      return compoundChildNavigation.navigateBackFromChild();
+    }
+    return controller.cancelCurrentInteraction();
+  }, [compoundChildNavigation, controller]);
+
   // Keyboard already owns the bottom inset when visible — avoid double padding.
   const dockBottomPad = keyboardVisible
     ? Spacing.xs
@@ -260,12 +271,20 @@ export function SvyrInterface({
     enabled: isDataEntry,
     fieldKey: noteEditing
       ? PARTY_NOTES_PATH
-      : controller.activeEntryField?.path.join('/') ?? null,
-    value: noteEditing ? noteValue : controller.entryValue,
+      : compoundChildNavigation?.isChildActive && compoundChildNavigation.fieldKey
+        ? compoundChildNavigation.fieldKey
+        : controller.activeEntryField?.path.join('/') ?? null,
+    value: noteEditing
+      ? noteValue
+      : compoundChildNavigation?.isChildActive
+        ? compoundChildNavigation.value
+        : controller.entryValue,
     onChangeText: noteEditing
       ? (value: string) => controller.setPathNote(PARTY_NOTES_PATH, value)
-      : controller.setEntryValue,
-    onNavigateBack: controller.cancelCurrentInteraction,
+      : compoundChildNavigation?.isChildActive
+        ? compoundChildNavigation.onChangeText
+        : controller.setEntryValue,
+    onNavigateBack: handleDataEntryNavigateBack,
   });
 
   useEffect(() => {
@@ -341,6 +360,9 @@ export function SvyrInterface({
               onCommitScalar={controller.commitControlledFieldValue}
               onCommitSet={controller.commitControlledSetFieldValue}
               onNavigateUpDirectory={controller.cancelCurrentInteraction}
+              entryDraftsByPath={controller.entryDraftsByPath}
+              updateEntryDraftsByPath={controller.updateEntryDraftsByPath}
+              onNavigationChange={setCompoundChildNavigation}
             />
           ) : controller.activeEntryField ? (
             <SvyrDataEntryPanel

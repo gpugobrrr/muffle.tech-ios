@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AutocompleteArea } from '@/components/autocomplete-area';
@@ -8,10 +8,18 @@ import { TextEntryPage } from '@/components/text-entry-page';
 import { Colors, Fonts, Spacing, Type } from '@/constants/theme';
 import type { ActiveEntryField } from '@/hooks/use-workspace';
 import type { CompoundGroupRow } from '@/lib/controlled-group';
+import {
+  resolveCompoundChildMultiDraft,
+  resolveCompoundChildTextDraft,
+  stashCompoundChildMultiDraft,
+  stashCompoundChildTextDraft,
+  type CompoundChildNavigation,
+} from '@/lib/compound-child-navigation';
 import type { FieldDefinition } from '@/lib/field-schema';
 import { orderMultiChoiceValues, toggleMultiChoiceValue } from '@/lib/multi-choice';
 import { formatSvyrDisplayedLabel } from '@/lib/svyr-label-presentation';
 import { usesSingleChoicePresentation } from '@/lib/data-entry-types';
+import type { SvyrEntryDraftsByPath } from '@/lib/svyr-entry-drafts';
 import {
   buildSingleChoiceSuggestions,
   type SingleChoiceSuggestion,
@@ -28,6 +36,11 @@ type Props = {
   onCommitScalar: (path: string[], value: string) => boolean;
   onCommitSet: (path: string[], values: readonly string[]) => boolean;
   onNavigateUpDirectory: () => boolean;
+  entryDraftsByPath: SvyrEntryDraftsByPath;
+  updateEntryDraftsByPath: (
+    update: (current: SvyrEntryDraftsByPath) => SvyrEntryDraftsByPath,
+  ) => void;
+  onNavigationChange: (navigation: CompoundChildNavigation | null) => void;
 };
 
 function syntheticEntryField(field: FieldDefinition): ActiveEntryField {
@@ -58,6 +71,9 @@ export function CompoundCaptureEntryPage({
   onCommitScalar,
   onCommitSet,
   onNavigateUpDirectory,
+  entryDraftsByPath,
+  updateEntryDraftsByPath,
+  onNavigationChange,
 }: Props) {
   const [activeFieldPath, setActiveFieldPath] = useState<string[] | null>(null);
   const [textDraft, setTextDraft] = useState('');
@@ -88,12 +104,93 @@ export function CompoundCaptureEntryPage({
   const openRow = (row: CompoundGroupRow) => {
     setActiveFieldPath(row.path);
     if (row.field.valueType === 'text' || row.field.valueType === 'number') {
-      setTextDraft(resolveStoredValue(row.field) ?? '');
+      setTextDraft(
+        resolveCompoundChildTextDraft(
+          entryDraftsByPath,
+          row.path,
+          resolveStoredValue(row.field),
+        ),
+      );
     }
     if (row.field.valueType === 'multiSelect') {
-      setMultiDraft([...resolveStoredSet(row.field)]);
+      setMultiDraft([
+        ...resolveCompoundChildMultiDraft(
+          entryDraftsByPath,
+          row.path,
+          resolveStoredSet(row.field),
+        ),
+      ]);
     }
   };
+
+  const navigateBackFromChild = useCallback((): boolean => {
+    if (notesOpen) {
+      setNotesOpen(false);
+      return true;
+    }
+    if (!activeFieldPath || !activeField) {
+      return false;
+    }
+
+    if (activeField.valueType === 'text' || activeField.valueType === 'number') {
+      updateEntryDraftsByPath((current) =>
+        stashCompoundChildTextDraft(current, activeFieldPath, textDraft),
+      );
+    } else if (activeField.valueType === 'multiSelect') {
+      updateEntryDraftsByPath((current) =>
+        stashCompoundChildMultiDraft(current, activeFieldPath, multiDraft),
+      );
+    }
+
+    setActiveFieldPath(null);
+    setTextDraft('');
+    setMultiDraft([]);
+    return true;
+  }, [
+    activeField,
+    activeFieldPath,
+    multiDraft,
+    notesOpen,
+    textDraft,
+    updateEntryDraftsByPath,
+  ]);
+
+  useLayoutEffect(() => {
+    const isChildActive = notesOpen || activeFieldPath !== null;
+    if (!isChildActive) {
+      onNavigationChange(null);
+      return;
+    }
+
+    const isTextChild =
+      activeField?.valueType === 'text' || activeField?.valueType === 'number';
+    const fieldKey = notesOpen
+      ? notesPath ?? null
+      : activeFieldPath?.join('/') ?? null;
+
+    onNavigationChange({
+      isChildActive: true,
+      fieldKey,
+      value: notesOpen ? notesValue : isTextChild ? textDraft : '',
+      onChangeText:
+        notesOpen && onChangeNotes ? onChangeNotes : setTextDraft,
+      navigateBackFromChild,
+    });
+
+    return () => {
+      onNavigationChange(null);
+    };
+  }, [
+    activeField,
+    activeFieldPath,
+    navigateBackFromChild,
+    notesOpen,
+    notesPath,
+    notesValue,
+    onChangeNotes,
+    onNavigationChange,
+    textDraft,
+  ]);
 
   if (notesOpen && notesPath && onChangeNotes) {
     return (
@@ -113,10 +210,7 @@ export function CompoundCaptureEntryPage({
           error={error}
           onChangeText={onChangeNotes}
           onSubmit={() => setNotesOpen(false)}
-          onCancelEntry={() => {
-            setNotesOpen(false);
-            return true;
-          }}
+          onCancelEntry={() => navigateBackFromChild()}
           noteEditing={false}
         />
       </View>
@@ -142,10 +236,7 @@ export function CompoundCaptureEntryPage({
             error={error}
             onChangeText={setTextDraft}
             onSubmit={submit}
-            onCancelEntry={() => {
-              setActiveFieldPath(null);
-              return true;
-            }}
+            onCancelEntry={navigateBackFromChild}
           />
         </View>
       );
@@ -159,10 +250,7 @@ export function CompoundCaptureEntryPage({
           error={error}
           onChangeText={setTextDraft}
           onSubmit={submit}
-          onCancelEntry={() => {
-            setActiveFieldPath(null);
-            return true;
-          }}
+          onCancelEntry={navigateBackFromChild}
         />
       </View>
     );
@@ -189,10 +277,7 @@ export function CompoundCaptureEntryPage({
               setMultiDraft([]);
             }
           }}
-          onNavigateUpDirectory={() => {
-            setActiveFieldPath(null);
-            return true;
-          }}
+          onNavigateUpDirectory={navigateBackFromChild}
         />
       </View>
     );
@@ -216,10 +301,7 @@ export function CompoundCaptureEntryPage({
               setActiveFieldPath(null);
             }
           }}
-          onNavigateUpDirectory={() => {
-            setActiveFieldPath(null);
-            return true;
-          }}
+          onNavigateUpDirectory={navigateBackFromChild}
         />
       </View>
     );

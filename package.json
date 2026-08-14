@@ -67,7 +67,7 @@
     "test:pdf-parser": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/pdf-parser.test.ts",
     "test:pii-minimizer": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/pii-minimizer.test.ts",
     "test:ontology-proposals": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/ontology-seed-proposals.test.ts tests/ontology-seed-proposals-cli.test.ts",
-    "test:report": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/report-identity.test.ts tests/inspection-finding.test.ts",
+    "test:report": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/report-identity.test.ts tests/inspection-finding.test.ts tests/survey-report.test.ts",
     "test:single-choice": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/source-field.test.ts",
     "test:multi-choice": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/multi-choice.test.ts",
     "test:numeric-field": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/numeric-field.test.ts",

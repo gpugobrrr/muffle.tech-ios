@@ -11,6 +11,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureDetector } from 'react-native-gesture-handler';
 
+import { DerivedSurveyView } from '@/components/derived-survey-view';
 import { CommandDock } from '@/components/command-dock';
 import { SvyrNavigationPage } from '@/components/svyr-navigation-page';
 import { CompoundCaptureEntryPage } from '@/components/controlled-group-entry-page';
@@ -30,6 +31,7 @@ import {
     resolveFieldSetValue,
     resolveFieldValue,
 } from '@/lib/field-schema';
+import { buildSurveyReport } from '@/lib/report/build-survey-report';
 import { HEATING_NOTES_PATH } from '@/lib/property-energy-heating';
 import {
     isBranchSuggestion,
@@ -141,6 +143,17 @@ export function SvyrInterface({
   }, [showPartyNotes]);
 
   const svyrBarPathKey = svyrBarPath.join('/');
+  const derivedRoute =
+    !isDataEntry &&
+    controller.fullCommandPath.length === 1 &&
+    (controller.fullCommandPath[0] === 'summary' ||
+      controller.fullCommandPath[0] === 'report')
+      ? controller.fullCommandPath[0]
+      : null;
+  const derivedReport = useMemo(
+    () => (derivedRoute ? buildSurveyReport(controller.activeJob) : null),
+    [controller.activeJob, derivedRoute],
+  );
 
   useEffect(() => {
     setHeldCommandDescription(null);
@@ -355,7 +368,14 @@ export function SvyrInterface({
               onDismissHint={hints.dismissHint}
             />
           ) : null}
-          {!isDataEntry ? (
+          {derivedRoute && derivedReport ? (
+            <DerivedSurveyView
+              mode={derivedRoute}
+              report={derivedReport}
+              onNavigateUpDirectory={handleNavigateUpDirectory}
+              onSwipeBackCommitted={handleSwipeBackCommitted}
+            />
+          ) : !isDataEntry ? (
             <SvyrNavigationPage
               path={controller.editablePath}
               suggestions={controller.suggestions}

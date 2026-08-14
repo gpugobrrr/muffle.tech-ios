@@ -796,15 +796,15 @@ export const LEVEL_2_COMMAND_NODES: readonly CommandNode[] = [
   workflowLeaf('summary', 'summary', 'Derived inspection summary coverage.', {
     requirement: 'Overall opinion and condition summary',
     status: 'derived-publication',
-    blocker: 'Summary should be projected from findings and ratings, not re-entered.',
-    recommendedLaterWork: 'Build deterministic summary projection after rating semantics.',
+    blocker: 'Summary is projected from canonical ActiveJob records, not captured.',
+    recommendedLaterWork: 'Keep Summary derived; do not add ratings or capture here.',
   }),
   workflowLeaf('report', 'report', 'Derived report publication coverage.', {
     requirement: 'Level 2 report',
     status: 'derived-publication',
     canonicalConceptId: 'report_document',
-    blocker: 'Report expansion is outside the capture-shell scope.',
-    recommendedLaterWork: 'Extend FirmAdapter/report projection from canonical capture.',
+    blocker: 'Report is a read-only projection of canonical ActiveJob records.',
+    recommendedLaterWork: 'Keep Report derived; later adapters consume this projection.',
   }),
 ];
 

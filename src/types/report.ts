@@ -51,6 +51,68 @@ export type FindingBlock = {
   evidenceIds?: readonly string[];
 };
 
+/** Canonical machine value plus schema/ontology display label. */
+export type ReportProjectedValue = {
+  fieldId: string;
+  label: string;
+  /** Canonical stored value, or ordered option IDs for multi-select facts. */
+  value: string | readonly string[];
+  display: string;
+};
+
+export type ReportFindingGroup = 'external' | 'internal' | 'services';
+
+export type ReportEvidenceItem = {
+  id: string;
+  kind?: 'photo';
+  /** Canonical registry URI when present. Never contains image bytes. */
+  uri?: string;
+  findingIds: readonly string[];
+};
+
+export type ReportFinding = FindingBlock & {
+  group: ReportFindingGroup;
+  evidence: readonly ReportEvidenceItem[];
+};
+
+export type SurveyReportSummary = {
+  jobId: string;
+  displayAddress?: string;
+  findingCount: number;
+  defectCount: number;
+  recommendationCount: number;
+  riskCount: number;
+  evidenceCount: number;
+  sectionsWithFindings: readonly ReportFindingGroup[];
+};
+
+/**
+ * Deterministic survey-domain projection. Regenerated from ActiveJob; never
+ * stored as independent canonical truth.
+ */
+export type SurveyReportModel = {
+  schemaVersion: 1;
+  identity: {
+    jobId: string;
+    displayAddress?: string;
+    instructionType?: string;
+    address?: ReportAddress;
+  };
+  instruction: readonly ReportProjectedValue[];
+  propertyDescription: readonly ReportProjectedValue[];
+  propertyEnergy: readonly ReportProjectedValue[];
+  findings: {
+    external: readonly ReportFinding[];
+    internal: readonly ReportFinding[];
+    services: readonly ReportFinding[];
+  };
+  evidenceSummary: {
+    count: number;
+    items: readonly ReportEvidenceItem[];
+  };
+  summary: SurveyReportSummary;
+};
+
 /**
  * Semantic blocks are ordered independently of pages. Renderers own layout
  * and pagination as more block kinds are introduced.

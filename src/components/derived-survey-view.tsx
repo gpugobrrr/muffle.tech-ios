@@ -163,6 +163,11 @@ export function DerivedSurveyView({
                 ))}
               </Section>
             ) : null}
+            {report.sectionLimitations.external ? (
+              <Section title="External limitation">
+                <Text style={styles.value}>{report.sectionLimitations.external}</Text>
+              </Section>
+            ) : null}
             {report.findings.external.length > 0 ? (
               <Section title="External findings">
                 {report.findings.external.map((finding) => (
@@ -170,11 +175,21 @@ export function DerivedSurveyView({
                 ))}
               </Section>
             ) : null}
+            {report.sectionLimitations.internal ? (
+              <Section title="Internal limitation">
+                <Text style={styles.value}>{report.sectionLimitations.internal}</Text>
+              </Section>
+            ) : null}
             {report.findings.internal.length > 0 ? (
               <Section title="Internal findings">
                 {report.findings.internal.map((finding) => (
                   <FindingBlockView key={finding.findingId} finding={finding} />
                 ))}
+              </Section>
+            ) : null}
+            {report.sectionLimitations.services ? (
+              <Section title="Services limitation">
+                <Text style={styles.value}>{report.sectionLimitations.services}</Text>
               </Section>
             ) : null}
             {report.findings.services.length > 0 ? (

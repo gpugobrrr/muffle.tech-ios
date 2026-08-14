@@ -10,6 +10,7 @@ import {
   PROPERTY_DESCRIPTION_FIELD_DEFINITIONS,
   isSingleChoiceEngineField,
 } from '@/lib/property-description';
+import { SECTION_LIMITATION_FIELD_DEFINITIONS } from '@/lib/section-limitations';
 import { SERVICES_PRESENCE_FIELD_DEFINITIONS } from '@/lib/services-controlled-facts';
 import type { InspectionBrief } from '@/types/workspace';
 export type FieldOption = {
@@ -310,6 +311,7 @@ const FIELD_DEFINITIONS: FieldDefinition[] = [
     notesEnabled: false,
   },
   ...PROPERTY_DESCRIPTION_FIELD_DEFINITIONS,
+  ...SECTION_LIMITATION_FIELD_DEFINITIONS,
   ...MAINS_SERVICE_FIELD_DEFINITIONS,
   ...HEATING_FIELD_DEFINITIONS,
   ...SERVICES_PRESENCE_FIELD_DEFINITIONS,

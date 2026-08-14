@@ -16,6 +16,10 @@ import { HEATING_FIELD_DEFINITIONS } from '@/lib/property-energy-heating';
 import { MAINS_SERVICE_FIELD_DEFINITIONS } from '@/lib/property-energy-mains-services';
 import { PROPERTY_DESCRIPTION_FIELD_DEFINITIONS } from '@/lib/property-description';
 import {
+  SECTION_LIMITATION_FIELD_DEFINITIONS,
+  SECTION_LIMITATION_FIELD_IDS,
+} from '@/lib/section-limitations';
+import {
   optionalReportText,
   projectFindingBlock,
   projectReportAddress,
@@ -27,6 +31,7 @@ import type {
   ReportProjectedValue,
   SurveyReportModel,
   SurveyReportSummary,
+  SurveySectionLimitations,
 } from '@/types/report';
 import type {
   ActiveJob,
@@ -227,6 +232,22 @@ function buildSummary(
   };
 }
 
+function projectSectionLimitations(brief: InspectionBrief): SurveySectionLimitations {
+  const projected: SurveySectionLimitations = {};
+  for (const field of SECTION_LIMITATION_FIELD_DEFINITIONS) {
+    const value = optionalReportText(resolveFieldValue(brief, field.fieldId) ?? '');
+    if (!value) continue;
+    if (field.fieldId === SECTION_LIMITATION_FIELD_IDS.external) {
+      projected.external = value;
+    } else if (field.fieldId === SECTION_LIMITATION_FIELD_IDS.internal) {
+      projected.internal = value;
+    } else if (field.fieldId === SECTION_LIMITATION_FIELD_IDS.services) {
+      projected.services = value;
+    }
+  }
+  return projected;
+}
+
 /**
  * Pure ActiveJob → semantic report projection. Does not mutate the job and
  * does not persist. Throw-away: regenerating from the same job is the source
@@ -274,6 +295,7 @@ export function buildSurveyReport(activeJob: ActiveJob): SurveyReportModel {
       ...HEATING_FIELD_DEFINITIONS,
       ...MAINS_SERVICE_FIELD_DEFINITIONS,
     ]),
+    sectionLimitations: projectSectionLimitations(brief),
     findings: grouped,
     evidenceSummary,
     summary: buildSummary(activeJob, projectedFindings, evidenceSummary.count),

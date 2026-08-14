@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { findCommandNode } from '../src/lib/command-registry';
+import { applyFieldValue } from '../src/lib/field-schema';
 import { commitInspectionFindingField } from '../src/lib/finding-capture';
 import { DEMO_OX3_8SE_ADDRESSES } from '../src/lib/fixtures/demo-ox3-8se';
 import { EXTERNAL_FINDING_CONFIGS } from '../src/lib/external-findings';
@@ -19,6 +20,7 @@ import {
   PROPERTY_TYPE_FIELD_ID,
 } from '../src/lib/property-description';
 import { MAINS_SERVICE_FIELD_IDS } from '../src/lib/property-energy-mains-services';
+import { SECTION_LIMITATION_FIELD_IDS } from '../src/lib/section-limitations';
 import { buildReportDocument } from '../src/lib/report/build-report-document';
 import { buildSurveyReport } from '../src/lib/report/build-survey-report';
 import {
@@ -197,6 +199,133 @@ test('External, Internal, and Services findings project in deterministic order',
     html.indexOf('Ceiling observation.') <
       html.indexOf('Consumer unit appears dated.'),
   );
+});
+
+test('section limitations project before findings and stay distinct from PREP and finding limitations', () => {
+  let brief = writeBrief(emptyBrief(), SURVEY_OPERATIONS.setLimitation, {
+    value: 'Brief-wide PREP limitation.',
+  });
+  brief = applyFieldValue(
+    brief,
+    SECTION_LIMITATION_FIELD_IDS.external,
+    'Rear elevation obscured by vegetation.',
+  );
+  brief = applyFieldValue(
+    brief,
+    SECTION_LIMITATION_FIELD_IDS.internal,
+    'Loft hatch sealed; no roof-space access.',
+  );
+  brief = applyFieldValue(
+    brief,
+    SECTION_LIMITATION_FIELD_IDS.services,
+    'Gas meter cupboard locked; no supply test.',
+  );
+
+  let inspection = createInitialActiveJob().inspection;
+  const porch = EXTERNAL_FINDING_CONFIGS.find((config) => config.routeId === 'porch')!;
+  const porchObserved = commitInspectionFindingField(
+    inspection,
+    findCommandNode([...porch.route, 'observe'])!.findingTarget!,
+    'Porch observation.',
+  );
+  assert.equal(porchObserved.ok, true);
+  if (!porchObserved.ok) return;
+  inspection = porchObserved.result.inspection;
+
+  const wallObserved = commitInspectionFindingField(
+    inspection,
+    findCommandNode(['external', 'walls', 'observe'])!.findingTarget!,
+    'Wall observation.',
+  );
+  assert.equal(wallObserved.ok, true);
+  if (!wallObserved.ok) return;
+  const wallLimited = commitInspectionFindingField(
+    wallObserved.result.inspection,
+    findCommandNode(['external', 'walls', 'limit'])!.findingTarget!,
+    'Rear elevation not fully visible.',
+  );
+  assert.equal(wallLimited.ok, true);
+  if (!wallLimited.ok) return;
+  const ceilingObserved = commitInspectionFindingField(
+    wallLimited.result.inspection,
+    findCommandNode(['internal', 'ceilings', 'observe'])!.findingTarget!,
+    'Ceiling observation.',
+  );
+  assert.equal(ceilingObserved.ok, true);
+  if (!ceilingObserved.ok) return;
+  const electricityObserved = commitInspectionFindingField(
+    ceilingObserved.result.inspection,
+    findCommandNode(['services', 'electricity', 'observe'])!.findingTarget!,
+    'Consumer unit appears dated.',
+  );
+  assert.equal(electricityObserved.ok, true);
+  if (!electricityObserved.ok) return;
+
+  const job = withInspectionBrief(
+    { ...jobWithAddress(), inspection: electricityObserved.result.inspection },
+    brief,
+  );
+  const surveyReport = buildSurveyReport(job);
+  const document = projectSurveyReportDocument(surveyReport);
+  const kinds = document.blocks.map((block) => block.kind);
+  assert.deepEqual(
+    kinds.filter((kind) => kind === 'section-limitation'),
+    ['section-limitation', 'section-limitation', 'section-limitation'],
+  );
+
+  const externalLimitationIndex = kinds.indexOf('section-limitation');
+  const externalFindingIndex = document.blocks.findIndex(
+    (block) => block.kind === 'finding' && block.findingId === 'finding.porch.1',
+  );
+  const internalLimitationIndex = kinds.indexOf(
+    'section-limitation',
+    externalLimitationIndex + 1,
+  );
+  const internalFindingIndex = document.blocks.findIndex(
+    (block) => block.kind === 'finding' && block.findingId === 'finding.ceiling.1',
+  );
+  const servicesLimitationIndex = kinds.lastIndexOf('section-limitation');
+  const servicesFindingIndex = document.blocks.findIndex(
+    (block) =>
+      block.kind === 'finding' &&
+      block.findingId === 'finding.service.electrical_installation.1',
+  );
+  assert.ok(externalLimitationIndex < externalFindingIndex);
+  assert.ok(internalLimitationIndex < internalFindingIndex);
+  assert.ok(servicesLimitationIndex < servicesFindingIndex);
+
+  const html = renderReportDocumentHtml(document);
+  assert.match(html, /Brief-wide PREP limitation\./);
+  assert.match(html, /Rear elevation obscured by vegetation\./);
+  assert.match(html, /Loft hatch sealed; no roof-space access\./);
+  assert.match(html, /Gas meter cupboard locked; no supply test\./);
+  assert.match(html, /Rear elevation not fully visible\./);
+  assert.match(html, /data-finding-id="finding\.porch\.1"/);
+  assert.ok(
+    html.indexOf('Rear elevation obscured by vegetation.') <
+      html.indexOf('Porch observation.'),
+  );
+  assert.ok(
+    html.indexOf('Loft hatch sealed; no roof-space access.') <
+      html.indexOf('Ceiling observation.'),
+  );
+  assert.ok(
+    html.indexOf('Gas meter cupboard locked; no supply test.') <
+      html.indexOf('Consumer unit appears dated.'),
+  );
+});
+
+test('unset section limitations are omitted from ReportDocument and HTML', () => {
+  const job = jobWithAddress();
+  const document = projectSurveyReportDocument(buildSurveyReport(job));
+  assert.equal(
+    document.blocks.some((block) => block.kind === 'section-limitation'),
+    false,
+  );
+  const html = renderReportDocumentHtml(document);
+  assert.equal(html.includes('External limitation'), false);
+  assert.equal(html.includes('Internal limitation'), false);
+  assert.equal(html.includes('Services limitation'), false);
 });
 
 test('Porch appears automatically through generic External findings in HTML', () => {

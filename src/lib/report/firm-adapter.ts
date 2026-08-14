@@ -4,6 +4,7 @@ import type {
   IdentityBlock,
   ReportDocument,
   SectionBlock,
+  SectionLimitationBlock,
 } from '@/types/report';
 import type { BuildingElementConceptId } from '@/types/workspace';
 
@@ -32,6 +33,7 @@ export type FirmReportDocument = {
     | IdentityBlock
     | FactsBlock
     | SectionBlock
+    | SectionLimitationBlock
     | FirmFindingBlock
   )[];
 };

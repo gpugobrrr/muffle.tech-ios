@@ -10,6 +10,7 @@ import type {
   ReportAddress,
   ReportDocument,
   SectionBlock,
+  SectionLimitationBlock,
 } from '@/types/report';
 
 function escapeHtml(value: string): string {
@@ -102,6 +103,18 @@ function renderFactsBlock(block: FactsBlock): string {
     </section>`;
 }
 
+function renderSectionLimitationBlock(block: SectionLimitationBlock): string {
+  return `
+    <section
+      class="section-limitation"
+      data-section="${escapeHtml(block.section)}"
+      aria-labelledby="section-limitation-${escapeHtml(block.section)}"
+    >
+      <p class="eyebrow">${escapeHtml(block.title)}</p>
+      <p id="section-limitation-${escapeHtml(block.section)}" class="limitation-text">${escapeHtml(block.text)}</p>
+    </section>`;
+}
+
 function renderSectionBlock(block: SectionBlock): string {
   return `
     <section class="section-heading" aria-labelledby="section-${escapeHtml(block.section)}">
@@ -177,6 +190,9 @@ export function renderReportDocumentHtml(
       if (block.kind === 'identity') return '';
       if (block.kind === 'facts') return renderFactsBlock(block);
       if (block.kind === 'section') return renderSectionBlock(block);
+      if (block.kind === 'section-limitation') {
+        return renderSectionLimitationBlock(block);
+      }
       return renderFindingBlock(block);
     })
     .join('');
@@ -253,6 +269,10 @@ export function renderReportDocumentHtml(
         text-transform: uppercase;
       }
       dd { margin: 0; }
+      .limitation-text {
+        max-width: 150mm;
+        margin: 0;
+      }
       .finding {
         break-before: page;
         padding-top: 18mm;

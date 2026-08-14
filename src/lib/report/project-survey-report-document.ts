@@ -9,6 +9,7 @@ import type {
   ReportFindingGroup,
   ReportProjectedValue,
   SectionBlock,
+  SectionLimitationBlock,
   SurveyReportModel,
 } from '@/types/report';
 
@@ -18,6 +19,12 @@ const SECTION_TITLES: Readonly<Record<ReportFindingGroup, string>> = {
   external: 'External findings',
   internal: 'Internal findings',
   services: 'Services findings',
+};
+
+const SECTION_LIMITATION_TITLES: Readonly<Record<ReportFindingGroup, string>> = {
+  external: 'External limitation',
+  internal: 'Internal limitation',
+  services: 'Services limitation',
 };
 
 function factRows(
@@ -90,17 +97,33 @@ function evidenceSummaryBlock(
   };
 }
 
-function sectionBlocks(
+function sectionGroupBlocks(
   section: ReportFindingGroup,
+  limitation: string | undefined,
   findings: readonly ReportFinding[],
 ): ReportBlock[] {
-  if (findings.length === 0) return [];
-  const sectionBlock: SectionBlock = {
-    kind: 'section',
-    section,
-    title: SECTION_TITLES[section],
-  };
-  return [sectionBlock, ...findings.map(toFindingBlock)];
+  if (!limitation && findings.length === 0) return [];
+
+  const blocks: ReportBlock[] = [
+    {
+      kind: 'section',
+      section,
+      title: SECTION_TITLES[section],
+    },
+  ];
+
+  if (limitation) {
+    const limitationBlock: SectionLimitationBlock = {
+      kind: 'section-limitation',
+      section,
+      title: SECTION_LIMITATION_TITLES[section],
+      text: limitation,
+    };
+    blocks.push(limitationBlock);
+  }
+
+  blocks.push(...findings.map(toFindingBlock));
+  return blocks;
 }
 
 /**
@@ -158,7 +181,13 @@ export function projectSurveyReportDocument(
   if (propertyEnergy) blocks.push(propertyEnergy);
 
   for (const section of ['external', 'internal', 'services'] as const) {
-    blocks.push(...sectionBlocks(section, report.findings[section]));
+    blocks.push(
+      ...sectionGroupBlocks(
+        section,
+        report.sectionLimitations[section],
+        report.findings[section],
+      ),
+    );
   }
 
   const evidenceSummary = evidenceSummaryBlock(report);

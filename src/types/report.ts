@@ -138,6 +138,13 @@ export type SectionBlock = {
   title: string;
 };
 
+export type SectionLimitationBlock = {
+  kind: 'section-limitation';
+  section: ReportFindingGroup;
+  title: string;
+  text: string;
+};
+
 /**
  * Semantic blocks are ordered independently of pages. Renderers own layout
  * and pagination as more block kinds are introduced.
@@ -146,6 +153,7 @@ export type ReportBlock =
   | IdentityBlock
   | FactsBlock
   | SectionBlock
+  | SectionLimitationBlock
   | FindingBlock;
 
 export type ReportDocument = {

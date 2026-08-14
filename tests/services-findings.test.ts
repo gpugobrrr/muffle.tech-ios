@@ -11,6 +11,7 @@ import { createEmptyInspectionRecord } from '../src/lib/inspection-record';
 import {
   INSPECTION_ELEMENT_CONCEPT_IDS,
   isInspectionElementConceptId,
+  type InspectionElementConceptId,
 } from '../src/lib/inspection-finding-elements';
 import {
   findFieldDefinition,
@@ -81,12 +82,15 @@ test('generic Engine finding operations accept Services property elements', () =
 });
 
 test('invalid property elements are rejected by finding normalization', () => {
+  const invalidElementConceptId =
+    'service_system.unlisted' as InspectionElementConceptId;
+  assert.equal(isInspectionElementConceptId(invalidElementConceptId), false);
   const result = executeInspectionOperation(createEmptyInspectionRecord(), {
     operationId: SURVEY_OPERATIONS.upsertInspectionFinding,
     arguments: {
       finding: {
         id: 'finding.invalid.1',
-        elementConceptId: 'service_system.unlisted',
+        elementConceptId: invalidElementConceptId,
         observation: 'Should not persist.',
       },
     },

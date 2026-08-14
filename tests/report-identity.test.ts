@@ -143,6 +143,7 @@ test('building without a structured selected property fails explicitly', () => {
     () =>
       buildReportDocument({
         activeJob: {
+          id: 'job.test.missing-property',
           property: null,
           inspection: createEmptyInspectionRecord(),
         },

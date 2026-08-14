@@ -251,16 +251,29 @@ test('observation commit then defect gate passes on same ActiveJob', () => {
   );
   assert.equal(defect.ok, true);
   if (!defect.ok) return;
-  assert.notEqual(defect.message, 'Record observation first');
+  assert.equal(
+    defect.result.inspection.findings[electricity.findingId]?.defect,
+    'No RCD protection visible.',
+  );
 });
 
 test('serialized ActiveJob round-trips findings used by evidence commit', () => {
   const electricity = servicesFindingConfig('electricity');
-  const job = createInitialActiveJob();
-  job.inspection.findings[electricity.findingId] = {
-    id: electricity.findingId,
-    elementConceptId: electricity.elementConceptId,
-    observation: 'Consumer unit appears dated.',
+  const observed = commitInspectionFindingField(
+    createEmptyInspectionRecord(),
+    {
+      findingId: electricity.findingId,
+      elementConceptId:
+        electricity.elementConceptId as InspectionElementConceptId,
+      field: 'observation',
+    },
+    'Consumer unit appears dated.',
+  );
+  assert.equal(observed.ok, true);
+  if (!observed.ok) return;
+  const job: ActiveJob = {
+    ...createInitialActiveJob(),
+    inspection: observed.result.inspection,
   };
 
   const restored = deserializeActiveJob(serializeActiveJob(job));

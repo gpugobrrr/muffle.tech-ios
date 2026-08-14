@@ -199,11 +199,14 @@ test('duplicate evidence IDs and duplicate finding references are rejected', () 
   const observe = findCommandNode(['services', 'electricity', 'observe'])!
     .findingTarget!;
   let inspection = createEmptyInspectionRecord();
-  inspection = commitInspectionFindingField(
+  const observed = commitInspectionFindingField(
     inspection,
     observe,
     'Consumer unit appears dated.',
-  ).result!.inspection;
+  );
+  assert.equal(observed.ok, true);
+  if (!observed.ok) return;
+  inspection = observed.result.inspection;
 
   const target = photoTarget(electricity.findingId, electricity.elementConceptId);
   const evidence = {

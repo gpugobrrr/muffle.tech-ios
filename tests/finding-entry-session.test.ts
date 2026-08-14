@@ -109,7 +109,6 @@ test('ENTER observation creates finding and does not return Record observation f
   );
   assert.equal(result.ok, true);
   if (!result.ok) return;
-  assert.notEqual(result.message, 'Record observation first');
   assert.ok(
     result.result.inspection.findings[
       'finding.service.electrical_installation.1'

@@ -432,9 +432,27 @@ test('frozen entry-session identity still commits External walls observation', (
   );
 });
 
-test('unresolved External subjects remain blocked without Type 6/7 children', () => {
+test('External limitation and porch are active; joinery and other remain blocked', () => {
   const children = findCommandNode(['external'])?.children ?? [];
-  for (const token of ['limitation', 'joinery', 'other']) {
+
+  const limitation = children.find((child) => child.token === 'limitation');
+  assert.ok(limitation);
+  assert.equal(limitation?.workflowOnly, undefined);
+  assert.equal(limitation?.operationId, 'survey.controlled_fact.set');
+  assert.equal(limitation?.fieldId, 'inspection.section.external.limitation');
+  assert.equal(limitation?.findingTarget, undefined);
+  assert.equal(limitation?.evidenceCaptureTarget, undefined);
+
+  const porch = children.find((child) => child.token === 'porch');
+  assert.ok(porch);
+  assert.equal(porch?.workflowOnly, undefined);
+  assert.equal(
+    findCommandNode(['external', 'porch', 'observe'])?.findingTarget?.findingId,
+    'finding.porch.1',
+  );
+  assert.ok(findCommandNode(['external', 'porch', 'photo'])?.evidenceCaptureTarget);
+
+  for (const token of ['joinery', 'other'] as const) {
     const node = children.find((child) => child.token === token);
     assert.ok(node, token);
     assert.equal(node?.workflowOnly, true, token);
@@ -448,4 +466,6 @@ test('unresolved External subjects remain blocked without Type 6/7 children', ()
       token,
     );
   }
+
+  assert.equal(findCommandNode(['external', 'conservatory']), null);
 });

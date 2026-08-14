@@ -102,20 +102,17 @@ export function validateMuffleOntologyV1(
     }
   }
 
-  const conceptsByToken = new Map<string, string[]>();
+  const conceptsByPath = new Map<string, string[]>();
   for (const concept of ontology.concepts) {
     const token = concept.bindings?.svyrToken;
     const path = concept.bindings?.svyrPath;
     if (!token) continue;
 
-    conceptsByToken.set(token, [
-      ...(conceptsByToken.get(token) ?? []),
-      concept.id,
-    ]);
     if (!path) {
       failures.push(`${concept.id}: svyrToken requires svyrPath`);
       continue;
     }
+    conceptsByPath.set(path, [...(conceptsByPath.get(path) ?? []), concept.id]);
     const node = findCommandNode(path.split('/'));
     if (!node || node.token !== token) {
       failures.push(
@@ -123,10 +120,10 @@ export function validateMuffleOntologyV1(
       );
     }
   }
-  for (const [token, conceptIds] of conceptsByToken) {
+  for (const [path, conceptIds] of conceptsByPath) {
     if (conceptIds.length > 1) {
       failures.push(
-        `ambiguous SVYR token "${token}": ${conceptIds.join(', ')}`,
+        `ambiguous SVYR path "${path}": ${conceptIds.join(', ')}`,
       );
     }
   }

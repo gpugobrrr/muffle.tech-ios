@@ -310,7 +310,7 @@ test('v1.0.0 concepts remain present in the additive v1.2.0 registry', () => {
   const originalConcepts = MUFFLE_ONTOLOGY_V1.concepts.filter(
     (concept) => concept.introducedIn === '1.0.0',
   );
-  assert.equal(originalConcepts.length, 49);
+  assert.equal(originalConcepts.length, 52);
 });
 
 test('deferred and unapproved survey semantics remain absent', () => {

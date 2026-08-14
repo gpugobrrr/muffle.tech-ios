@@ -13,6 +13,7 @@ import {
 import { internalFindingConfig } from '@/lib/internal-findings';
 import { HEATING_FIELD_DEFINITIONS } from '@/lib/property-energy-heating';
 import {
+  PROPERTY_CONSTRUCTION_FORM_FIELD_DEFINITION,
   PROPERTY_DESCRIPTION_FIELD_DEFINITIONS,
 } from '@/lib/property-description';
 import {
@@ -379,7 +380,7 @@ const PROPERTY_NODE: CommandNode = {
     status: 'navigation-only',
     canonicalConceptId: 'property',
     recommendedLaterWork:
-      'Keep energy heating and mains-service presence on existing Engine-backed fields. Capture dwelling type, construction period, and extension/conversion presence as optional Types 2 and 4. Leave construction, accommodation, flat context, roof-space, and location blocked until those facts have approved schemas.',
+      'Keep energy heating and mains-service presence on existing Engine-backed fields. Capture dwelling type, construction period, principal construction form, and extension/conversion presence as optional Types 2 and 4. Leave accommodation, flat context, roof-space, and location blocked until those facts have approved schemas.',
   },
   children: [
     {
@@ -453,9 +454,9 @@ const PROPERTY_NODE: CommandNode = {
       recommendedLaterWork:
         'Continue to populate from property selection rather than duplicate survey entry.',
     }),
-    ...PROPERTY_DESCRIPTION_FIELD_DEFINITIONS.map(
-      optionalPropertyDescriptionLeaf,
-    ),
+    ...PROPERTY_DESCRIPTION_FIELD_DEFINITIONS.filter(
+      (field) => field.pathKey !== 'property/construction',
+    ).map(optionalPropertyDescriptionLeaf),
     workflowLeaf('flat', 'flat', 'Flat and maisonette information coverage.', {
       requirement: 'Flat or maisonette information',
       status: 'blocked',
@@ -464,14 +465,7 @@ const PROPERTY_NODE: CommandNode = {
       recommendedLaterWork:
         'Do not duplicate property/type. Add distinct flat-context semantics only after they are unambiguous.',
     }),
-    workflowLeaf('construction', 'construction', 'Construction description coverage.', {
-      requirement: 'Construction',
-      status: 'blocked',
-      blocker:
-        'Construction still mixes wall construction, frame, principal material, and system-built form.',
-      recommendedLaterWork:
-        'Approve a field-level construction model before capture; do not invent traditional/non-traditional.',
-    }),
+    optionalPropertyDescriptionLeaf(PROPERTY_CONSTRUCTION_FORM_FIELD_DEFINITION),
     workflowLeaf('accommodation', 'accommodation', 'Accommodation schedule coverage.', {
       requirement: 'Accommodation',
       status: 'blocked',

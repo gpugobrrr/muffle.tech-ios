@@ -110,7 +110,6 @@ export const BLOCKED_ROUTE_REASONS: Readonly<Record<string, SurveyBlockedReason>
   'prep/plan': SURVEY_BLOCKED_REASONS.workflowModelUndefined,
   'prep/ready': SURVEY_BLOCKED_REASONS.workflowModelUndefined,
   'property/flat': SURVEY_BLOCKED_REASONS.missingFieldSemantics,
-  'property/construction': SURVEY_BLOCKED_REASONS.missingFieldSemantics,
   'property/accommodation': SURVEY_BLOCKED_REASONS.missingFieldSemantics,
   'property/roof-spaces': SURVEY_BLOCKED_REASONS.missingFieldSemantics,
   'property/location': SURVEY_BLOCKED_REASONS.workflowModelUndefined,

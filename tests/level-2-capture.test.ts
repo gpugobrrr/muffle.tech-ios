@@ -195,6 +195,7 @@ test('interactive Level 2 routes remain explicitly bounded', () => {
     'property/age',
     'property/extension',
     'property/conversion',
+    'property/construction',
     'external/chimney',
     'external/chimney/observe',
     'external/chimney/condition',
@@ -317,7 +318,6 @@ test('interactive Level 2 routes remain explicitly bounded', () => {
     assert.ok(node?.findingTarget, token);
   }
   for (const route of [
-    ['property', 'construction'],
     ['external', 'porch'],
     ['internal', 'fireplaces-flues'],
     ['services', 'common'],

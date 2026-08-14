@@ -414,6 +414,12 @@ const FIELD_SEMANTICS: Readonly<
     description:
       'The approximate construction period of the original dwelling, not an exact year.',
   },
+  'property.construction_form': {
+    id: 'property.construction_form',
+    parentId: 'property',
+    description:
+      'The principal construction form of the dwelling, distinct from construction period and wall findings.',
+  },
   'property.extension': {
     id: 'property.extension',
     parentId: 'property',

@@ -44,10 +44,10 @@ test('every governed route has exactly one capability kind and unclassified is 0
   const census = surveyCapabilityCensus();
   assert.equal(census.unclassified, 0);
   assert.equal(census.total, 184);
-  assert.equal(census.capture, 124);
+  assert.equal(census.capture, 125);
   assert.equal(census.navigation, 28);
   assert.equal(census.derived, 2);
-  assert.equal(census.blocked, 30);
+  assert.equal(census.blocked, 29);
   assert.equal(
     census.total,
     census.capture + census.navigation + census.derived + census.blocked,
@@ -101,10 +101,12 @@ test('Property description Type 2/4 routes are capture and remaining description
   assert.equal(capabilityForRoute('property/age')?.kind, SURVEY_CAPABILITY_KINDS.capture);
   assert.equal(capabilityForRoute('property/extension')?.kind, SURVEY_CAPABILITY_KINDS.capture);
   assert.equal(capabilityForRoute('property/conversion')?.kind, SURVEY_CAPABILITY_KINDS.capture);
+  assert.equal(capabilityForRoute('property/construction')?.kind, SURVEY_CAPABILITY_KINDS.capture);
+  assert.equal(capabilityForRoute('property/construction')?.captureType, SVYR_DATA_ENTRY_TYPES.singleChoice);
+  assert.equal(capabilityForRoute('property/construction')?.fieldId, 'property.construction_form');
   assert.equal(capabilityForRoute('property/address')?.kind, SURVEY_CAPABILITY_KINDS.navigation);
   const blocked = {
     'property/flat': SURVEY_BLOCKED_REASONS.missingFieldSemantics,
-    'property/construction': SURVEY_BLOCKED_REASONS.missingFieldSemantics,
     'property/accommodation': SURVEY_BLOCKED_REASONS.missingFieldSemantics,
     'property/roof-spaces': SURVEY_BLOCKED_REASONS.missingFieldSemantics,
     'property/location': SURVEY_BLOCKED_REASONS.workflowModelUndefined,

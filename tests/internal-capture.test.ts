@@ -208,14 +208,15 @@ test('Internal roof structure stays distinct from External roof coverings', () =
   assert.notEqual(findCommandNode(['external', 'roof', 'observe']), null);
 });
 
-test('Internal floors stay distinct from Property construction', () => {
+test('Internal floors stay distinct from Property construction form', () => {
   const floors = internalFindingConfig('floors');
   assert.equal(floors.elementConceptId, 'building_element.floor');
   assert.equal(
     capabilityForRoute('property/construction')?.kind,
-    SURVEY_CAPABILITY_KINDS.blocked,
+    SURVEY_CAPABILITY_KINDS.capture,
   );
   assert.equal(findCommandNode(['property', 'construction'])?.findingTarget, undefined);
+  assert.equal(findCommandNode(['property', 'construction'])?.fieldId, 'property.construction_form');
   assert.equal(getOntologyConcept('construction'), undefined);
 });
 

@@ -180,6 +180,7 @@ test('human-approved v1.2 concepts remain canonical; inspection subjects may gai
   const propertyDescriptionFields = [
     'property.type',
     'property.construction_period',
+    'property.construction_form',
     'property.extension',
     'property.conversion',
   ];

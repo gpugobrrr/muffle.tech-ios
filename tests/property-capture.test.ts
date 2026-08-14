@@ -43,6 +43,9 @@ import {
 } from '../src/lib/property-energy-mains-services';
 import {
   PROPERTY_CONSTRUCTION_PERIOD_FIELD_ID,
+  PROPERTY_CONSTRUCTION_FORM_FIELD_ID,
+  PROPERTY_CONSTRUCTION_FORM_OPTIONS,
+  PROPERTY_CONSTRUCTION_FORM_VALUES,
   PROPERTY_CONVERSION_FIELD_ID,
   PROPERTY_EXTENSION_FIELD_ID,
   PROPERTY_TYPE_FIELD_ID,
@@ -82,10 +85,6 @@ const UNRESOLVED_PROPERTY_LEAVES = [
     path: ['property', 'flat'],
     missing:
       'Dwelling type already records flat/maisonette; other flat context is undefined.',
-  },
-  {
-    path: ['property', 'construction'],
-    missing: 'Construction still mixes wall, frame, material, and system-built form.',
   },
   {
     path: ['property', 'accommodation'],
@@ -361,6 +360,14 @@ const PROPERTY_DESCRIPTION_CAPTURES = [
     value: 'not_present',
     label: 'Not present',
   },
+  {
+    path: ['property', 'construction'],
+    fieldId: PROPERTY_CONSTRUCTION_FORM_FIELD_ID,
+    captureType: SVYR_DATA_ENTRY_TYPES.singleChoice,
+    operationId: SURVEY_OPERATIONS.setSingleChoice,
+    value: 'timber_frame',
+    label: 'Timber frame',
+  },
 ] as const;
 
 function reopenPropertyEntryValue(
@@ -579,5 +586,122 @@ test('optional Property description fields do not change directory completion to
 test('Property Type options remain the approved dwelling-type vocabulary', () => {
   const field = findFieldDefinition(['property', 'type']);
   assert.deepEqual(field?.options, [...PROPERTY_TYPE_OPTIONS]);
+});
+
+test('Property Construction Form is Type 2 capture with approved vocabulary', () => {
+  const path = ['property', 'construction'] as const;
+  const field = findFieldDefinition([...path]);
+  const node = findCommandNode([...path]);
+  const capability = capabilityForRoute(path);
+  assert.equal(field?.fieldId, PROPERTY_CONSTRUCTION_FORM_FIELD_ID);
+  assert.notEqual(field?.fieldId, PROPERTY_CONSTRUCTION_PERIOD_FIELD_ID);
+  assert.equal(field?.optional, true);
+  assert.equal(field?.valueType, 'singleSelect');
+  assert.equal(resolveSvyrDataEntryType(field!), SVYR_DATA_ENTRY_TYPES.singleChoice);
+  assert.equal(node?.operationId, SURVEY_OPERATIONS.setSingleChoice);
+  assert.equal(node?.findingTarget, undefined);
+  assert.equal(capability?.kind, SURVEY_CAPABILITY_KINDS.capture);
+  assert.equal(capability?.captureType, SVYR_DATA_ENTRY_TYPES.singleChoice);
+  assert.deepEqual(field?.options?.map((option) => option.value), [
+    ...PROPERTY_CONSTRUCTION_FORM_VALUES,
+  ]);
+  assert.deepEqual(field?.options, [...PROPERTY_CONSTRUCTION_FORM_OPTIONS]);
+  assert.equal(findFieldDefinition(['property', 'age'])?.fieldId, PROPERTY_CONSTRUCTION_PERIOD_FIELD_ID);
+});
+
+test('Construction Form draft and cancel do not write the brief', () => {
+  const path = ['property', 'construction'];
+  let drafts = stashEntryDraft({}, path, 'masonry');
+  const job = createInitialActiveJob();
+  assert.equal(readEntryDraft(drafts, path), 'masonry');
+  assert.equal(
+    resolveFieldValue(readActiveJobBrief(job), PROPERTY_CONSTRUCTION_FORM_FIELD_ID),
+    null,
+  );
+  drafts = clearEntryDraft(drafts, path);
+  assert.equal(readEntryDraft(drafts, path), undefined);
+  assert.equal(
+    resolveFieldValue(readActiveJobBrief(job), PROPERTY_CONSTRUCTION_FORM_FIELD_ID),
+    null,
+  );
+});
+
+test('Construction Form commit writes machine value, replaces, and round-trips', () => {
+  const displayed = formatSvyrDisplayedLabel('Timber frame', 'choice');
+  assert.equal(
+    normalizeFieldInputValue(
+      findFieldDefinition(['property', 'construction']),
+      'Timber frame',
+    ),
+    'timber_frame',
+  );
+  const parsed = parseCommand('property/construction Timber frame');
+  assert.equal(parsed.type, 'operation');
+  if (parsed.type !== 'operation') return;
+  assert.equal(parsed.operation.operationId, SURVEY_OPERATIONS.setSingleChoice);
+  assert.equal(parsed.operation.arguments.fieldId, PROPERTY_CONSTRUCTION_FORM_FIELD_ID);
+  assert.equal(parsed.operation.arguments.value, 'timber_frame');
+  assert.notEqual(parsed.operation.arguments.value, displayed);
+
+  const committed = executeSurveyOperation(emptyBrief(), parsed.operation);
+  assert.equal(
+    resolveFieldValue(committed!.brief, PROPERTY_CONSTRUCTION_FORM_FIELD_ID),
+    'timber_frame',
+  );
+  assert.equal(
+    resolveFieldValue(committed!.brief, PROPERTY_CONSTRUCTION_PERIOD_FIELD_ID),
+    null,
+  );
+  assert.equal(reopenPropertyEntryValue(committed!.brief, ['property', 'construction']), 'timber_frame');
+
+  const replacement = parseCommand('property/construction masonry');
+  assert.equal(replacement.type, 'operation');
+  if (replacement.type !== 'operation') return;
+  const replaced = executeSurveyOperation(committed!.brief, replacement.operation);
+  assert.equal(
+    resolveFieldValue(replaced!.brief, PROPERTY_CONSTRUCTION_FORM_FIELD_ID),
+    'masonry',
+  );
+  assert.equal(
+    Object.keys(replaced!.brief.controlledFacts ?? {}).filter((id) =>
+      id.startsWith('property.construction'),
+    ).length,
+    1,
+  );
+
+  const period = parseCommand('property/age 1945–1964');
+  assert.equal(period.type, 'operation');
+  if (period.type !== 'operation') return;
+  const both = executeSurveyOperation(replaced!.brief, period.operation);
+  assert.equal(
+    resolveFieldValue(both!.brief, PROPERTY_CONSTRUCTION_FORM_FIELD_ID),
+    'masonry',
+  );
+  assert.equal(
+    resolveFieldValue(both!.brief, PROPERTY_CONSTRUCTION_PERIOD_FIELD_ID),
+    '1945_1964',
+  );
+
+  let job = withInspectionBrief(createInitialActiveJob(), both!.brief);
+  const serialized = serializeActiveJob(job);
+  assert.match(serialized, /"property.construction_form"/);
+  assert.match(serialized, /masonry/);
+  assert.equal(serialized.includes('Masonry'), false);
+  const restored = deserializeActiveJob(serialized);
+  assert.ok(restored);
+  const restoredBrief = readActiveJobBrief(restored!);
+  assert.equal(
+    resolveFieldValue(restoredBrief, PROPERTY_CONSTRUCTION_FORM_FIELD_ID),
+    'masonry',
+  );
+  assert.equal(
+    resolveFieldValue(restoredBrief, PROPERTY_CONSTRUCTION_PERIOD_FIELD_ID),
+    '1945_1964',
+  );
+  assert.equal(
+    reopenPropertyEntryValue(restoredBrief, ['property', 'construction']),
+    'masonry',
+  );
+  assert.deepEqual(restored!.inspection.findings, {});
 });
 

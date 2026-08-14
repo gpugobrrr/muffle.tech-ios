@@ -11,6 +11,7 @@ export const SURVEY_SINGLE_CHOICE_READ = 'survey.single_choice.read' as const;
 export const PROPERTY_TYPE_FIELD_ID = 'property.type';
 export const PROPERTY_CONSTRUCTION_PERIOD_FIELD_ID =
   'property.construction_period';
+export const PROPERTY_CONSTRUCTION_FORM_FIELD_ID = 'property.construction_form';
 export const PROPERTY_EXTENSION_FIELD_ID = 'property.extension';
 export const PROPERTY_CONVERSION_FIELD_ID = 'property.conversion';
 
@@ -56,6 +57,31 @@ export const PROPERTY_CONSTRUCTION_PERIOD_VALUES = [
 
 export type PropertyConstructionPeriodValue =
   (typeof PROPERTY_CONSTRUCTION_PERIOD_VALUES)[number];
+
+export const PROPERTY_CONSTRUCTION_FORM_VALUES = [
+  'masonry',
+  'timber_frame',
+  'steel_frame',
+  'concrete_frame',
+  'system_built',
+  'mixed',
+  'other',
+  'unknown',
+] as const;
+
+export type PropertyConstructionFormValue =
+  (typeof PROPERTY_CONSTRUCTION_FORM_VALUES)[number];
+
+export const PROPERTY_CONSTRUCTION_FORM_OPTIONS: readonly FieldOption[] = [
+  { value: 'masonry', label: 'Masonry' },
+  { value: 'timber_frame', label: 'Timber frame' },
+  { value: 'steel_frame', label: 'Steel frame' },
+  { value: 'concrete_frame', label: 'Concrete frame' },
+  { value: 'system_built', label: 'System-built' },
+  { value: 'mixed', label: 'Mixed' },
+  { value: 'other', label: 'Other' },
+  { value: 'unknown', label: 'Unknown' },
+];
 
 export const PROPERTY_CONSTRUCTION_PERIOD_OPTIONS: readonly FieldOption[] = [
   { value: 'pre_1900', label: 'Pre-1900' },
@@ -116,6 +142,15 @@ export const PROPERTY_CONSTRUCTION_PERIOD_FIELD_DEFINITION = singleChoiceField(
   PROPERTY_CONSTRUCTION_PERIOD_OPTIONS,
 );
 
+export const PROPERTY_CONSTRUCTION_FORM_FIELD_DEFINITION = singleChoiceField(
+  ['property', 'construction'],
+  'construction',
+  'Construction form',
+  'The principal construction form of the dwelling, not construction period or a wall finding.',
+  PROPERTY_CONSTRUCTION_FORM_FIELD_ID,
+  PROPERTY_CONSTRUCTION_FORM_OPTIONS,
+);
+
 export const PROPERTY_EXTENSION_FIELD_DEFINITION = defineControlledStatusField({
   path: ['property', 'extension'],
   token: 'extension',
@@ -147,6 +182,7 @@ export const PROPERTY_DESCRIPTION_FIELD_DEFINITIONS: readonly FieldDefinition[] 
   PROPERTY_CONSTRUCTION_PERIOD_FIELD_DEFINITION,
   PROPERTY_EXTENSION_FIELD_DEFINITION,
   PROPERTY_CONVERSION_FIELD_DEFINITION,
+  PROPERTY_CONSTRUCTION_FORM_FIELD_DEFINITION,
 ];
 
 export function isSingleChoiceEngineField(

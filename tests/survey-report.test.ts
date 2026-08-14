@@ -18,6 +18,7 @@ import {
   withInspectionBrief,
 } from '../src/lib/job-persistence';
 import {
+  PROPERTY_CONSTRUCTION_FORM_FIELD_ID,
   PROPERTY_CONSTRUCTION_PERIOD_FIELD_ID,
   PROPERTY_CONVERSION_FIELD_ID,
   PROPERTY_EXTENSION_FIELD_ID,
@@ -141,6 +142,10 @@ test('property description projects machine values and schema labels', () => {
     fieldId: PROPERTY_CONSTRUCTION_PERIOD_FIELD_ID,
     value: '1945_1964',
   });
+  brief = writeBrief(brief, SURVEY_OPERATIONS.setSingleChoice, {
+    fieldId: PROPERTY_CONSTRUCTION_FORM_FIELD_ID,
+    value: 'timber_frame',
+  });
   brief = writeBrief(brief, SURVEY_OPERATIONS.setControlledFact, {
     fieldId: PROPERTY_EXTENSION_FIELD_ID,
     value: 'present',
@@ -161,6 +166,12 @@ test('property description projects machine values and schema labels', () => {
   });
   assert.equal(byId[PROPERTY_CONSTRUCTION_PERIOD_FIELD_ID]?.value, '1945_1964');
   assert.equal(byId[PROPERTY_CONSTRUCTION_PERIOD_FIELD_ID]?.display, '1945–1964');
+  assert.deepEqual(byId[PROPERTY_CONSTRUCTION_FORM_FIELD_ID], {
+    fieldId: PROPERTY_CONSTRUCTION_FORM_FIELD_ID,
+    label: 'Construction form',
+    value: 'timber_frame',
+    display: 'Timber frame',
+  });
   assert.equal(byId[PROPERTY_EXTENSION_FIELD_ID]?.value, 'present');
   assert.equal(byId[PROPERTY_EXTENSION_FIELD_ID]?.display, 'Present');
   assert.equal(byId[PROPERTY_CONVERSION_FIELD_ID]?.value, 'not_present');
@@ -509,9 +520,9 @@ test('summary and report remain derived and unclassified stays 0', () => {
   assert.equal(capabilityForRoute('report')?.kind, SURVEY_CAPABILITY_KINDS.derived);
   const census = surveyCapabilityCensus();
   assert.equal(census.unclassified, 0);
-  assert.equal(census.capture, 124);
+  assert.equal(census.capture, 125);
   assert.equal(census.derived, 2);
-  assert.equal(census.blocked, 30);
+  assert.equal(census.blocked, 29);
 });
 
 test('SVYR derived routes consume the survey report projection without a report store', () => {

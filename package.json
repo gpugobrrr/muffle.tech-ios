@@ -47,7 +47,6 @@
     "ontology:review:generate": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs ./scripts/generate-ontology-review-questions-v2.mjs",
     "ontology:review:interpret": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs ./scripts/interpret-ontology-review-results-v1.mjs",
     "ontology:promotion:propose": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs ./scripts/build-ontology-promotion-proposal-v1.mjs",
-    "ontology:review:results": "npm --prefix ./apps/ontology-review run results --",
     "ontology:export": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs ./scripts/export-muffle-ontology-v1.mjs",
     "report:finding:demo": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs ./scripts/render-demo-finding-report.mjs",
     "report:identity:demo": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs ./scripts/render-demo-identity-report.mjs",

@@ -10,6 +10,7 @@ import { GestureDetector } from 'react-native-gesture-handler';
 import {
   defaultSuggestionGridItem,
   SvyrSuggestionGrid,
+  type SvyrSuggestionGridItem,
 } from '@/components/svyr-suggestion-grid';
 import {
   HORIZONTAL_HOLD_CANCEL_DISTANCE,
@@ -102,7 +103,7 @@ export function SvyrNavigationPage({
   const suggestionById = new Map(suggestions.map((item) => [item.id, item]));
 
   const renderGridItem = (
-    item: (typeof navigationItems)[number],
+    item: SvyrSuggestionGridItem,
     align: 'left' | 'right',
   ) => {
     if (item.kind === 'hint') {

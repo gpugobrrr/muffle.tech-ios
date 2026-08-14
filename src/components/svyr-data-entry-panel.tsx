@@ -55,7 +55,7 @@ export function SvyrDataEntryPanel({
 }: Props) {
   const fieldDefinition = findFieldDefinition(field.path);
 
-  if (usesSingleChoicePresentation(fieldDefinition)) {
+  if (fieldDefinition && usesSingleChoicePresentation(fieldDefinition)) {
     return (
       <SingleChoiceEntryPage
         fieldDefinition={fieldDefinition}

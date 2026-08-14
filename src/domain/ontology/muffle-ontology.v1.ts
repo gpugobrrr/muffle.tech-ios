@@ -876,13 +876,21 @@ const INSPECTION_CONCEPTS: OntologyConcept[] = [
     id: 'building_element.porch',
     kind: 'value',
     label: 'Porch',
-    description: 'A porch inspected as the subject of a finding.',
+    description:
+      'An entrance porch or similar attached porch structure inspected as the subject of a finding. Does not include conservatories, external doors, external walls, or generic joinery.',
     parentId: 'building_element',
     canonical: true,
     ownership: 'engine-record',
-    maturity: 'type-only',
+    maturity: 'engine-backed',
     valueType: { kind: 'text' },
-    source: [{ type: 'ontology-review', id: 'canonical-promotion-batch-1' }],
+    bindings: { domainProperty: 'InspectionFinding.elementConceptId' },
+    source: [
+      { type: 'ontology-review', id: 'canonical-promotion-batch-1' },
+      {
+        type: 'domain-type',
+        id: 'BuildingElementConceptId:building_element.porch',
+      },
+    ],
   },
   {
     ...V1_2_BASE,

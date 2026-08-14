@@ -527,7 +527,7 @@ const EXTERNAL_NODE: CommandNode = {
     requirement: 'Outside the property',
     status: 'navigation-only',
     recommendedLaterWork:
-      'Keep Engine-backed chimney, roof-covering, rainwater-goods, window, external-wall, and external-door Type 6/7 findings. Leave porch, joinery, and other blocked until those subjects have approved inspection-element semantics.',
+      'Keep Engine-backed chimney, roof-covering, rainwater-goods, window, external-wall, external-door, and porch Type 6/7 findings. Leave joinery and other blocked until those subjects have approved inspection-element semantics.',
   },
   children: [
     workflowLeaf('limitation', 'limitation', 'External inspection limitations.', {
@@ -570,13 +570,7 @@ const EXTERNAL_NODE: CommandNode = {
     ]),
     externalFindingBranch(externalFindingConfig('windows')),
     externalFindingBranch(externalFindingConfig('doors')),
-    workflowLeaf('porch', 'porch', 'Porch inspection subject.', {
-      requirement: 'Conservatories and porches',
-      status: 'navigation-only',
-      canonicalConceptId: 'building_element.porch',
-      blocker: 'Porch is type-only; conservatory kind remains unresolved.',
-      recommendedLaterWork: 'Enable porch independently after Engine binding.',
-    }),
+    externalFindingBranch(externalFindingConfig('porch')),
     workflowLeaf('joinery', 'joinery', 'Other joinery and finishes coverage.', {
       requirement: 'Other joinery and finishes',
       status: 'blocked',

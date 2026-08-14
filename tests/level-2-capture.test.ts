@@ -241,6 +241,13 @@ test('interactive Level 2 routes remain explicitly bounded', () => {
     'external/doors/recommend',
     'external/doors/photo',
     'external/doors/evidence',
+    'external/porch',
+    'external/porch/observe',
+    'external/porch/condition',
+    'external/porch/defect',
+    'external/porch/recommend',
+    'external/porch/photo',
+    'external/porch/evidence',
     'internal/roof-structure',
     'internal/roof-structure/observe',
     'internal/roof-structure/condition',
@@ -318,7 +325,6 @@ test('interactive Level 2 routes remain explicitly bounded', () => {
     assert.ok(node?.findingTarget, token);
   }
   for (const route of [
-    ['external', 'porch'],
     ['internal', 'fireplaces-flues'],
     ['services', 'common'],
     ['grounds', 'garage'],
@@ -328,7 +334,6 @@ test('interactive Level 2 routes remain explicitly bounded', () => {
     assert.equal(node?.operationId, undefined, route.join('/'));
     assert.equal(node?.findingTarget, undefined, route.join('/'));
   }
-  assert.deepEqual(getCommandAssistance('external/porch'), []);
 });
 
 test('supported finding leaves commit through the existing finding operation', () => {

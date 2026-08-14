@@ -43,11 +43,11 @@ function emptyBrief(): InspectionBrief {
 test('every governed route has exactly one capability kind and unclassified is 0', () => {
   const census = surveyCapabilityCensus();
   assert.equal(census.unclassified, 0);
-  assert.equal(census.total, 184);
-  assert.equal(census.capture, 125);
-  assert.equal(census.navigation, 28);
+  assert.equal(census.total, 190);
+  assert.equal(census.capture, 131);
+  assert.equal(census.navigation, 29);
   assert.equal(census.derived, 2);
-  assert.equal(census.blocked, 29);
+  assert.equal(census.blocked, 28);
   assert.equal(
     census.total,
     census.capture + census.navigation + census.derived + census.blocked,
@@ -157,7 +157,6 @@ test('Services findings remain canonical Type 6/7 and oil stays blocked', () => 
 test('remaining External unresolved routes stay blocked with reasons', () => {
   const expected = {
     'external/limitation': SURVEY_BLOCKED_REASONS.workflowModelUndefined,
-    'external/porch': SURVEY_BLOCKED_REASONS.ontologyTypeOnly,
     'external/joinery': SURVEY_BLOCKED_REASONS.publicationGrouping,
     'external/other': SURVEY_BLOCKED_REASONS.publicationGrouping,
   } as const;
@@ -173,7 +172,7 @@ test('remaining External unresolved routes stay blocked with reasons', () => {
     assert.equal(node?.findingTarget, undefined, route);
     assert.equal(node?.fieldId, undefined, route);
   }
-  assert.equal(ontologyConceptIsTypeOnly('building_element.porch'), true);
+  assert.equal(ontologyConceptIsTypeOnly('building_element.porch'), false);
   assert.equal(ontologyConceptIsTypeOnly('building_element.chimney'), false);
 });
 

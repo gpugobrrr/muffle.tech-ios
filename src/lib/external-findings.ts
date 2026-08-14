@@ -6,7 +6,8 @@ export type ExternalFindingRouteId =
   | 'rainwater'
   | 'windows'
   | 'roof'
-  | 'doors';
+  | 'doors'
+  | 'porch';
 
 export type ExternalFindingConfig = FindingCaptureConfig & {
   routeId: ExternalFindingRouteId;
@@ -61,6 +62,14 @@ export const EXTERNAL_FINDING_CONFIGS: readonly ExternalFindingConfig[] = [
     findingId: 'finding.external-door.1',
     label: 'Outside doors',
     coverageRequirement: 'Outside doors',
+  },
+  {
+    routeId: 'porch',
+    route: ['external', 'porch'],
+    elementConceptId: 'building_element.porch',
+    findingId: 'finding.porch.1',
+    label: 'Porch',
+    coverageRequirement: 'Porch',
   },
 ];
 

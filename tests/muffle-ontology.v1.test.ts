@@ -150,7 +150,6 @@ test('human-approved v1.2 concepts remain canonical; inspection subjects may gai
   const typeOnlyBuildingElements = [
     'building_element.damp_proof_course',
     'building_element.fireplace',
-    'building_element.porch',
     'building_element.staircase',
   ];
   const engineBackedBuildingElements = [
@@ -159,6 +158,7 @@ test('human-approved v1.2 concepts remain canonical; inspection subjects may gai
     'building_element.external_door',
     'building_element.floor',
     'building_element.internal_wall',
+    'building_element.porch',
     'building_element.rainwater_goods',
     'building_element.roof_covering',
     'building_element.roof_structure',

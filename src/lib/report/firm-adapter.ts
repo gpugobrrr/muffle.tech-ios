@@ -1,7 +1,9 @@
 import type {
+  FactsBlock,
   FindingBlock,
   IdentityBlock,
   ReportDocument,
+  SectionBlock,
 } from '@/types/report';
 import type { BuildingElementConceptId } from '@/types/workspace';
 
@@ -26,7 +28,12 @@ export type FirmReportDocument = {
     id: string;
     version: string;
   };
-  blocks: readonly (IdentityBlock | FirmFindingBlock)[];
+  blocks: readonly (
+    | IdentityBlock
+    | FactsBlock
+    | SectionBlock
+    | FirmFindingBlock
+  )[];
 };
 
 export const DEMO_FIRM_ADAPTER: FirmAdapter = {
@@ -65,7 +72,7 @@ export function applyFirmAdapter(
       version: adapter.version,
     },
     blocks: document.blocks.map((block) => {
-      if (block.kind === 'identity') return block;
+      if (block.kind !== 'finding') return block;
       const mapping = adapter.elementTerms.find(
         (candidate) => candidate.conceptId === block.elementConceptId,
       );

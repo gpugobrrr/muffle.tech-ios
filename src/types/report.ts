@@ -120,11 +120,33 @@ export type SurveyReportModel = {
   summary: SurveyReportSummary;
 };
 
+export type FactsBlock = {
+  kind: 'facts';
+  section:
+    | 'summary'
+    | 'instruction'
+    | 'property-description'
+    | 'property-energy'
+    | 'evidence-summary';
+  title: string;
+  rows: readonly { label: string; value: string }[];
+};
+
+export type SectionBlock = {
+  kind: 'section';
+  section: ReportFindingGroup;
+  title: string;
+};
+
 /**
  * Semantic blocks are ordered independently of pages. Renderers own layout
  * and pagination as more block kinds are introduced.
  */
-export type ReportBlock = IdentityBlock | FindingBlock;
+export type ReportBlock =
+  | IdentityBlock
+  | FactsBlock
+  | SectionBlock
+  | FindingBlock;
 
 export type ReportDocument = {
   schemaVersion: 1;

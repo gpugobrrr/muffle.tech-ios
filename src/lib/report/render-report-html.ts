@@ -4,10 +4,12 @@ import {
   type FirmFindingBlock,
 } from '@/lib/report/firm-adapter';
 import type {
+  FactsBlock,
   FindingBlock,
   IdentityBlock,
   ReportAddress,
   ReportDocument,
+  SectionBlock,
 } from '@/types/report';
 
 function escapeHtml(value: string): string {
@@ -87,6 +89,26 @@ function renderFindingRow(label: string, value: string): string {
         </div>`;
 }
 
+function renderFactsBlock(block: FactsBlock): string {
+  const rows = block.rows
+    .map((row) => renderFindingRow(row.label, row.value))
+    .join('');
+  return `
+    <section class="facts" aria-labelledby="facts-${escapeHtml(block.section)}">
+      <p class="eyebrow">${escapeHtml(block.title)}</p>
+      <h2 id="facts-${escapeHtml(block.section)}">${escapeHtml(block.title)}</h2>
+      <dl class="finding-content">${rows}
+      </dl>
+    </section>`;
+}
+
+function renderSectionBlock(block: SectionBlock): string {
+  return `
+    <section class="section-heading" aria-labelledby="section-${escapeHtml(block.section)}">
+      <h2 id="section-${escapeHtml(block.section)}">${escapeHtml(block.title)}</h2>
+    </section>`;
+}
+
 function renderFindingBlock(
   finding: FindingBlock | FirmFindingBlock,
 ): string {
@@ -150,12 +172,13 @@ export function renderReportDocumentHtml(
   if (!identity) {
     throw new Error('Report document does not contain an Identity block.');
   }
-  const findings = blocks
-    .filter(
-      (block): block is FindingBlock | FirmFindingBlock =>
-        block.kind === 'finding',
-    )
-    .map(renderFindingBlock)
+  const body = blocks
+    .map((block) => {
+      if (block.kind === 'identity') return '';
+      if (block.kind === 'facts') return renderFactsBlock(block);
+      if (block.kind === 'section') return renderSectionBlock(block);
+      return renderFindingBlock(block);
+    })
     .join('');
 
   return `<!doctype html>
@@ -252,7 +275,7 @@ export function renderReportDocumentHtml(
     <main class="report">
       <header class="masthead">muffle.tech</header>
       ${renderIdentityBlock(identity)}
-      ${findings}
+      ${body}
     </main>
   </body>
 </html>`;

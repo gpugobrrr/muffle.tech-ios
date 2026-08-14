@@ -1,6 +1,12 @@
 import type { FindingCaptureConfig } from '@/lib/finding-capture';
 
-export type ExternalFindingRouteId = 'walls' | 'chimney' | 'rainwater' | 'windows';
+export type ExternalFindingRouteId =
+  | 'walls'
+  | 'chimney'
+  | 'rainwater'
+  | 'windows'
+  | 'roof'
+  | 'doors';
 
 export type ExternalFindingConfig = FindingCaptureConfig & {
   routeId: ExternalFindingRouteId;
@@ -39,6 +45,22 @@ export const EXTERNAL_FINDING_CONFIGS: readonly ExternalFindingConfig[] = [
     findingId: 'finding.window.1',
     label: 'Windows',
     coverageRequirement: 'Windows',
+  },
+  {
+    routeId: 'roof',
+    route: ['external', 'roof'],
+    elementConceptId: 'building_element.roof_covering',
+    findingId: 'finding.roof-covering.1',
+    label: 'Roof coverings',
+    coverageRequirement: 'Roof coverings',
+  },
+  {
+    routeId: 'doors',
+    route: ['external', 'doors'],
+    elementConceptId: 'building_element.external_door',
+    findingId: 'finding.external-door.1',
+    label: 'Outside doors',
+    coverageRequirement: 'Outside doors',
   },
 ];
 

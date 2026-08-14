@@ -779,6 +779,48 @@ const INSPECTION_CONCEPTS: OntologyConcept[] = [
   },
   {
     ...V1_2_BASE,
+    id: 'building_element.roof_covering',
+    kind: 'value',
+    label: 'Roof covering',
+    description:
+      'External roof coverings inspected as one finding subject, distinct from internal roof structure.',
+    parentId: 'building_element',
+    canonical: true,
+    ownership: 'engine-record',
+    maturity: 'engine-backed',
+    valueType: { kind: 'text' },
+    bindings: { domainProperty: 'InspectionFinding.elementConceptId' },
+    source: [
+      { type: 'ontology-review', id: 'canonical-promotion-batch-1' },
+      {
+        type: 'domain-type',
+        id: 'BuildingElementConceptId:building_element.roof_covering',
+      },
+    ],
+  },
+  {
+    ...V1_2_BASE,
+    id: 'building_element.external_door',
+    kind: 'value',
+    label: 'External door',
+    description:
+      'An external door inspected as one finding subject, distinct from windows, internal doors, and generic joinery.',
+    parentId: 'building_element',
+    canonical: true,
+    ownership: 'engine-record',
+    maturity: 'engine-backed',
+    valueType: { kind: 'text' },
+    bindings: { domainProperty: 'InspectionFinding.elementConceptId' },
+    source: [
+      { type: 'ontology-review', id: 'canonical-promotion-batch-1' },
+      {
+        type: 'domain-type',
+        id: 'BuildingElementConceptId:building_element.external_door',
+      },
+    ],
+  },
+  {
+    ...V1_2_BASE,
     id: 'building_element.chimney',
     kind: 'value',
     label: 'Chimney',

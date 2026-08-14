@@ -434,7 +434,7 @@ test('frozen entry-session identity still commits External walls observation', (
 
 test('unresolved External subjects remain blocked without Type 6/7 children', () => {
   const children = findCommandNode(['external'])?.children ?? [];
-  for (const token of ['limitation', 'roof', 'doors', 'porch', 'joinery', 'other']) {
+  for (const token of ['limitation', 'porch', 'joinery', 'other']) {
     const node = children.find((child) => child.token === token);
     assert.ok(node, token);
     assert.equal(node?.workflowOnly, true, token);

@@ -118,8 +118,6 @@ export const BLOCKED_ROUTE_REASONS: Readonly<Record<string, SurveyBlockedReason>
   'property/location/facilities': SURVEY_BLOCKED_REASONS.missingFieldSemantics,
   'property/location/environment': SURVEY_BLOCKED_REASONS.missingFieldSemantics,
   'external/limitation': SURVEY_BLOCKED_REASONS.workflowModelUndefined,
-  'external/roof': SURVEY_BLOCKED_REASONS.unresolvedSubjectScope,
-  'external/doors': SURVEY_BLOCKED_REASONS.unresolvedSubjectScope,
   'external/porch': SURVEY_BLOCKED_REASONS.ontologyTypeOnly,
   'external/joinery': SURVEY_BLOCKED_REASONS.publicationGrouping,
   'external/other': SURVEY_BLOCKED_REASONS.publicationGrouping,

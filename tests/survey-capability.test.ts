@@ -43,11 +43,11 @@ function emptyBrief(): InspectionBrief {
 test('every governed route has exactly one capability kind and unclassified is 0', () => {
   const census = surveyCapabilityCensus();
   assert.equal(census.unclassified, 0);
-  assert.equal(census.total, 172);
-  assert.equal(census.capture, 112);
-  assert.equal(census.navigation, 26);
+  assert.equal(census.total, 184);
+  assert.equal(census.capture, 124);
+  assert.equal(census.navigation, 28);
   assert.equal(census.derived, 2);
-  assert.equal(census.blocked, 32);
+  assert.equal(census.blocked, 30);
   assert.equal(
     census.total,
     census.capture + census.navigation + census.derived + census.blocked,
@@ -118,7 +118,7 @@ test('Property description Type 2/4 routes are capture and remaining description
   }
 });
 
-test('External four subjects reference EXTERNAL_FINDING_CONFIGS as Type 6/7', () => {
+test('External finding configs are Type 6/7 capture', () => {
   for (const config of EXTERNAL_FINDING_CONFIGS) {
     const parent = capabilityForRoute(config.route);
     assert.equal(parent?.kind, SURVEY_CAPABILITY_KINDS.navigation, config.label);
@@ -155,8 +155,6 @@ test('Services findings remain canonical Type 6/7 and oil stays blocked', () => 
 test('remaining External unresolved routes stay blocked with reasons', () => {
   const expected = {
     'external/limitation': SURVEY_BLOCKED_REASONS.workflowModelUndefined,
-    'external/roof': SURVEY_BLOCKED_REASONS.unresolvedSubjectScope,
-    'external/doors': SURVEY_BLOCKED_REASONS.unresolvedSubjectScope,
     'external/porch': SURVEY_BLOCKED_REASONS.ontologyTypeOnly,
     'external/joinery': SURVEY_BLOCKED_REASONS.publicationGrouping,
     'external/other': SURVEY_BLOCKED_REASONS.publicationGrouping,

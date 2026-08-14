@@ -156,9 +156,11 @@ test('human-approved v1.2 concepts remain canonical; inspection subjects may gai
   const engineBackedBuildingElements = [
     'building_element.ceiling',
     'building_element.chimney',
+    'building_element.external_door',
     'building_element.floor',
     'building_element.internal_wall',
     'building_element.rainwater_goods',
+    'building_element.roof_covering',
     'building_element.roof_structure',
     'building_element.window',
   ];

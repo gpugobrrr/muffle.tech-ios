@@ -507,7 +507,7 @@ const EXTERNAL_NODE: CommandNode = {
     requirement: 'Outside the property',
     status: 'navigation-only',
     recommendedLaterWork:
-      'Keep Engine-backed chimney, rainwater-goods, window, and external-wall Type 6/7 findings. Leave roof, doors, porch, joinery, and other blocked until those subjects have approved inspection-element semantics.',
+      'Keep Engine-backed chimney, roof-covering, rainwater-goods, window, external-wall, and external-door Type 6/7 findings. Leave porch, joinery, and other blocked until those subjects have approved inspection-element semantics.',
   },
   children: [
     workflowLeaf('limitation', 'limitation', 'External inspection limitations.', {
@@ -517,12 +517,7 @@ const EXTERNAL_NODE: CommandNode = {
       recommendedLaterWork: 'Design section and finding limitation semantics.',
     }),
     externalFindingBranch(externalFindingConfig('chimney')),
-    workflowLeaf('roof', 'roof', 'Roof covering inspection subject.', {
-      requirement: 'Roof coverings',
-      status: 'blocked',
-      blocker: 'Roof covering is not canonical.',
-      recommendedLaterWork: 'Resolve roof covering and roof structure independently.',
-    }),
+    externalFindingBranch(externalFindingConfig('roof')),
     externalFindingBranch(externalFindingConfig('rainwater')),
     externalFindingBranch(externalFindingConfig('walls'), [
       createFindingCaptureLeaf(
@@ -554,12 +549,7 @@ const EXTERNAL_NODE: CommandNode = {
       ),
     ]),
     externalFindingBranch(externalFindingConfig('windows')),
-    workflowLeaf('doors', 'doors', 'Outside-door inspection subject.', {
-      requirement: 'Outside doors',
-      status: 'blocked',
-      blocker: 'External door is not canonical.',
-      recommendedLaterWork: 'Resolve door concept scope before capture.',
-    }),
+    externalFindingBranch(externalFindingConfig('doors')),
     workflowLeaf('porch', 'porch', 'Porch inspection subject.', {
       requirement: 'Conservatories and porches',
       status: 'navigation-only',

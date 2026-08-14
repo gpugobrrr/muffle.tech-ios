@@ -40,8 +40,15 @@ import {
   deserializeActiveJob,
   serializeActiveJob,
 } from '../src/lib/job-persistence';
-import { EXTERNAL_FINDING_CONFIGS } from '../src/lib/external-findings';
 import { level2CoverageForRoute } from '../src/lib/level-2-capture';
+import { EXTERNAL_FINDING_CONFIGS, externalFindingConfig } from '../src/lib/external-findings';
+import { INTERNAL_FINDING_CONFIGS } from '../src/lib/internal-findings';
+import { buildSurveyReport } from '../src/lib/report/build-survey-report';
+import {
+  capabilityForRoute,
+  SURVEY_CAPABILITY_KINDS,
+  SURVEY_BLOCKED_REASONS,
+} from '../src/lib/survey-capability';
 import {
   executeInspectionOperation,
   SURVEY_OPERATIONS,
@@ -59,14 +66,6 @@ const UNRESOLVED_EXTERNAL_LEAVES = [
   {
     path: ['external', 'limitation'],
     missing: 'Section/finding limitation is distinct from brief limitation.',
-  },
-  {
-    path: ['external', 'roof'],
-    missing: 'Roof covering is not a canonical Engine subject.',
-  },
-  {
-    path: ['external', 'doors'],
-    missing: 'External door is not canonical.',
   },
   {
     path: ['external', 'porch'],
@@ -243,6 +242,8 @@ test('External walls limit, further, and risk are finding capture on the walls f
   for (const token of ['limit', 'further', 'risk'] as const) {
     assert.equal(findCommandNode(['external', 'chimney', token]), null);
     assert.equal(findCommandNode(['external', 'windows', token]), null);
+    assert.equal(findCommandNode(['external', 'roof', token]), null);
+    assert.equal(findCommandNode(['external', 'doors', token]), null);
   }
 });
 
@@ -259,6 +260,8 @@ test('type-only External ontology concepts stay out of InspectionElementConceptI
       'building_element.internal_wall',
       'building_element.floor',
       'building_element.bathroom_fitting',
+      'building_element.roof_covering',
+      'building_element.external_door',
     ],
   );
   for (const id of TYPE_ONLY_EXTERNAL_CONCEPTS) {
@@ -273,7 +276,8 @@ test('type-only External ontology concepts stay out of InspectionElementConceptI
   assert.equal(isInspectionElementConceptId('building_element.rainwater_goods'), true);
   assert.equal(isInspectionElementConceptId('building_element.window'), true);
   assert.equal(getOntologyConcept('building_element.roof'), undefined);
-  assert.equal(getOntologyConcept('building_element.external_door'), undefined);
+  assert.equal(isInspectionElementConceptId('building_element.roof_covering'), true);
+  assert.equal(isInspectionElementConceptId('building_element.external_door'), true);
   assert.equal(getOntologyConcept('building_element.conservatory'), undefined);
   assert.equal(getOntologyConcept('building_element.joinery'), undefined);
 });
@@ -493,7 +497,7 @@ test('External finding leaves stay optional and do not invent required completio
   assert.deepEqual(walls?.children, []);
 });
 
-test('four External findings persist independently with evidence IDs only', async () => {
+test('External findings persist independently with evidence IDs only', async () => {
   let job = createInitialActiveJob();
   for (const config of EXTERNAL_FINDING_CONFIGS) {
     const observe = findCommandNode([...config.route, 'observe'])!.findingTarget!;
@@ -574,4 +578,281 @@ test('four External findings persist independently with evidence IDs only', asyn
     );
   }
   assert.equal(activeJobContainsEmbeddedImageData(restored!), false);
+});
+
+test('Roof and Doors resolve with stable finding IDs distinct from Internal roof structure', () => {
+  const roof = externalFindingConfig('roof');
+  const doors = externalFindingConfig('doors');
+  const roofStructure = INTERNAL_FINDING_CONFIGS.find(
+    (item) => item.routeId === 'roof-structure',
+  )!;
+  const windows = externalFindingConfig('windows');
+
+  assert.equal(roof.findingId, 'finding.roof-covering.1');
+  assert.equal(roof.elementConceptId, 'building_element.roof_covering');
+  assert.equal(doors.findingId, 'finding.external-door.1');
+  assert.equal(doors.elementConceptId, 'building_element.external_door');
+  assert.notEqual(roof.elementConceptId, roofStructure.elementConceptId);
+  assert.notEqual(roof.findingId, roofStructure.findingId);
+  assert.notEqual(doors.elementConceptId, windows.elementConceptId);
+  assert.equal(getOntologyConcept('building_element.internal_door'), undefined);
+  assert.equal(getOntologyConcept('building_element.joinery'), undefined);
+  assert.equal(getOntologyConcept('building_element.roof'), undefined);
+
+  for (const config of [roof, doors]) {
+    assert.equal(isInspectionElementConceptId(config.elementConceptId), true);
+    assert.equal(
+      getOntologyConcept(config.elementConceptId)?.maturity,
+      'engine-backed',
+    );
+    assert.equal(findCommandNode([...config.route])?.workflowOnly, undefined);
+    assert.equal(
+      capabilityForRoute(config.route)?.kind,
+      SURVEY_CAPABILITY_KINDS.navigation,
+    );
+    assert.equal(findCommandNode([...config.route, 'limit']), null);
+    assert.equal(findCommandNode([...config.route, 'further']), null);
+    assert.equal(findCommandNode([...config.route, 'risk']), null);
+  }
+
+  assert.equal(externalFindingConfig('walls').findingId, 'finding.external-wall.1');
+  assert.equal(externalFindingConfig('chimney').findingId, 'finding.chimney.1');
+  assert.equal(
+    externalFindingConfig('rainwater').findingId,
+    'finding.rainwater-goods.1',
+  );
+  assert.equal(windows.findingId, 'finding.window.1');
+});
+
+test('Roof and Doors are observation-first Type 6/7 with sibling isolation', async () => {
+  const activated = [externalFindingConfig('roof'), externalFindingConfig('doors')];
+  for (const config of activated) {
+    const sibling = activated.find((item) => item.routeId !== config.routeId)!;
+    const observe = findCommandNode([...config.route, 'observe'])!.findingTarget!;
+    const condition = findCommandNode([...config.route, 'condition'])!.findingTarget!;
+    const defect = findCommandNode([...config.route, 'defect'])!.findingTarget!;
+    const recommend = findCommandNode([...config.route, 'recommend'])!.findingTarget!;
+    const photo = findCommandNode([...config.route, 'photo'])!.evidenceCaptureTarget!;
+
+    for (const target of [condition, defect, recommend]) {
+      const rejected = commitInspectionFindingField(
+        createEmptyInspectionRecord(),
+        target,
+        'premature',
+      );
+      assert.equal(rejected.ok, false, `${config.routeId} ${target.field}`);
+      if (!rejected.ok) assert.equal(rejected.message, 'Record observation first');
+    }
+    const photoFirst = await captureAndCommitInspectionEvidencePhoto({
+      inspection: createEmptyInspectionRecord(),
+      target: photo,
+      jobId: `job.external.${config.routeId}`,
+      temporaryUri: `file:///tmp/${config.routeId}-premature.jpg`,
+      fileStore: mockFileStore(),
+      createId: () => `evidence.photo.${config.routeId}-premature`,
+    });
+    assert.equal(photoFirst.ok, false, config.routeId);
+
+    const observed = commitInspectionFindingField(
+      createEmptyInspectionRecord(),
+      observe,
+      `${config.label} observation.`,
+    );
+    assert.equal(observed.ok, true, config.routeId);
+    if (!observed.ok) return;
+    assert.equal(Object.keys(observed.result.inspection.findings).length, 1);
+
+    const siblingObserved = commitInspectionFindingField(
+      observed.result.inspection,
+      findCommandNode([...sibling.route, 'observe'])!.findingTarget!,
+      `${sibling.label} observation.`,
+    );
+    assert.equal(siblingObserved.ok, true, sibling.routeId);
+    if (!siblingObserved.ok) return;
+    let inspection = siblingObserved.result.inspection;
+
+    const defected = commitInspectionFindingField(
+      inspection,
+      defect,
+      `${config.label} defect.`,
+    );
+    assert.equal(defected.ok, true, config.routeId);
+    if (!defected.ok) return;
+    inspection = defected.result.inspection;
+
+    const recommended = commitInspectionFindingField(
+      inspection,
+      recommend,
+      `${config.label} recommendation.`,
+    );
+    assert.equal(recommended.ok, true, config.routeId);
+    if (!recommended.ok) return;
+    inspection = recommended.result.inspection;
+
+    const evidenced = await captureAndCommitInspectionEvidencePhoto({
+      inspection,
+      target: photo,
+      jobId: `job.external.${config.routeId}`,
+      temporaryUri: `file:///tmp/${config.routeId}.jpg`,
+      fileStore: mockFileStore(),
+      createId: () => `evidence.photo.${config.routeId}`,
+    });
+    assert.equal(evidenced.ok, true, config.routeId);
+    if (!evidenced.ok) return;
+    inspection = evidenced.result.inspection;
+
+    assert.equal(
+      inspection.findings[config.findingId]?.defect,
+      `${config.label} defect.`,
+    );
+    assert.equal(inspection.findings[sibling.findingId]?.defect, undefined);
+    assert.equal(countFindingPhotoEvidence(inspection, config.findingId), 1);
+    assert.equal(countFindingPhotoEvidence(inspection, sibling.findingId), 0);
+  }
+});
+
+test('Roof stays isolated from Internal roof structure findings', () => {
+  const roof = externalFindingConfig('roof');
+  const roofStructure = INTERNAL_FINDING_CONFIGS.find(
+    (item) => item.routeId === 'roof-structure',
+  )!;
+  const externalObserved = commitInspectionFindingField(
+    createEmptyInspectionRecord(),
+    findCommandNode([...roof.route, 'observe'])!.findingTarget!,
+    'Slipped tiles at the rear slope.',
+  );
+  assert.equal(externalObserved.ok, true);
+  if (!externalObserved.ok) return;
+  const internalObserved = commitInspectionFindingField(
+    externalObserved.result.inspection,
+    findCommandNode([...roofStructure.route, 'observe'])!.findingTarget!,
+    'Accessible rafters appear serviceable.',
+  );
+  assert.equal(internalObserved.ok, true);
+  if (!internalObserved.ok) return;
+  let inspection = internalObserved.result.inspection;
+
+  const defected = commitInspectionFindingField(
+    inspection,
+    findCommandNode([...roof.route, 'defect'])!.findingTarget!,
+    'Missing tiles expose the underlay.',
+  );
+  assert.equal(defected.ok, true);
+  if (!defected.ok) return;
+  inspection = defected.result.inspection;
+  assert.equal(inspection.findings[roof.findingId]?.defect, 'Missing tiles expose the underlay.');
+  assert.equal(inspection.findings[roofStructure.findingId]?.defect, undefined);
+  assert.notEqual(
+    inspection.findings[roof.findingId]?.elementConceptId,
+    inspection.findings[roofStructure.findingId]?.elementConceptId,
+  );
+});
+
+test('frozen Roof and Doors sessions commit the opened observation target', () => {
+  for (const config of [externalFindingConfig('roof'), externalFindingConfig('doors')]) {
+    const observe = findCommandNode([...config.route, 'observe'])!;
+    const defect = findCommandNode([...config.route, 'defect'])!;
+    const session = openFindingEntrySession(
+      [...config.route, 'observe'],
+      observe.findingTarget!,
+      observe.token,
+    );
+    assert.equal(
+      resolveFindingEntryCommitTarget(session, defect.findingTarget)?.field,
+      'observation',
+      config.routeId,
+    );
+    const committed = commitFindingEntrySession(
+      createEmptyInspectionRecord(),
+      session,
+      `${config.label} observation from frozen session.`,
+      defect.findingTarget,
+    );
+    assert.equal(committed.ok, true, config.routeId);
+    if (!committed.ok) return;
+    assert.equal(
+      committed.result.inspection.findings[config.findingId]?.observation,
+      `${config.label} observation from frozen session.`,
+    );
+    assert.equal(
+      committed.result.inspection.findings[config.findingId]?.defect,
+      undefined,
+    );
+  }
+});
+
+test('Roof and Doors serialize and project into SurveyReportModel findings.external', async () => {
+  const roof = externalFindingConfig('roof');
+  const doors = externalFindingConfig('doors');
+  const roofStructure = INTERNAL_FINDING_CONFIGS.find(
+    (item) => item.routeId === 'roof-structure',
+  )!;
+  let job = createInitialActiveJob();
+
+  for (const config of [roof, doors, roofStructure]) {
+    const observed = commitInspectionFindingField(
+      job.inspection,
+      findCommandNode([...config.route, 'observe'])!.findingTarget!,
+      `${config.label} observation.`,
+    );
+    assert.equal(observed.ok, true, config.routeId);
+    if (!observed.ok) return;
+    job = { ...job, inspection: observed.result.inspection };
+  }
+
+  const photo = findCommandNode([...roof.route, 'photo'])!.evidenceCaptureTarget!;
+  const photographed = await captureAndCommitInspectionEvidencePhoto({
+    inspection: job.inspection,
+    target: photo,
+    jobId: job.id,
+    temporaryUri: 'file:///tmp/roof-covering-persist.jpg',
+    fileStore: mockFileStore(),
+    createId: () => 'evidence.photo.roof-covering-persist',
+  });
+  assert.equal(photographed.ok, true);
+  if (!photographed.ok) return;
+  job = { ...job, inspection: photographed.result.inspection };
+
+  const restored = deserializeActiveJob(serializeActiveJob(job));
+  assert.ok(restored);
+  assert.equal(
+    restored!.inspection.findings[roof.findingId]?.observation,
+    'Roof coverings observation.',
+  );
+  assert.equal(
+    restored!.inspection.findings[doors.findingId]?.observation,
+    'Outside doors observation.',
+  );
+  assert.equal(
+    countFindingPhotoEvidence(restored!.inspection, roof.findingId),
+    1,
+  );
+
+  const report = buildSurveyReport(restored!);
+  assert.deepEqual(
+    report.findings.external.map((finding) => finding.findingId),
+    [roof.findingId, doors.findingId],
+  );
+  assert.equal(
+    report.findings.internal.some((finding) => finding.findingId === roof.findingId),
+    false,
+  );
+  assert.equal(
+    report.findings.internal.some(
+      (finding) => finding.findingId === roofStructure.findingId,
+    ),
+    true,
+  );
+});
+
+test('Porch remains blocked and is not an Engine finding subject', () => {
+  const porch = findCommandNode(['external', 'porch']);
+  assert.equal(porch?.workflowOnly, true);
+  assert.equal(findCommandNode(['external', 'porch', 'observe']), null);
+  assert.equal(
+    capabilityForRoute('external/porch')?.blockedReason,
+    SURVEY_BLOCKED_REASONS.ontologyTypeOnly,
+  );
+  assert.equal(getOntologyConcept('building_element.porch')?.maturity, 'type-only');
+  assert.equal(isInspectionElementConceptId('building_element.porch'), false);
 });

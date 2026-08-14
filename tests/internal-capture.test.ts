@@ -196,12 +196,16 @@ test('Internal roof structure stays distinct from External roof coverings', () =
   const externalRoof = findCommandNode(['external', 'roof']);
   assert.equal(roofStructure.elementConceptId, 'building_element.roof_structure');
   assert.equal(getOntologyConcept('building_element.roof'), undefined);
-  assert.equal(externalRoof?.workflowOnly, true);
-  assert.equal(externalRoof?.coverage?.canonicalConceptId, undefined);
+  assert.equal(externalRoof?.coverage?.canonicalConceptId, 'building_element.roof_covering');
+  assert.notEqual(
+    roofStructure.elementConceptId,
+    externalRoof?.coverage?.canonicalConceptId,
+  );
   assert.equal(
     capabilityForRoute('external/roof')?.kind,
-    SURVEY_CAPABILITY_KINDS.blocked,
+    SURVEY_CAPABILITY_KINDS.navigation,
   );
+  assert.notEqual(findCommandNode(['external', 'roof', 'observe']), null);
 });
 
 test('Internal floors stay distinct from Property construction', () => {

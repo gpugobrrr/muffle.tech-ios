@@ -10,7 +10,10 @@ import {
     walkCommandPath,
     type CommandNode,
 } from '@/lib/command-registry';
-import { isControlledScalarField } from '@/lib/controlled-fact';
+import {
+  isControlledScalarField,
+  isControlledSetField,
+} from '@/lib/controlled-fact';
 import {
   findFieldDefinition,
   normalizeFieldInputValue,
@@ -131,7 +134,7 @@ function readCommand(path: string[]): ParsedCommand {
       fieldDefinition &&
       (isControlledScalarField(fieldDefinition) ||
         isSingleChoiceEngineField(fieldDefinition) ||
-        fieldDefinition.valueType === 'multiSelect')
+        isControlledSetField(fieldDefinition))
         ? { fieldId: fieldDefinition.fieldId }
         : {};
 

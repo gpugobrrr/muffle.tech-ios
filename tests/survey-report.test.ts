@@ -520,9 +520,9 @@ test('summary and report remain derived and unclassified stays 0', () => {
   assert.equal(capabilityForRoute('report')?.kind, SURVEY_CAPABILITY_KINDS.derived);
   const census = surveyCapabilityCensus();
   assert.equal(census.unclassified, 0);
-  assert.equal(census.capture, 131);
+  assert.equal(census.capture, 134);
   assert.equal(census.derived, 2);
-  assert.equal(census.blocked, 28);
+  assert.equal(census.blocked, 25);
 });
 
 test('SVYR derived routes consume the survey report projection without a report store', () => {

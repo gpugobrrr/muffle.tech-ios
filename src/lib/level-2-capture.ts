@@ -16,6 +16,7 @@ import {
   PROPERTY_CONSTRUCTION_FORM_FIELD_DEFINITION,
   PROPERTY_DESCRIPTION_FIELD_DEFINITIONS,
 } from '@/lib/property-description';
+import { SECTION_LIMITATION_FIELD_DEFINITIONS } from '@/lib/section-limitations';
 import {
   servicesPresenceFieldDefinition,
   type ServicesPresenceRouteId,
@@ -81,6 +82,19 @@ function optionalPropertyDescriptionLeaf(field: FieldDefinition): CommandNode {
       engineBinding: field.operationId,
       recommendedLaterWork:
         'Keep this optional dwelling fact on persisted ActiveJob.brief.',
+    },
+  };
+}
+
+function optionalSectionLimitationLeaf(field: FieldDefinition): CommandNode {
+  return {
+    ...compoundFieldLeaf(field),
+    coverage: {
+      requirement: field.label,
+      status: 'interactive',
+      engineBinding: field.operationId,
+      recommendedLaterWork:
+        'Keep section-scoped inspection limitations separate from brief and finding limitations.',
     },
   };
 }
@@ -530,12 +544,11 @@ const EXTERNAL_NODE: CommandNode = {
       'Keep Engine-backed chimney, roof-covering, rainwater-goods, window, external-wall, external-door, and porch Type 6/7 findings. Leave joinery and other blocked until those subjects have approved inspection-element semantics.',
   },
   children: [
-    workflowLeaf('limitation', 'limitation', 'External inspection limitations.', {
-      requirement: 'External inspection limitations',
-      status: 'blocked',
-      blocker: 'Section/finding limitation is distinct from brief limitation and unsupported.',
-      recommendedLaterWork: 'Design section and finding limitation semantics.',
-    }),
+    optionalSectionLimitationLeaf(
+      SECTION_LIMITATION_FIELD_DEFINITIONS.find(
+        (field) => field.pathKey === 'external/limitation',
+      )!,
+    ),
     externalFindingBranch(externalFindingConfig('chimney')),
     externalFindingBranch(externalFindingConfig('roof')),
     externalFindingBranch(externalFindingConfig('rainwater')),
@@ -597,12 +610,11 @@ const INTERNAL_NODE: CommandNode = {
     recommendedLaterWork: 'Enable subjects only as canonical Engine support is approved.',
   },
   children: [
-    workflowLeaf('limitation', 'limitation', 'Internal inspection limitations.', {
-      requirement: 'Internal inspection limitations',
-      status: 'blocked',
-      blocker: 'Section/finding limitation is unsupported.',
-      recommendedLaterWork: 'Design section and finding limitation semantics.',
-    }),
+    optionalSectionLimitationLeaf(
+      SECTION_LIMITATION_FIELD_DEFINITIONS.find(
+        (field) => field.pathKey === 'internal/limitation',
+      )!,
+    ),
     inspectionFindingBranch(internalFindingConfig('roof-structure')),
     inspectionFindingBranch(internalFindingConfig('ceilings')),
     inspectionFindingBranch(internalFindingConfig('walls-partitions')),
@@ -648,12 +660,11 @@ const SERVICES_NODE: CommandNode = {
     recommendedLaterWork: 'Design visual-inspection service subjects without implying testing.',
   },
   children: [
-    workflowLeaf('limitation', 'limitation', 'Services inspection limitations.', {
-      requirement: 'Services inspection limitations',
-      status: 'blocked',
-      blocker: 'Section/finding limitation is unsupported.',
-      recommendedLaterWork: 'Design section and finding limitation semantics.',
-    }),
+    optionalSectionLimitationLeaf(
+      SECTION_LIMITATION_FIELD_DEFINITIONS.find(
+        (field) => field.pathKey === 'services/limitation',
+      )!,
+    ),
     servicesPresenceCaptureBranch(
       servicesPresenceFindingConfig('electricity'),
       'Add visual electrical-installation findings without implying testing.',

@@ -60,10 +60,6 @@ const WALLS_ROUTE = ['external', 'walls'] as const;
 
 const UNRESOLVED_EXTERNAL_LEAVES = [
   {
-    path: ['external', 'limitation'],
-    missing: 'Section/finding limitation is distinct from brief limitation.',
-  },
-  {
     path: ['external', 'joinery'],
     missing: 'Joinery/finishes is a publication grouping, not a subject.',
   },
@@ -199,17 +195,20 @@ test('unresolved External leaves stay placeholders without invented findings', (
   }
 });
 
-test('exact External limitation token remains a reachable workflow placeholder', () => {
+test('External section limitation is controlled text capture distinct from brief and finding limitations', () => {
   const sectionLimitation = findCommandNode(['external', 'limitation']);
   assert.ok(sectionLimitation);
   assert.equal(sectionLimitation?.token, 'limitation');
-  assert.equal(sectionLimitation?.workflowOnly, true);
-  assert.equal(sectionLimitation?.operationId, undefined);
+  assert.equal(sectionLimitation?.workflowOnly, undefined);
+  assert.equal(sectionLimitation?.operationId, 'survey.controlled_fact.set');
+  assert.equal(sectionLimitation?.fieldId, 'inspection.section.external.limitation');
   assert.equal(sectionLimitation?.findingTarget, undefined);
-  const parsed = parseCommand('external/limitation');
-  assert.equal(parsed.type, 'placeholder');
-  if (parsed.type === 'placeholder') {
-    assert.deepEqual(parsed.path, ['external', 'limitation']);
+  const parsed = parseCommand('external/limitation Rear elevation obscured.');
+  assert.equal(parsed.type, 'operation');
+  if (parsed.type === 'operation') {
+    assert.equal(parsed.operation.operationId, 'survey.controlled_fact.set');
+    assert.equal(parsed.operation.arguments.fieldId, 'inspection.section.external.limitation');
+    assert.equal(parsed.operation.arguments.value, 'Rear elevation obscured.');
   }
   assert.equal(parseCommand('prep/brief/limitation').type, 'operation');
 });
@@ -466,7 +465,10 @@ test('External finding leaves stay optional and do not invent required completio
   const walls = resolveDirectoryCompletion([...WALLS_ROUTE], emptyBrief());
   assert.equal(external?.completed, 0);
   assert.equal(external?.total, 0);
-  assert.deepEqual(external?.children, []);
+  assert.equal(external?.children.length, 1);
+  assert.equal(external?.children[0]?.token, 'limitation');
+  assert.equal(external?.children[0]?.completed, 0);
+  assert.equal(external?.children[0]?.total, 0);
   assert.equal(walls?.completed, 0);
   assert.equal(walls?.total, 0);
   assert.deepEqual(walls?.children, []);

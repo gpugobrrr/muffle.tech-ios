@@ -18,19 +18,21 @@ test('exact canonical tokens win over global aliases', () => {
   assert.equal(resolveCommandToken('limitations', ['limit']), 'limit');
 });
 
-test('external/limitation resolves to the real workflow node', () => {
+test('external/limitation resolves to the controlled text capture node', () => {
   const node = findCommandNode(['external', 'limitation']);
   assert.ok(node);
   assert.equal(node?.token, 'limitation');
-  assert.equal(node?.workflowOnly, true);
-  assert.equal(node?.operationId, undefined);
+  assert.equal(node?.workflowOnly, undefined);
+  assert.equal(node?.operationId, 'survey.controlled_fact.set');
+  assert.equal(node?.fieldId, 'inspection.section.external.limitation');
   assert.equal(node?.findingTarget, undefined);
   assert.equal(node?.evidenceCaptureTarget, undefined);
 
-  const parsed = parseCommand('external/limitation');
-  assert.equal(parsed.type, 'placeholder');
-  if (parsed.type === 'placeholder') {
+  const parsed = parseCommand('external/limitation Rear elevation obscured.');
+  assert.equal(parsed.type, 'operation');
+  if (parsed.type === 'operation') {
     assert.deepEqual(parsed.path, ['external', 'limitation']);
+    assert.equal(parsed.operation.arguments.fieldId, 'inspection.section.external.limitation');
   }
 
   const walk = walkCommandPath(['external', 'limitation']);

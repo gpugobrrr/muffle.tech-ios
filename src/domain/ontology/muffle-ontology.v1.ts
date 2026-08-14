@@ -403,6 +403,24 @@ const FIELD_SEMANTICS: Readonly<
     parentId: 'inspection_brief',
     description: 'A limitation applying to the inspection brief.',
   },
+  'inspection.section.external.limitation': {
+    id: 'inspection.section.external.limitation',
+    parentId: 'inspection',
+    description:
+      'A section-scoped limitation for the external inspection area. Distinct from inspection-brief limitation and finding-scoped limitation.',
+  },
+  'inspection.section.internal.limitation': {
+    id: 'inspection.section.internal.limitation',
+    parentId: 'inspection',
+    description:
+      'A section-scoped limitation for the internal inspection area. Distinct from inspection-brief limitation and finding-scoped limitation.',
+  },
+  'inspection.section.services.limitation': {
+    id: 'inspection.section.services.limitation',
+    parentId: 'inspection',
+    description:
+      'A section-scoped limitation for the services inspection area. Distinct from inspection-brief limitation and finding-scoped limitation.',
+  },
   'property.type': {
     id: 'property.type',
     parentId: 'property',

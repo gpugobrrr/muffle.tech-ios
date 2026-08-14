@@ -44,10 +44,10 @@ test('every governed route has exactly one capability kind and unclassified is 0
   const census = surveyCapabilityCensus();
   assert.equal(census.unclassified, 0);
   assert.equal(census.total, 190);
-  assert.equal(census.capture, 131);
+  assert.equal(census.capture, 134);
   assert.equal(census.navigation, 29);
   assert.equal(census.derived, 2);
-  assert.equal(census.blocked, 28);
+  assert.equal(census.blocked, 25);
   assert.equal(
     census.total,
     census.capture + census.navigation + census.derived + census.blocked,
@@ -156,7 +156,6 @@ test('Services findings remain canonical Type 6/7 and oil stays blocked', () => 
 
 test('remaining External unresolved routes stay blocked with reasons', () => {
   const expected = {
-    'external/limitation': SURVEY_BLOCKED_REASONS.workflowModelUndefined,
     'external/joinery': SURVEY_BLOCKED_REASONS.publicationGrouping,
     'external/other': SURVEY_BLOCKED_REASONS.publicationGrouping,
   } as const;
@@ -202,11 +201,9 @@ test('External walls finding-level limit, further, and risk are Type 6 capture',
     );
   }
   const sectionLimitation = capabilityForRoute('external/limitation');
-  assert.equal(sectionLimitation?.kind, SURVEY_CAPABILITY_KINDS.blocked);
-  assert.equal(
-    sectionLimitation?.blockedReason,
-    SURVEY_BLOCKED_REASONS.workflowModelUndefined,
-  );
+  assert.equal(sectionLimitation?.kind, SURVEY_CAPABILITY_KINDS.capture);
+  assert.equal(sectionLimitation?.captureType, SVYR_DATA_ENTRY_TYPES.controlledFact);
+  assert.equal(sectionLimitation?.fieldId, 'inspection.section.external.limitation');
 });
 
 test('aliases resolve to the canonical capability without duplicating it', () => {
@@ -216,8 +213,9 @@ test('aliases resolve to the canonical capability without duplicating it', () =>
   assert.equal(prepAlias?.route, 'prep/brief/limit');
   assert.equal(prepAlias?.fieldId, prepCanonical?.fieldId);
   const externalLimitation = capabilityForCommand('external/limitation');
-  assert.equal(externalLimitation?.kind, SURVEY_CAPABILITY_KINDS.blocked);
+  assert.equal(externalLimitation?.kind, SURVEY_CAPABILITY_KINDS.capture);
   assert.equal(externalLimitation?.route, 'external/limitation');
+  assert.equal(externalLimitation?.fieldId, 'inspection.section.external.limitation');
 });
 
 test('Property and Services mains presence share one canonical field ID', () => {
@@ -249,7 +247,6 @@ test('Internal finding configs are Type 6/7 capture', () => {
 
 test('remaining Internal unresolved routes stay blocked with reasons', () => {
   const expected = {
-    'internal/limitation': SURVEY_BLOCKED_REASONS.workflowModelUndefined,
     'internal/fireplaces-flues': SURVEY_BLOCKED_REASONS.ontologyTypeOnly,
     'internal/built-ins': SURVEY_BLOCKED_REASONS.missingFieldSemantics,
     'internal/woodwork': SURVEY_BLOCKED_REASONS.ontologyTypeOnly,

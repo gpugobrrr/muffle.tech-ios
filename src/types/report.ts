@@ -62,6 +62,12 @@ export type ReportProjectedValue = {
 
 export type ReportFindingGroup = 'external' | 'internal' | 'services';
 
+export type SurveySectionLimitations = {
+  external?: string;
+  internal?: string;
+  services?: string;
+};
+
 export type ReportEvidenceItem = {
   id: string;
   kind?: 'photo';
@@ -101,6 +107,7 @@ export type SurveyReportModel = {
   instruction: readonly ReportProjectedValue[];
   propertyDescription: readonly ReportProjectedValue[];
   propertyEnergy: readonly ReportProjectedValue[];
+  sectionLimitations: SurveySectionLimitations;
   findings: {
     external: readonly ReportFinding[];
     internal: readonly ReportFinding[];

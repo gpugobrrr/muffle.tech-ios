@@ -53,7 +53,6 @@ const CEILING = internalFindingConfig('ceilings');
 const CEILING_ROUTE = [...CEILING.route] as const;
 
 const UNRESOLVED_INTERNAL = [
-  ['internal', 'limitation'],
   ['internal', 'fireplaces-flues'],
   ['internal', 'built-ins'],
   ['internal', 'woodwork'],
@@ -231,10 +230,12 @@ test('Bathroom fittings create no accommodation inventory', () => {
   assert.equal(findCommandNode(['internal', 'bathroom', 'inventory']), null);
 });
 
-test('Internal section limitation is not finding limitation', () => {
+test('Internal section limitation is controlled text capture distinct from finding limitation', () => {
   const sectionLimit = findCommandNode(['internal', 'limitation']);
   const findingLimit = findCommandNode(['external', 'walls', 'limit']);
-  assert.equal(sectionLimit?.workflowOnly, true);
+  assert.equal(sectionLimit?.workflowOnly, undefined);
+  assert.equal(sectionLimit?.operationId, 'survey.controlled_fact.set');
+  assert.equal(sectionLimit?.fieldId, 'inspection.section.internal.limitation');
   assert.equal(sectionLimit?.findingTarget, undefined);
   assert.equal(findingLimit?.findingTarget?.field, 'limitation');
   assert.equal(
@@ -243,6 +244,10 @@ test('Internal section limitation is not finding limitation', () => {
   );
   assert.notEqual(
     getOntologyConcept('inspection_brief.limitation')?.id,
+    getOntologyConcept('limitation')?.id,
+  );
+  assert.notEqual(
+    getOntologyConcept('inspection.section.internal.limitation')?.id,
     getOntologyConcept('limitation')?.id,
   );
 });

@@ -1,6 +1,7 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo } from 'react-native';
 
+import { createAsyncStorageCaseAdapter } from '@/lib/async-storage-case-adapter';
 import { verifyCommandContract } from '@/lib/command-contract';
 import {
     canRemoveLastEditableCommandSegment,
@@ -31,7 +32,14 @@ import {
   prepareMultiChoiceCommit,
   toggleMultiChoiceValue,
 } from '@/lib/multi-choice';
-import { createEmptyInspectionRecord } from '@/lib/inspection-record';
+import {
+  buildPersistedInspectionCase,
+  createWorkspaceAutosaveScheduler,
+  hydrateWorkspaceCase,
+  INITIAL_ACTIVE_JOB,
+  INITIAL_INSPECTION_BRIEF,
+  INITIAL_WORKSPACE_COMMITTED_STATE,
+} from '@/lib/workspace-case-persistence';
 import { commitInspectionFindingField, resolveFindingFieldValue } from '@/lib/level-2-finding-capture';
 import { resolveLookup } from '@/lib/lookup';
 import { suffixForPath } from '@/lib/pin-context';
@@ -65,26 +73,8 @@ if (__DEV__) {
   }
 }
 
-const INITIAL_BRIEF: InspectionBrief = {
-  instruction: {
-    instructingParty: null,
-    client: null,
-    reference: null,
-    source: null,
-  },
-  purpose: null,
-  deliverable: null,
-  limitation: null,
-};
-
-/** Demo job site — presentation reads this; it never hard-codes the address. */
-const INITIAL_JOB: ActiveJob = {
-  property: {
-    displayAddress: '18 Market Street',
-    instructionType: 'Level 2 Building Survey',
-  },
-  inspection: createEmptyInspectionRecord(),
-};
+const INITIAL_BRIEF = INITIAL_INSPECTION_BRIEF;
+const INITIAL_JOB = INITIAL_ACTIVE_JOB;
 
 function announce(message: string) {
   AccessibilityInfo.announceForAccessibility(message);
@@ -195,6 +185,8 @@ export type SvyrController = {
    * Never canonical Engine state, notes, or completion.
    */
   entryDraftsByPath: SvyrEntryDraftsByPath;
+  /** True after local case hydration has completed. */
+  isHydrated: boolean;
 };
 
 export function useSvyrController(): SvyrController {
@@ -220,6 +212,7 @@ export function useSvyrController(): SvyrController {
   const [inspectionBrief, setInspectionBrief] =
     useState<InspectionBrief>(INITIAL_BRIEF);
   const [activeJob, setActiveJobState] = useState<ActiveJob>(INITIAL_JOB);
+  const [isHydrated, setIsHydrated] = useState(false);
   const suffixRef = useRef('');
   const briefRef = useRef<InspectionBrief>(INITIAL_BRIEF);
   const activeJobRef = useRef<ActiveJob>(INITIAL_JOB);
@@ -227,6 +220,13 @@ export function useSvyrController(): SvyrController {
   const activeCompoundCaptureRef = useRef<ActiveCompoundCapture | null>(null);
   const dataEntryDirectoryRef = useRef<string[]>([]);
   const entryDraftsByPathRef = useRef<SvyrEntryDraftsByPath>({});
+  const caseStorageAdapterRef = useRef(createAsyncStorageCaseAdapter());
+  const autosaveSchedulerRef = useRef(
+    createWorkspaceAutosaveScheduler({
+      adapter: caseStorageAdapterRef.current,
+    }),
+  );
+  const isHydratedRef = useRef(false);
 
   // Kept in sync during render, not in an effect: gesture and native-input
   // callbacks fire outside React's commit order and must never act on a
@@ -238,6 +238,43 @@ export function useSvyrController(): SvyrController {
   activeCompoundCaptureRef.current = activeCompoundCapture;
   dataEntryDirectoryRef.current = dataEntryDirectory;
   entryDraftsByPathRef.current = entryDraftsByPath;
+  isHydratedRef.current = isHydrated;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void (async () => {
+      const hydrated = await hydrateWorkspaceCase(
+        caseStorageAdapterRef.current,
+        undefined,
+        INITIAL_WORKSPACE_COMMITTED_STATE,
+      );
+      if (cancelled) return;
+
+      setActiveJobState(hydrated.activeJob);
+      setInspectionBrief(hydrated.inspectionBrief);
+      setNotesByPath(hydrated.notesByPath);
+      isHydratedRef.current = true;
+      setIsHydrated(true);
+    })();
+
+    return () => {
+      cancelled = true;
+      autosaveSchedulerRef.current.cancel();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+
+    autosaveSchedulerRef.current.schedule(
+      buildPersistedInspectionCase({
+        activeJob,
+        inspectionBrief,
+        notesByPath,
+      }),
+    );
+  }, [activeJob, inspectionBrief, isHydrated, notesByPath]);
 
   const suggestions = useMemo(
     () => getCommandAssistance(commandSuffix),
@@ -1146,5 +1183,6 @@ export function useSvyrController(): SvyrController {
     notesByPath,
     setPathNote,
     entryDraftsByPath,
+    isHydrated,
   };
 }

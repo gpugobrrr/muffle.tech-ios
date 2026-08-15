@@ -1,3 +1,4 @@
+import { findFieldDefinition } from '@/lib/field-schema';
 import { LEVEL_2_COMMAND_NODES } from '@/lib/level-2-capture';
 import type {
   InspectionElementConceptId,
@@ -88,6 +89,30 @@ export function learnerDisplayLabel(node: CommandNode): string {
   return node.learnerLabel ?? node.label;
 }
 
+function prepFieldLeaf(
+  path: string[],
+  autocompleteLabel: string,
+): CommandNode {
+  const field = findFieldDefinition(path);
+  if (!field) {
+    throw new Error(`Missing field definition for path: ${path.join('/')}`);
+  }
+  return {
+    token: field.token,
+    label: autocompleteLabel,
+    learnerLabel: field.label,
+    description: field.description,
+    requiresValue: true,
+    valuePrompt: field.valuePrompt,
+    entryLabel: field.entryLabel,
+    valuePlaceholder: field.valuePlaceholder,
+    operationId: field.operationId,
+    readOperationId: field.readOperationId,
+    fieldId: field.fieldId,
+    required: field.required,
+  };
+}
+
 /**
  * The single SVYR command graph. Parsing, autocomplete, atomic Backspace,
  * autocomplete, and stored-value resolution all derive from this hierarchy.
@@ -113,90 +138,27 @@ export const COMMAND_REGISTRY: CommandNode[] = [
             learnerLabel: 'Instruction',
             description: 'Instruction section of the brief.',
             children: [
-              {
-                token: 'party',
-                label: 'party <name>',
-                learnerLabel: 'Instructing party',
-                description: 'Set the instructing party name.',
-                requiresValue: true,
-                valuePrompt: 'ENTER INSTRUCTING PARTY',
-                entryLabel: 'INSTRUCTING PARTY',
-                valuePlaceholder: 'Enter name',
-                operationId: 'survey.brief.instruction.party.set',
-                readOperationId: 'survey.brief.instruction.party.read',
-                fieldId: 'instruction.instructingParty',
-              },
-              {
-                token: 'client',
-                label: 'client <name>',
-                learnerLabel: 'Client',
-                description: 'Client field — not yet implemented.',
-                requiresValue: true,
-                valuePrompt: 'ENTER CLIENT',
-                entryLabel: 'CLIENT',
-                valuePlaceholder: 'Enter name',
-                fieldId: 'instruction.client',
-              },
-              {
-                token: 'ref',
-                label: 'ref <ref>',
-                learnerLabel: 'Instruction reference',
-                description: 'Instruction reference — not yet implemented.',
-                requiresValue: true,
-                valuePrompt: 'ENTER INSTRUCTION REFERENCE',
-                entryLabel: 'INSTRUCTION REFERENCE',
-                valuePlaceholder: 'Enter reference',
-                fieldId: 'instruction.reference',
-              },
-              {
-                token: 'source',
-                label: 'source',
-                learnerLabel: 'Source',
-                description: 'Instruction source — not yet implemented.',
-                requiresValue: true,
-                valuePrompt: 'ENTER SOURCE',
-                entryLabel: 'SOURCE',
-                valuePlaceholder: 'Enter source',
-                operationId: 'survey.brief.instruction.source.set',
-                readOperationId: 'survey.brief.instruction.source.read',
-                required: true,
-                fieldId: 'instruction.source',
-              },
+              prepFieldLeaf(
+                ['prep', 'brief', 'instr', 'party'],
+                'party <name>',
+              ),
+              prepFieldLeaf(
+                ['prep', 'brief', 'instr', 'client'],
+                'client <name>',
+              ),
+              prepFieldLeaf(
+                ['prep', 'brief', 'instr', 'ref'],
+                'ref <ref>',
+              ),
+              prepFieldLeaf(
+                ['prep', 'brief', 'instr', 'source'],
+                'source',
+              ),
             ],
           },
-          {
-            token: 'purp',
-            label: 'purp',
-            learnerLabel: 'Purpose',
-            description: 'Purpose of the inspection brief.',
-            requiresValue: true,
-            valuePrompt: 'ENTER PURPOSE',
-            entryLabel: 'PURPOSE',
-            valuePlaceholder: 'Enter purpose',
-            fieldId: 'purpose',
-          },
-          {
-            token: 'deliv',
-            label: 'deliv',
-            learnerLabel: 'Deliverables',
-            description: 'Deliverable for the inspection brief.',
-            requiresValue: true,
-            valuePrompt: 'ENTER DELIVERABLE',
-            entryLabel: 'DELIVERABLE',
-            valuePlaceholder: 'Enter deliverable',
-            fieldId: 'deliverable',
-          },
-          {
-            token: 'limit',
-            label: 'limit',
-            learnerLabel: 'Limitations',
-            description: 'Limitation recorded in the brief.',
-            requiresValue: true,
-            valuePrompt: 'ENTER LIMITATION',
-            entryLabel: 'LIMITATION',
-            valuePlaceholder: 'Enter limitation',
-            fieldId: 'limitation',
-          },
+          prepFieldLeaf(['prep', 'brief', 'purp'], 'purp'),
+          prepFieldLeaf(['prep', 'brief', 'deliv'], 'deliv'),
+          prepFieldLeaf(['prep', 'brief', 'limit'], 'limit'),
         ],
       },
       {

@@ -9,6 +9,7 @@ import { resolveDirectoryCompletion } from '../src/lib/completion';
 import {
   resolveSvyrDataEntryType,
   SVYR_DATA_ENTRY_TYPES,
+  usesSingleChoicePresentation,
 } from '../src/lib/data-entry-types';
 import {
   findFieldDefinition,
@@ -417,4 +418,163 @@ test('legacy ActiveJob payloads without brief still hydrate', () => {
   assert.ok(restored);
   assert.equal(restored!.brief, undefined);
   assert.equal(readActiveJobBrief(restored!).instruction.client, null);
+});
+
+test('PREP brief seven-field smoke covers entry type, reentry, completion, and requiredness', () => {
+  const smokeFields = [
+    {
+      path: ['prep', 'brief', 'instr', 'party'] as const,
+      fieldId: 'instruction.instructingParty',
+      value: 'North & Co',
+      entryType: SVYR_DATA_ENTRY_TYPES.freeText,
+    },
+    {
+      path: ['prep', 'brief', 'instr', 'client'] as const,
+      fieldId: 'instruction.client',
+      value: 'Acme Ltd',
+      entryType: SVYR_DATA_ENTRY_TYPES.freeText,
+    },
+    {
+      path: ['prep', 'brief', 'instr', 'ref'] as const,
+      fieldId: 'instruction.reference',
+      value: 'JOB-1042',
+      entryType: SVYR_DATA_ENTRY_TYPES.freeText,
+    },
+    {
+      path: ['prep', 'brief', 'instr', 'source'] as const,
+      fieldId: 'instruction.source',
+      value: 'portal',
+      entryType: SVYR_DATA_ENTRY_TYPES.singleChoice,
+    },
+    {
+      path: ['prep', 'brief', 'purp'] as const,
+      fieldId: 'purpose',
+      value: 'Level 2 Building Survey',
+      entryType: SVYR_DATA_ENTRY_TYPES.freeText,
+    },
+    {
+      path: ['prep', 'brief', 'deliv'] as const,
+      fieldId: 'deliverable',
+      value: 'RICS Home Survey',
+      entryType: SVYR_DATA_ENTRY_TYPES.freeText,
+    },
+    {
+      path: ['prep', 'brief', 'limit'] as const,
+      fieldId: 'limitation',
+      value: 'No loft access.',
+      entryType: SVYR_DATA_ENTRY_TYPES.freeText,
+    },
+  ] as const;
+
+  for (const field of smokeFields) {
+    const schema = findFieldDefinition([...field.path]);
+    const node = findCommandNode([...field.path]);
+    const pathKey = field.path.join('/');
+    assert.ok(schema, pathKey);
+    assert.ok(node, pathKey);
+    assert.equal(schema?.required, true, pathKey);
+    assert.equal(node?.required, true, pathKey);
+    assert.notEqual(node?.optional, true, pathKey);
+    assert.equal(resolveSvyrDataEntryType(schema!), field.entryType, pathKey);
+    assert.equal(
+      usesSingleChoicePresentation(schema),
+      field.entryType === SVYR_DATA_ENTRY_TYPES.singleChoice,
+      pathKey,
+    );
+
+    const opened = parseCommand(pathKey);
+    assert.equal(opened.type, 'operation', pathKey);
+    if (opened.type !== 'operation') continue;
+    assert.equal(opened.operation.operationId, schema?.readOperationId, pathKey);
+  }
+
+  const empty = emptyBrief();
+  const emptyCompletion = resolveDirectoryCompletion(['prep', 'brief'], empty);
+  assert.equal(emptyCompletion?.completed, 0);
+  assert.equal(emptyCompletion?.total, 7);
+  const instrBefore = emptyCompletion?.children.find((child) => child.token === 'instr');
+  assert.equal(instrBefore?.completed, 0);
+  assert.equal(instrBefore?.total, 4);
+
+  let brief = empty;
+  let completedCount = 0;
+  for (const field of smokeFields) {
+    const pathKey = field.path.join('/');
+    let drafts = stashEntryDraft({}, [...field.path], field.value);
+    assert.equal(readEntryDraft(drafts, [...field.path]), field.value);
+    assert.equal(resolveFieldValue(brief, field.fieldId), null, pathKey);
+
+    const parsed = parseCommand(`${pathKey} ${field.value}`);
+    assert.equal(parsed.type, 'operation', pathKey);
+    if (parsed.type !== 'operation') continue;
+    const committed = executeSurveyOperation(brief, parsed.operation);
+    assert.ok(committed, pathKey);
+    brief = committed!.brief;
+    drafts = clearEntryDraft(drafts, [...field.path]);
+    assert.equal(resolveFieldValue(brief, field.fieldId), field.value, pathKey);
+    assert.equal(reopenPrepEntryValue(brief, field.path), field.value, pathKey);
+
+    completedCount += 1;
+    const completion = resolveDirectoryCompletion(['prep', 'brief'], brief);
+    assert.equal(completion?.completed, completedCount, pathKey);
+    assert.equal(completion?.total, 7, pathKey);
+    const leafToken = field.path[field.path.length - 1]!;
+    const parentPath = field.path.includes('instr')
+      ? (['prep', 'brief', 'instr'] as const)
+      : (['prep', 'brief'] as const);
+    const parent = resolveDirectoryCompletion([...parentPath], brief);
+    const row = parent?.children.find((child) => child.token === leafToken);
+    assert.equal(row?.completed, 1, pathKey);
+    assert.equal(row?.total, 1, pathKey);
+  }
+
+  const finalCompletion = resolveDirectoryCompletion(['prep', 'brief'], brief);
+  assert.equal(finalCompletion?.completed, 7);
+  assert.equal(finalCompletion?.total, 7);
+  const instrAfter = finalCompletion?.children.find((child) => child.token === 'instr');
+  assert.equal(instrAfter?.completed, 4);
+  assert.equal(instrAfter?.total, 4);
+});
+
+test('PREP brief command leaves match field-schema metadata', () => {
+  const paths = [
+    ['prep', 'brief', 'instr', 'party'],
+    ['prep', 'brief', 'instr', 'client'],
+    ['prep', 'brief', 'instr', 'ref'],
+    ['prep', 'brief', 'instr', 'source'],
+    ['prep', 'brief', 'purp'],
+    ['prep', 'brief', 'deliv'],
+    ['prep', 'brief', 'limit'],
+  ] as const;
+  const commandLabels = {
+    'prep/brief/instr/party': 'party <name>',
+    'prep/brief/instr/client': 'client <name>',
+    'prep/brief/instr/ref': 'ref <ref>',
+    'prep/brief/instr/source': 'source',
+    'prep/brief/purp': 'purp',
+    'prep/brief/deliv': 'deliv',
+    'prep/brief/limit': 'limit',
+  } as const;
+
+  for (const path of paths) {
+    const field = findFieldDefinition([...path]);
+    const node = findCommandNode([...path]);
+    const pathKey = path.join('/');
+    assert.ok(field, pathKey);
+    assert.ok(node, pathKey);
+    assert.equal(node?.token, field?.token, pathKey);
+    assert.equal(node?.label, commandLabels[pathKey], pathKey);
+    assert.equal(node?.learnerLabel, field?.label, pathKey);
+    assert.equal(node?.description, field?.description, pathKey);
+    assert.equal(node?.fieldId, field?.fieldId, pathKey);
+    assert.equal(node?.operationId, field?.operationId, pathKey);
+    assert.equal(node?.readOperationId, field?.readOperationId, pathKey);
+    assert.equal(node?.valuePrompt, field?.valuePrompt, pathKey);
+    assert.equal(node?.entryLabel, field?.entryLabel, pathKey);
+    assert.equal(node?.valuePlaceholder, field?.valuePlaceholder, pathKey);
+    assert.equal(node?.required, field?.required, pathKey);
+    assert.equal(node?.optional, field?.optional, pathKey);
+    assert.equal(node?.requiresValue, true, pathKey);
+    assert.equal(node?.children, undefined, pathKey);
+  }
 });

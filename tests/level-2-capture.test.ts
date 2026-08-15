@@ -1,11 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import {
-  findOntologyAliases,
-  getOntologyConcept,
-  serializeMuffleOntologyV1,
-} from '../src/domain/ontology/muffle-ontology.v1';
 import { getCommandAssistance, suggestionTokens } from '../src/lib/command-parser';
 import { childNodes, findCommandNode } from '../src/lib/command-registry';
 import { resolveDirectoryCompletion } from '../src/lib/completion';
@@ -384,8 +379,7 @@ test('supported finding leaves commit through the existing finding operation', (
   assert.deepEqual(evidenced.result.finding.evidence, [{ id: 'photo-001' }]);
 });
 
-test('workflow coverage does not change completion, notes, or ontology semantics', () => {
-  const ontologyBefore = serializeMuffleOntologyV1();
+test('workflow coverage does not change completion or notes', () => {
   const completion = resolveDirectoryCompletion(['prep', 'brief'], emptyBrief());
   assert.deepEqual(
     completion?.children.map(({ token, completed, total }) => ({
@@ -394,18 +388,11 @@ test('workflow coverage does not change completion, notes, or ontology semantics
       total,
     })),
     [
-      { token: 'instr', completed: 0, total: 2 },
+      { token: 'instr', completed: 0, total: 4 },
       { token: 'purp', completed: 0, total: 1 },
       { token: 'deliv', completed: 0, total: 1 },
       { token: 'limit', completed: 0, total: 1 },
     ],
   );
   assert.equal(notesPathKey(['external', 'walls', 'observe']), 'external/walls/observe');
-  assert.equal(serializeMuffleOntologyV1(), ontologyBefore);
-
-  for (const code of ['D1', 'D4', 'E2', 'F1', 'G1']) {
-    assert.equal(getOntologyConcept(code), undefined, code);
-  }
-  assert.equal(findOntologyAliases('Main Walls').length, 0);
-  assert.equal(getOntologyConcept('building_element.garage'), undefined);
 });

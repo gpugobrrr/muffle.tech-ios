@@ -1,3 +1,4 @@
+import { findFieldDefinition } from '@/lib/field-schema';
 import { LEVEL_2_COMMAND_NODES } from '@/lib/level-2-capture';
 import type {
   InspectionElementConceptId,
@@ -96,6 +97,36 @@ export function learnerDisplayLabel(node: CommandNode): string {
 }
 
 /**
+ * Builds one PREP brief command leaf from field-schema. Command-only
+ * autocomplete labels stay here; field IDs, prompts, and requiredness do not.
+ */
+function prepBriefFieldLeaf(
+  path: readonly string[],
+  commandLabel: string,
+): CommandNode {
+  const field = findFieldDefinition([...path]);
+  if (!field) {
+    throw new Error(`Missing prep/brief field schema: ${path.join('/')}`);
+  }
+
+  return {
+    token: field.token,
+    label: commandLabel,
+    learnerLabel: field.label,
+    description: field.description,
+    requiresValue: true,
+    ...(field.valuePrompt ? { valuePrompt: field.valuePrompt } : {}),
+    ...(field.entryLabel ? { entryLabel: field.entryLabel } : {}),
+    ...(field.valuePlaceholder ? { valuePlaceholder: field.valuePlaceholder } : {}),
+    operationId: field.operationId,
+    readOperationId: field.readOperationId,
+    fieldId: field.fieldId,
+    ...(field.required ? { required: true } : {}),
+    ...(field.optional ? { optional: true } : {}),
+  };
+}
+
+/**
  * The single SVYR command graph. Parsing, autocomplete, atomic Backspace,
  * autocomplete, and stored-value resolution all derive from this hierarchy.
  * Availability is owned here alone: neither renderer may filter, truncate,
@@ -120,100 +151,15 @@ export const COMMAND_REGISTRY: CommandNode[] = [
             learnerLabel: 'Instruction',
             description: 'Instruction section of the brief.',
             children: [
-              {
-                token: 'party',
-                label: 'party <name>',
-                learnerLabel: 'Instructing party',
-                description: 'Set the instructing party name.',
-                requiresValue: true,
-                valuePrompt: 'ENTER INSTRUCTING PARTY',
-                entryLabel: 'INSTRUCTING PARTY',
-                valuePlaceholder: 'Enter name',
-                operationId: 'survey.brief.instruction.party.set',
-                readOperationId: 'survey.brief.instruction.party.read',
-                fieldId: 'instruction.instructingParty',
-              },
-              {
-                token: 'client',
-                label: 'client <name>',
-                learnerLabel: 'Client',
-                description: 'Set the client name.',
-                requiresValue: true,
-                valuePrompt: 'ENTER CLIENT',
-                entryLabel: 'CLIENT',
-                valuePlaceholder: 'Enter name',
-                operationId: 'survey.brief.instruction.client.set',
-                readOperationId: 'survey.brief.instruction.client.read',
-                fieldId: 'instruction.client',
-              },
-              {
-                token: 'ref',
-                label: 'ref <ref>',
-                learnerLabel: 'Instruction reference',
-                description: 'Set the instruction reference.',
-                requiresValue: true,
-                valuePrompt: 'ENTER INSTRUCTION REFERENCE',
-                entryLabel: 'INSTRUCTION REFERENCE',
-                valuePlaceholder: 'Enter reference',
-                operationId: 'survey.brief.instruction.reference.set',
-                readOperationId: 'survey.brief.instruction.reference.read',
-                fieldId: 'instruction.reference',
-              },
-              {
-                token: 'source',
-                label: 'source',
-                learnerLabel: 'Source',
-                description: 'Instruction source — not yet implemented.',
-                requiresValue: true,
-                valuePrompt: 'ENTER SOURCE',
-                entryLabel: 'SOURCE',
-                valuePlaceholder: 'Enter source',
-                operationId: 'survey.brief.instruction.source.set',
-                readOperationId: 'survey.brief.instruction.source.read',
-                required: true,
-                fieldId: 'instruction.source',
-              },
+              prepBriefFieldLeaf(['prep', 'brief', 'instr', 'party'], 'party <name>'),
+              prepBriefFieldLeaf(['prep', 'brief', 'instr', 'client'], 'client <name>'),
+              prepBriefFieldLeaf(['prep', 'brief', 'instr', 'ref'], 'ref <ref>'),
+              prepBriefFieldLeaf(['prep', 'brief', 'instr', 'source'], 'source'),
             ],
           },
-          {
-            token: 'purp',
-            label: 'purp',
-            learnerLabel: 'Purpose',
-            description: 'Purpose of the inspection brief.',
-            requiresValue: true,
-            valuePrompt: 'ENTER PURPOSE',
-            entryLabel: 'PURPOSE',
-            valuePlaceholder: 'Enter purpose',
-            operationId: 'survey.brief.purpose.set',
-            readOperationId: 'survey.brief.purpose.read',
-            fieldId: 'purpose',
-          },
-          {
-            token: 'deliv',
-            label: 'deliv',
-            learnerLabel: 'Deliverables',
-            description: 'Deliverable for the inspection brief.',
-            requiresValue: true,
-            valuePrompt: 'ENTER DELIVERABLE',
-            entryLabel: 'DELIVERABLE',
-            valuePlaceholder: 'Enter deliverable',
-            operationId: 'survey.brief.deliverable.set',
-            readOperationId: 'survey.brief.deliverable.read',
-            fieldId: 'deliverable',
-          },
-          {
-            token: 'limit',
-            label: 'limit',
-            learnerLabel: 'Limitations',
-            description: 'Limitation recorded in the brief.',
-            requiresValue: true,
-            valuePrompt: 'ENTER LIMITATION',
-            entryLabel: 'LIMITATION',
-            valuePlaceholder: 'Enter limitation',
-            operationId: 'survey.brief.limitation.set',
-            readOperationId: 'survey.brief.limitation.read',
-            fieldId: 'limitation',
-          },
+          prepBriefFieldLeaf(['prep', 'brief', 'purp'], 'purp'),
+          prepBriefFieldLeaf(['prep', 'brief', 'deliv'], 'deliv'),
+          prepBriefFieldLeaf(['prep', 'brief', 'limit'], 'limit'),
         ],
       },
       {

@@ -1,13 +1,16 @@
-import { CONTROLLED_PRESENCE_STATUS_OPTIONS } from '@/lib/controlled-fact';
 import type { FieldDefinition } from '@/lib/field-schema';
 import {
   MAINS_SERVICE_FIELD_IDS,
   type MainsServiceId,
 } from '@/lib/property-energy-mains-services';
+import {
+  SERVICE_PRESENCE_CATALOG,
+  buildPresenceFieldDefinition,
+} from '@/lib/service-presence-schema';
 
 export type ServicesPresenceRouteId = MainsServiceId;
 
-type ServicesPresenceConfig = {
+export type ServicesPresenceConfig = {
   serviceId: ServicesPresenceRouteId;
   route: readonly string[];
   token: string;
@@ -15,40 +18,27 @@ type ServicesPresenceConfig = {
   description: string;
 };
 
-export const SERVICES_PRESENCE_CONFIGS: readonly ServicesPresenceConfig[] = [
-  {
-    serviceId: 'electricity',
-    route: ['services', 'electricity', 'presence'],
-    token: 'presence',
-    label: 'Mains electricity presence',
-    description:
-      'The same canonical mains-electricity presence fact exposed in the Services section.',
-  },
-  {
-    serviceId: 'water',
-    route: ['services', 'water', 'presence'],
-    token: 'presence',
-    label: 'Mains water presence',
-    description:
-      'The same canonical mains-water presence fact exposed in the Services section.',
-  },
-  {
-    serviceId: 'drainage',
-    route: ['services', 'drainage', 'presence'],
-    token: 'presence',
-    label: 'Mains drainage presence',
-    description:
-      'The same canonical mains-drainage presence fact exposed in the Services section.',
-  },
-  {
-    serviceId: 'gas',
-    route: ['services', 'gas-oil', 'gas', 'presence'],
-    token: 'presence',
-    label: 'Mains gas presence',
-    description:
-      'The canonical mains-gas presence fact exposed under Gas / oil.',
-  },
+const PREFERRED_SERVICES_ORDER: readonly ServicesPresenceRouteId[] = [
+  'electricity',
+  'water',
+  'drainage',
+  'gas',
 ];
+
+export const SERVICES_PRESENCE_CONFIGS: readonly ServicesPresenceConfig[] =
+  PREFERRED_SERVICES_ORDER.map((serviceId) => {
+    const row = SERVICE_PRESENCE_CATALOG.find((r) => r.serviceId === serviceId);
+    if (!row) {
+      throw new Error(`Missing catalog row for serviceId: ${serviceId}`);
+    }
+    return {
+      serviceId: row.serviceId,
+      route: row.route,
+      token: 'presence',
+      label: row.aliasLabel,
+      description: row.aliasDescription,
+    };
+  });
 
 export const SERVICES_PRESENCE_ROUTES = Object.fromEntries(
   SERVICES_PRESENCE_CONFIGS.map((config) => [config.serviceId, config.route]),
@@ -57,24 +47,14 @@ export const SERVICES_PRESENCE_ROUTES = Object.fromEntries(
 function buildServicesPresenceFieldDefinition(
   config: ServicesPresenceConfig,
 ): FieldDefinition {
-  const path = [...config.route];
-  return {
-    kind: 'field',
-    path,
-    pathKey: path.join('/'),
+  return buildPresenceFieldDefinition({
+    path: config.route,
     token: config.token,
     label: config.label,
     description: config.description,
     fieldId: MAINS_SERVICE_FIELD_IDS[config.serviceId],
-    required: true,
-    valueType: 'controlledStatus',
-    options: [...CONTROLLED_PRESENCE_STATUS_OPTIONS],
     valuePrompt: `ENTER ${config.label.toUpperCase()}`,
-    entryLabel: config.label.toUpperCase(),
-    operationId: 'survey.controlled_fact.set',
-    readOperationId: 'survey.controlled_fact.read',
-    notesEnabled: false,
-  };
+  });
 }
 
 /**

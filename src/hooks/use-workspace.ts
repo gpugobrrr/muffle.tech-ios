@@ -26,7 +26,7 @@ import {
     structuredCommandPathFromInput,
     type SvyrExecutionResult,
 } from '@/lib/field-information';
-import { findFieldDefinition, normalizeFieldInputValue } from '@/lib/field-schema';
+import { findFieldDefinition, normalizeFieldInputValue, resolveFieldValue } from '@/lib/field-schema';
 import {
   orderMultiChoiceValues,
   prepareMultiChoiceCommit,
@@ -39,6 +39,8 @@ import {
   INITIAL_ACTIVE_JOB,
   INITIAL_INSPECTION_BRIEF,
   INITIAL_WORKSPACE_COMMITTED_STATE,
+  resolveHydratedWorkspaceState,
+  type WorkspaceCommittedState,
 } from '@/lib/workspace-case-persistence';
 import { commitInspectionFindingField, resolveFindingFieldValue } from '@/lib/level-2-finding-capture';
 import { resolveLookup } from '@/lib/lookup';
@@ -221,9 +223,18 @@ export function useSvyrController(): SvyrController {
   const dataEntryDirectoryRef = useRef<string[]>([]);
   const entryDraftsByPathRef = useRef<SvyrEntryDraftsByPath>({});
   const caseStorageAdapterRef = useRef(createAsyncStorageCaseAdapter());
+  const lastPersistedCommittedRef = useRef<WorkspaceCommittedState>(
+    INITIAL_WORKSPACE_COMMITTED_STATE,
+  );
   const autosaveSchedulerRef = useRef(
     createWorkspaceAutosaveScheduler({
       adapter: caseStorageAdapterRef.current,
+      onSave: (inspectionCase) => {
+        lastPersistedCommittedRef.current = resolveHydratedWorkspaceState(
+          inspectionCase,
+          INITIAL_WORKSPACE_COMMITTED_STATE,
+        );
+      },
     }),
   );
   const isHydratedRef = useRef(false);
@@ -254,6 +265,7 @@ export function useSvyrController(): SvyrController {
       setActiveJobState(hydrated.activeJob);
       setInspectionBrief(hydrated.inspectionBrief);
       setNotesByPath(hydrated.notesByPath);
+      lastPersistedCommittedRef.current = hydrated;
       isHydratedRef.current = true;
       setIsHydrated(true);
     })();
@@ -263,18 +275,6 @@ export function useSvyrController(): SvyrController {
       autosaveSchedulerRef.current.cancel();
     };
   }, []);
-
-  useEffect(() => {
-    if (!isHydrated) return;
-
-    autosaveSchedulerRef.current.schedule(
-      buildPersistedInspectionCase({
-        activeJob,
-        inspectionBrief,
-        notesByPath,
-      }),
-    );
-  }, [activeJob, inspectionBrief, isHydrated, notesByPath]);
 
   const suggestions = useMemo(
     () => getCommandAssistance(commandSuffix),
@@ -299,6 +299,35 @@ export function useSvyrController(): SvyrController {
   );
   const editablePath = editableCommand.structuredTokens;
   const entryValue = editableCommand.valueText;
+
+  useEffect(() => {
+    if (!isHydrated) return;
+
+    autosaveSchedulerRef.current.schedule(
+      buildPersistedInspectionCase(
+        {
+          activeJob,
+          inspectionBrief,
+          notesByPath,
+        },
+        {
+          entryDraftsByPath,
+          activeEntry: activeEntryField
+            ? { path: activeEntryField.path, valueText: entryValue }
+            : null,
+          persistedBaseline: lastPersistedCommittedRef.current,
+        },
+      ),
+    );
+  }, [
+    activeEntryField,
+    activeJob,
+    entryDraftsByPath,
+    entryValue,
+    inspectionBrief,
+    isHydrated,
+    notesByPath,
+  ]);
 
   /**
    * Dedicated entry mode is explicit: an active field means the navigation
@@ -750,10 +779,18 @@ export function useSvyrController(): SvyrController {
           node.findingTarget,
         )
       : null;
+    const committedFieldValue =
+      fieldDefinition?.fieldId && !node.findingTarget
+        ? resolveFieldValue(briefRef.current, fieldDefinition.fieldId)
+        : null;
     setCommandSuffix(
       suffixForDataEntryReentry({
         path: suggestion.commandPath,
-        draft: stashedDraft ?? canonicalFindingValue ?? undefined,
+        draft:
+          stashedDraft ??
+          canonicalFindingValue ??
+          committedFieldValue ??
+          undefined,
         defaultInsertion: suggestion.insertion,
         suffixForPath,
       }),

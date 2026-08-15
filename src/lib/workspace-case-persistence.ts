@@ -1,4 +1,13 @@
+import { findCommandNode } from '@/lib/command-registry';
+import {
+  applyFieldSetValue,
+  applyFieldValue,
+  findFieldDefinition,
+  resolveFieldSetValue,
+  resolveFieldValue,
+} from '@/lib/field-schema';
 import { createEmptyInspectionRecord } from '@/lib/inspection-record';
+import { resolveFindingFieldValue, commitInspectionFindingField } from '@/lib/level-2-finding-capture';
 import {
   DEFAULT_CASE_STORAGE_KEY,
   loadCase,
@@ -6,6 +15,10 @@ import {
   type CaseStorageAdapter,
   type InspectionCase,
 } from '@/lib/case-persistence';
+import {
+  entryDraftPathKey,
+  type SvyrEntryDraftsByPath,
+} from '@/lib/svyr-entry-drafts';
 import type { SvyrNotesByPath } from '@/lib/svyr-notes';
 import type { ActiveJob, InspectionBrief } from '@/types/workspace';
 
@@ -45,14 +58,314 @@ export const INITIAL_WORKSPACE_COMMITTED_STATE: WorkspaceCommittedState = {
 
 export const WORKSPACE_AUTOSAVE_DEBOUNCE_MS = 1000;
 
+export type WorkspaceActiveEntryDraft = {
+  path: string[];
+  valueText: string;
+};
+
+/** Transient entry state that must never be written into the persisted case. */
+export type WorkspaceDraftExclusionContext = {
+  entryDraftsByPath: SvyrEntryDraftsByPath;
+  activeEntry?: WorkspaceActiveEntryDraft | null;
+  /** Last successfully persisted committed snapshot. */
+  persistedBaseline: WorkspaceCommittedState;
+};
+
+type UncommittedDraft = {
+  path: string[];
+  pathKey: string;
+  text?: string;
+  values?: readonly string[];
+};
+
+function pathSegmentsFromKey(pathKey: string): string[] {
+  return pathKey.split('/').filter(Boolean);
+}
+
+function nullableBriefFieldValue(
+  brief: InspectionBrief,
+  fieldId: string,
+): string | null {
+  const value = resolveFieldValue(brief, fieldId);
+  return value?.trim() ? value : null;
+}
+
+function revertBriefFieldValue(
+  brief: InspectionBrief,
+  fieldId: string,
+  baselineValue: string | null,
+): InspectionBrief {
+  if (baselineValue?.trim()) {
+    return applyFieldValue(brief, fieldId, baselineValue);
+  }
+
+  switch (fieldId) {
+    case 'instruction.instructingParty':
+      return {
+        ...brief,
+        instruction: { ...brief.instruction, instructingParty: null },
+      };
+    case 'instruction.client':
+      return {
+        ...brief,
+        instruction: { ...brief.instruction, client: null },
+      };
+    case 'instruction.reference':
+      return {
+        ...brief,
+        instruction: { ...brief.instruction, reference: null },
+      };
+    case 'instruction.source':
+      return {
+        ...brief,
+        instruction: { ...brief.instruction, source: null },
+      };
+    case 'purpose':
+      return { ...brief, purpose: null };
+    case 'deliverable':
+      return { ...brief, deliverable: null };
+    case 'limitation':
+      return { ...brief, limitation: null };
+    default: {
+      if (!(fieldId in (brief.controlledFacts ?? {}))) return brief;
+      const controlledFacts = { ...(brief.controlledFacts ?? {}) };
+      delete controlledFacts[fieldId];
+      return {
+        ...brief,
+        controlledFacts:
+          Object.keys(controlledFacts).length > 0 ? controlledFacts : undefined,
+      };
+    }
+  }
+}
+
+function revertBriefFieldSetValue(
+  brief: InspectionBrief,
+  fieldId: string,
+  baselineValues: readonly string[],
+): InspectionBrief {
+  if (baselineValues.length === 0) {
+    if (!(fieldId in (brief.controlledFactSets ?? {}))) return brief;
+    const controlledFactSets = { ...(brief.controlledFactSets ?? {}) };
+    delete controlledFactSets[fieldId];
+    return {
+      ...brief,
+      controlledFactSets:
+        Object.keys(controlledFactSets).length > 0
+          ? controlledFactSets
+          : undefined,
+    };
+  }
+  return applyFieldSetValue(brief, fieldId, baselineValues);
+}
+
+function valuesEqual(
+  left: readonly string[],
+  right: readonly string[],
+): boolean {
+  return (
+    left.length === right.length &&
+    left.every((value, index) => value === right[index])
+  );
+}
+
+function collectUncommittedDrafts(
+  context: WorkspaceDraftExclusionContext,
+): UncommittedDraft[] {
+  const drafts: UncommittedDraft[] = [];
+  const seen = new Set<string>();
+
+  for (const [pathKey, draft] of Object.entries(context.entryDraftsByPath)) {
+    if (draft.kind === 'text' && draft.text.trim()) {
+      drafts.push({
+        path: pathSegmentsFromKey(pathKey),
+        pathKey,
+        text: draft.text,
+      });
+      seen.add(pathKey);
+    }
+    if (draft.kind === 'multiSelect' && draft.values.length > 0) {
+      drafts.push({
+        path: pathSegmentsFromKey(pathKey),
+        pathKey,
+        values: draft.values,
+      });
+      seen.add(pathKey);
+    }
+  }
+
+  const activeEntry = context.activeEntry;
+  if (!activeEntry?.valueText.trim()) return drafts;
+
+  const pathKey = entryDraftPathKey(activeEntry.path);
+  if (seen.has(pathKey)) return drafts;
+
+  const fieldDefinition = findFieldDefinition(activeEntry.path);
+  const node = findCommandNode(activeEntry.path);
+  if (node?.findingTarget) {
+    const baselineValue = resolveFindingFieldValue(
+      context.persistedBaseline.activeJob.inspection,
+      node.findingTarget,
+    );
+    if (activeEntry.valueText !== (baselineValue ?? '')) {
+      drafts.push({
+        path: activeEntry.path,
+        pathKey,
+        text: activeEntry.valueText,
+      });
+    }
+    return drafts;
+  }
+
+  if (!fieldDefinition) return drafts;
+
+  const baselineValue = nullableBriefFieldValue(
+    context.persistedBaseline.inspectionBrief,
+    fieldDefinition.fieldId,
+  );
+  if (activeEntry.valueText !== (baselineValue ?? '')) {
+    drafts.push({
+      path: activeEntry.path,
+      pathKey,
+      text: activeEntry.valueText,
+    });
+  }
+
+  return drafts;
+}
+
+/** Remove transient entry text from committed state before persistence. */
+export function excludeTransientEntryDrafts(
+  state: WorkspaceCommittedState,
+  context: WorkspaceDraftExclusionContext,
+): WorkspaceCommittedState {
+  let inspectionBrief = state.inspectionBrief;
+  let notesByPath = state.notesByPath;
+  let activeJob = state.activeJob;
+
+  for (const draft of collectUncommittedDrafts(context)) {
+    const node = findCommandNode(draft.path);
+    if (node?.findingTarget) {
+      const currentValue = resolveFindingFieldValue(
+        activeJob.inspection,
+        node.findingTarget,
+      );
+      const baselineValue = resolveFindingFieldValue(
+        context.persistedBaseline.activeJob.inspection,
+        node.findingTarget,
+      );
+      if (
+        draft.text &&
+        currentValue === draft.text &&
+        currentValue !== baselineValue
+      ) {
+        if (baselineValue) {
+          const committed = commitInspectionFindingField(
+            activeJob.inspection,
+            node.findingTarget,
+            baselineValue,
+          );
+          if (committed.ok) {
+            activeJob = {
+              ...activeJob,
+              inspection: committed.result.inspection,
+            };
+          }
+        } else {
+          const findings = { ...activeJob.inspection.findings };
+          const existing = findings[node.findingTarget.findingId];
+          if (existing) {
+            const nextFinding = { ...existing };
+            if (node.findingTarget.field === 'evidence') {
+              delete nextFinding.evidence;
+            } else {
+              delete nextFinding[node.findingTarget.field];
+            }
+            findings[node.findingTarget.findingId] = nextFinding;
+          }
+          activeJob = {
+            ...activeJob,
+            inspection: { ...activeJob.inspection, findings },
+          };
+        }
+      }
+      continue;
+    }
+
+    const fieldDefinition = findFieldDefinition(draft.path);
+    if (!fieldDefinition) continue;
+
+    if (draft.values) {
+      const currentValues =
+        resolveFieldSetValue(inspectionBrief, fieldDefinition.fieldId) ?? [];
+      const baselineValues =
+        resolveFieldSetValue(
+          context.persistedBaseline.inspectionBrief,
+          fieldDefinition.fieldId,
+        ) ?? [];
+      if (
+        valuesEqual(currentValues, draft.values) &&
+        !valuesEqual(currentValues, baselineValues)
+      ) {
+        inspectionBrief = revertBriefFieldSetValue(
+          inspectionBrief,
+          fieldDefinition.fieldId,
+          baselineValues,
+        );
+      }
+      continue;
+    }
+
+    if (!draft.text) continue;
+
+    const currentValue = nullableBriefFieldValue(
+      inspectionBrief,
+      fieldDefinition.fieldId,
+    );
+    const baselineValue = nullableBriefFieldValue(
+      context.persistedBaseline.inspectionBrief,
+      fieldDefinition.fieldId,
+    );
+    if (currentValue === draft.text && currentValue !== baselineValue) {
+      inspectionBrief = revertBriefFieldValue(
+        inspectionBrief,
+        fieldDefinition.fieldId,
+        baselineValue,
+      );
+    }
+
+    const currentNote = notesByPath[draft.pathKey];
+    const baselineNote = context.persistedBaseline.notesByPath[draft.pathKey];
+    if (currentNote === draft.text && currentNote !== baselineNote) {
+      notesByPath = { ...notesByPath };
+      if (baselineNote === undefined) {
+        delete notesByPath[draft.pathKey];
+      } else {
+        notesByPath[draft.pathKey] = baselineNote;
+      }
+    }
+  }
+
+  return {
+    activeJob,
+    inspectionBrief,
+    notesByPath,
+  };
+}
+
 /** Build the persisted case envelope from committed workspace state only. */
 export function buildPersistedInspectionCase(
   state: WorkspaceCommittedState,
+  draftExclusion?: WorkspaceDraftExclusionContext,
 ): InspectionCase {
+  const committed = draftExclusion
+    ? excludeTransientEntryDrafts(state, draftExclusion)
+    : state;
+
   return {
-    job: state.activeJob,
-    brief: state.inspectionBrief,
-    notesByPath: state.notesByPath,
+    job: committed.activeJob,
+    brief: committed.inspectionBrief,
+    notesByPath: committed.notesByPath,
   };
 }
 

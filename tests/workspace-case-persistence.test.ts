@@ -16,11 +16,19 @@ import {
   buildPersistedInspectionCase,
   createWorkspaceAutosaveScheduler,
   createWorkspacePersistenceController,
+  excludeTransientEntryDrafts,
   hydrateWorkspaceCase,
   INITIAL_WORKSPACE_COMMITTED_STATE,
   resolveHydratedWorkspaceState,
 } from '../src/lib/workspace-case-persistence';
-import type { SvyrEntryDraftsByPath } from '../src/lib/svyr-entry-drafts';
+import { suffixForPath } from '../src/lib/pin-context';
+import { resolveFieldValue } from '../src/lib/field-schema';
+import {
+  readEntryDraft,
+  stashEntryDraft,
+  suffixForDataEntryReentry,
+  type SvyrEntryDraftsByPath,
+} from '../src/lib/svyr-entry-drafts';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -164,6 +172,86 @@ test('rapid committed changes debounce to one save', async () => {
   assert.deepEqual(saves, ['Third']);
 });
 
+test('unsubmitted purpose draft is excluded from autosave, hydration, and re-entry', async () => {
+  const adapter = createMemoryCaseStorageAdapter();
+  const purpPath = ['prep', 'brief', 'purp'];
+  const committedPurpose = 'Committed purpose';
+  const draftPurpose = 'Unique unsubmitted draft';
+
+  const baseline = {
+    ...INITIAL_WORKSPACE_COMMITTED_STATE,
+    inspectionBrief: {
+      ...INITIAL_WORKSPACE_COMMITTED_STATE.inspectionBrief,
+      purpose: committedPurpose,
+    },
+  };
+
+  await saveCase(
+    adapter,
+    DEFAULT_CASE_STORAGE_KEY,
+    buildPersistedInspectionCase(baseline),
+  );
+
+  const drafts: SvyrEntryDraftsByPath = stashEntryDraft({}, purpPath, draftPurpose);
+  const pollutedLive = {
+    ...baseline,
+    inspectionBrief: {
+      ...baseline.inspectionBrief,
+      purpose: draftPurpose,
+    },
+  };
+
+  const persisted = buildPersistedInspectionCase(pollutedLive, {
+    entryDraftsByPath: drafts,
+    activeEntry: { path: purpPath, valueText: draftPurpose },
+    persistedBaseline: baseline,
+  });
+
+  assert.equal(persisted.brief.purpose, committedPurpose);
+  assert.equal(JSON.stringify(persisted).includes(draftPurpose), false);
+
+  const scheduler = createWorkspaceAutosaveScheduler({
+    adapter,
+    debounceMs: 10,
+  });
+  scheduler.schedule(persisted);
+  await scheduler.flush();
+
+  const hydrated = await hydrateWorkspaceCase(adapter);
+  assert.equal(hydrated.inspectionBrief.purpose, committedPurpose);
+
+  const stashedAfterReload = readEntryDraft({}, purpPath);
+  const reopened = suffixForDataEntryReentry({
+    path: purpPath,
+    draft:
+      stashedAfterReload ??
+      resolveFieldValue(hydrated.inspectionBrief, 'purpose') ??
+      undefined,
+    defaultInsertion: 'purp ',
+    suffixForPath,
+  });
+  assert.match(reopened, /Committed purpose/);
+  assert.doesNotMatch(reopened, /Unique unsubmitted draft/);
+});
+
+test('excludeTransientEntryDrafts keeps committed values when no draft is active', () => {
+  const baseline = {
+    ...INITIAL_WORKSPACE_COMMITTED_STATE,
+    inspectionBrief: {
+      ...INITIAL_WORKSPACE_COMMITTED_STATE.inspectionBrief,
+      purpose: 'Committed purpose',
+    },
+  };
+
+  const sanitized = excludeTransientEntryDrafts(baseline, {
+    entryDraftsByPath: {},
+    activeEntry: null,
+    persistedBaseline: baseline,
+  });
+
+  assert.equal(sanitized.inspectionBrief.purpose, 'Committed purpose');
+});
+
 test('transient drafts do not appear in persisted case data', () => {
   const entryDraftsByPath: SvyrEntryDraftsByPath = {
     'prep/brief/instr/party': { kind: 'text', text: 'Uncommitted draft' },
@@ -254,8 +342,11 @@ test('use-workspace hydrates and debounces autosave without persisting transient
   assert.match(source, /createAsyncStorageCaseAdapter/);
   assert.match(source, /if \(!isHydrated\) return;/);
   assert.match(source, /isHydrated/);
+  assert.match(source, /lastPersistedCommittedRef/);
+  assert.match(source, /entryDraftsByPath/);
+  assert.match(source, /persistedBaseline: lastPersistedCommittedRef\.current/);
   assert.match(
     source,
-    /buildPersistedInspectionCase\(\{\s*activeJob,\s*inspectionBrief,\s*notesByPath,\s*\}\)/,
+    /buildPersistedInspectionCase\(\s*\{\s*activeJob,\s*inspectionBrief,\s*notesByPath,\s*\}/,
   );
 });

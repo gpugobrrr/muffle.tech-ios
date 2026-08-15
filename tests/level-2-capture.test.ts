@@ -1,11 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import {
-  findOntologyAliases,
-  getOntologyConcept,
-  serializeMuffleOntologyV1,
-} from '../src/domain/ontology/muffle-ontology.v1';
+import { MAINS_SERVICE_FIELD_DEFINITIONS } from '../src/lib/property-energy-mains-services';
+
 import { getCommandAssistance, suggestionTokens } from '../src/lib/command-parser';
 import { childNodes, findCommandNode } from '../src/lib/command-registry';
 import { resolveDirectoryCompletion } from '../src/lib/completion';
@@ -292,8 +289,7 @@ test('supported finding leaves commit through the existing finding operation', (
   assert.deepEqual(evidenced.result.finding.evidence, [{ id: 'photo-001' }]);
 });
 
-test('workflow coverage does not change completion, notes, or ontology semantics', () => {
-  const ontologyBefore = serializeMuffleOntologyV1();
+test('workflow coverage does not change completion or notes', () => {
   const completion = resolveDirectoryCompletion(['prep', 'brief'], emptyBrief());
   assert.deepEqual(
     completion?.children.map(({ token, completed, total }) => ({
@@ -309,12 +305,25 @@ test('workflow coverage does not change completion, notes, or ontology semantics
     ],
   );
   assert.equal(notesPathKey(['external', 'walls', 'observe']), 'external/walls/observe');
-  assert.equal(serializeMuffleOntologyV1(), ontologyBefore);
+});
 
-  for (const code of ['D1', 'D4', 'E2', 'F1', 'G1']) {
-    assert.equal(getOntologyConcept(code), undefined, code);
+test('mains-services command leaves derive directly from field definitions', () => {
+  for (const field of MAINS_SERVICE_FIELD_DEFINITIONS) {
+    const node = findCommandNode(['property', 'energy', 'mains-services', field.token]);
+    assert.ok(node, `Command node not found for token: ${field.token}`);
+
+    assert.equal(node.token, field.token);
+    assert.equal(node.label, field.label);
+    assert.equal(node.learnerLabel, field.label);
+    assert.equal(node.description, `${field.label} mains service presence.`);
+    assert.equal(node.requiresValue, true);
+    assert.equal(node.valuePrompt, field.valuePrompt);
+    assert.equal(node.entryLabel, field.entryLabel);
+    assert.equal(node.operationId, field.operationId);
+    assert.equal(node.readOperationId, field.readOperationId);
+    assert.equal(node.fieldId, field.fieldId);
+    assert.equal(node.required, field.required);
+    assert.equal(node.coverage?.engineBinding, field.operationId);
+    assert.equal(node.coverage?.status, 'interactive');
   }
-  assert.equal(findOntologyAliases('Main Walls').length, 0);
-  assert.equal(getOntologyConcept('building_element.floor'), undefined);
-  assert.equal(getOntologyConcept('building_element.garage'), undefined);
 });

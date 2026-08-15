@@ -4,6 +4,7 @@ import { DEMO_EXTERNAL_WALL_FINDING } from '../src/lib/fixtures/demo-external-wa
 import { DEMO_OX3_8SE_ADDRESSES } from '../src/lib/fixtures/demo-ox3-8se';
 import { createEmptyInspectionRecord } from '../src/lib/inspection-record';
 import { buildReportDocument } from '../src/lib/report/build-report-document';
+import { projectInspectionFindings } from '../src/lib/report/project-inspection-findings';
 import {
   applyFirmAdapter,
   DEMO_FIRM_ADAPTER,
@@ -195,4 +196,80 @@ test('canonical input and adapter versions produce deterministic output', () => 
 
   assert.deepEqual(project(), project());
   assert.deepEqual(input, before);
+});
+
+test('projectInspectionFindings behaves correctly and deterministically for multiple subjects', () => {
+  const finding1 = {
+    id: 'finding.external-wall.1',
+    elementConceptId: 'building_element.external_wall' as const,
+    observation: 'External wall observation text.',
+    condition: '   ',
+    defect: 'Masonry defect.',
+    evidence: [
+      { id: ' photo-001 ' },
+      { id: 'photo-001' },
+      { id: '   ' },
+    ],
+  };
+
+  const finding2 = {
+    id: 'finding.electrical.1',
+    elementConceptId: 'service_system.electrical_installation' as const,
+    observation: 'Electrical installation observation text.',
+    condition: 'Satisfactory',
+    defect: '  ',
+    recommendation: 'None.',
+    evidence: [],
+  };
+
+  const recordA = {
+    findings: {
+      'finding.external-wall.1': finding1,
+      'finding.electrical.1': finding2,
+    },
+  };
+
+  const recordB = {
+    findings: {
+      'finding.electrical.1': finding2,
+      'finding.external-wall.1': finding1,
+    },
+  };
+
+  const recordAClone = structuredClone(recordA);
+  const recordBClone = structuredClone(recordB);
+
+  const resultA = projectInspectionFindings(recordA);
+  const resultB = projectInspectionFindings(recordB);
+
+  // Prove input record is not mutated
+  assert.deepEqual(recordA, recordAClone);
+  assert.deepEqual(recordB, recordBClone);
+
+  // Prove deterministic output (reversed insertion order produces same output, sorted by finding ID)
+  assert.deepEqual(resultA, resultB);
+  assert.equal(resultA.length, 2);
+
+  const electricalFinding = resultA[0];
+  const externalWallFinding = resultA[1];
+
+  // Prove both subjects project through the same helper
+  assert.equal(electricalFinding.findingId, 'finding.electrical.1');
+  assert.equal(externalWallFinding.findingId, 'finding.external-wall.1');
+
+  // Prove neutral labels are correct
+  assert.equal(electricalFinding.elementLabel, 'Electrical installation');
+  assert.equal(externalWallFinding.elementLabel, 'External wall');
+
+  // Prove optional whitespace-only fields remain omitted according to existing semantics
+  assert.equal('condition' in externalWallFinding, false);
+  assert.equal('recommendation' in externalWallFinding, false);
+  assert.equal(externalWallFinding.defect, 'Masonry defect.');
+
+  assert.equal(electricalFinding.condition, 'Satisfactory');
+  assert.equal('defect' in electricalFinding, false);
+
+  // Prove evidence IDs are trimmed and deduplicated
+  assert.deepEqual(externalWallFinding.evidenceIds, ['photo-001']);
+  assert.equal('evidenceIds' in electricalFinding, false);
 });

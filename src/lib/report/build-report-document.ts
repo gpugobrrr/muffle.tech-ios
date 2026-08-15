@@ -1,9 +1,6 @@
-import {
-  labelForInspectionElement,
-} from '@/lib/inspection-finding-elements';
 import { resolveFieldValue } from '@/lib/field-schema';
+import { projectInspectionFindings } from '@/lib/report/project-inspection-findings';
 import type {
-  FindingBlock,
   IdentityBlock,
   ReportAddress,
   ReportDocument,
@@ -11,7 +8,6 @@ import type {
 import type {
   ActiveJob,
   InspectionBrief,
-  InspectionFinding,
   StructuredAddress,
 } from '@/types/workspace';
 
@@ -56,31 +52,6 @@ function projectAddress(address: StructuredAddress): ReportAddress {
   };
 }
 
-function projectFinding(finding: InspectionFinding): FindingBlock {
-  const condition = optionalText(finding.condition);
-  const defect = optionalText(finding.defect);
-  const recommendation = optionalText(finding.recommendation);
-  const evidenceIds = [
-    ...new Set(
-      (finding.evidence ?? [])
-        .map((reference) => reference.id.trim())
-        .filter(Boolean),
-    ),
-  ];
-
-  return {
-    kind: 'finding',
-    findingId: finding.id,
-    elementConceptId: finding.elementConceptId,
-    elementLabel: labelForInspectionElement(finding.elementConceptId),
-    observation: finding.observation,
-    ...(condition ? { condition } : {}),
-    ...(defect ? { defect } : {}),
-    ...(recommendation ? { recommendation } : {}),
-    ...(evidenceIds.length > 0 ? { evidenceIds } : {}),
-  };
-}
-
 /**
  * Pure projection from committed job records into a renderer-neutral report.
  * Draft entry, notes, completion, suggestions, and UI state are not accepted.
@@ -108,9 +79,7 @@ export function buildReportDocument({
     },
     ...(instructingParty ? { instructingParty } : {}),
   };
-  const findings = Object.values(activeJob.inspection.findings)
-    .sort((left, right) => left.id.localeCompare(right.id))
-    .map(projectFinding);
+  const findings = projectInspectionFindings(activeJob.inspection);
 
   return {
     schemaVersion: 1,

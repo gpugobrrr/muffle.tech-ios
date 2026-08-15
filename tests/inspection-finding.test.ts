@@ -1,7 +1,5 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-
-import { MUFFLE_ONTOLOGY_V1 } from '../src/domain/ontology/muffle-ontology.v1';
 import { DEMO_EXTERNAL_WALL_FINDING } from '../src/lib/fixtures/demo-external-wall-finding';
 import { DEMO_OX3_8SE_ADDRESSES } from '../src/lib/fixtures/demo-ox3-8se';
 import { createEmptyInspectionRecord } from '../src/lib/inspection-record';
@@ -175,7 +173,7 @@ test('report projection and firm adapter preserve canonical semantics', () => {
   );
 });
 
-test('ontology, canonical input, and adapter versions produce deterministic output', () => {
+test('canonical input and adapter versions produce deterministic output', () => {
   const created = executeInspectionOperation(createEmptyInspectionRecord(), {
     operationId: SURVEY_OPERATIONS.upsertInspectionFinding,
     arguments: { finding: DEMO_EXTERNAL_WALL_FINDING },
@@ -190,7 +188,6 @@ test('ontology, canonical input, and adapter versions produce deterministic outp
   const project = () => {
     const report = buildReportDocument(input);
     return {
-      ontologyVersion: MUFFLE_ONTOLOGY_V1.version,
       adapterVersion: DEMO_FIRM_ADAPTER.version,
       report: applyFirmAdapter(report, DEMO_FIRM_ADAPTER),
     };

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { findCommandNode } from '../src/lib/command-registry';
+import { parseCommand } from '../src/lib/command-parser';
 import { resolveDirectoryCompletion } from '../src/lib/completion';
 import {
   applyFieldValue,
@@ -11,8 +12,14 @@ import {
 import {
   readEntryDraft,
   stashEntryDraft,
+  suffixForDataEntryReentry,
   type SvyrEntryDraftsByPath,
 } from '../src/lib/svyr-entry-drafts';
+import { suffixForPath } from '../src/lib/pin-context';
+import {
+  executeSurveyOperation,
+  SURVEY_OPERATIONS,
+} from '../src/lib/survey-operations';
 import type { InspectionBrief } from '../src/types/workspace';
 
 function createEmptyBrief(): InspectionBrief {
@@ -38,6 +45,100 @@ const PREP_PATHS: { path: string[]; token: string }[] = [
   { path: ['prep', 'brief', 'deliv'], token: 'deliv' },
   { path: ['prep', 'brief', 'limit'], token: 'limit' },
 ];
+
+const PREP_WRITE_COMMANDS: { path: string[]; value: string }[] = [
+  { path: ['prep', 'brief', 'instr', 'party'], value: 'North & Co' },
+  { path: ['prep', 'brief', 'instr', 'client'], value: 'Jane Doe' },
+  { path: ['prep', 'brief', 'instr', 'ref'], value: 'REF-2026-001' },
+  { path: ['prep', 'brief', 'instr', 'source'], value: 'email' },
+  { path: ['prep', 'brief', 'purp'], value: 'Pre-purchase level 2 survey' },
+  { path: ['prep', 'brief', 'deliv'], value: 'Standard digital condition report' },
+  { path: ['prep', 'brief', 'limit'], value: 'No access to locked loft space' },
+];
+
+test('every PREP brief field exposes a live survey write operation', () => {
+  for (const { path } of PREP_PATHS) {
+    const field = findFieldDefinition(path);
+    assert.ok(field?.operationId, path.join('/'));
+    assert.ok(field?.readOperationId, path.join('/'));
+
+    const node = findCommandNode(path);
+    assert.ok(node);
+    assert.equal(node.operationId, field.operationId);
+    assert.equal(node.readOperationId, field.readOperationId);
+  }
+});
+
+test('PREP brief parser and engine dispatch accept all seven field writes', () => {
+  let brief = createEmptyBrief();
+
+  for (const { path, value } of PREP_WRITE_COMMANDS) {
+    const field = findFieldDefinition(path);
+    assert.ok(field?.operationId);
+
+    const command = `${path.join('/')} ${value}`;
+    const parsed = parseCommand(command);
+    assert.equal(parsed.type, 'operation', command);
+    if (parsed.type !== 'operation') continue;
+    assert.equal(parsed.operation.operationId, field.operationId);
+
+    const result = executeSurveyOperation(brief, parsed.operation);
+    assert.ok(result, command);
+    brief = result.brief;
+    assert.equal(resolveFieldValue(brief, field.fieldId), value);
+  }
+});
+
+test('PREP brief read operations resolve through the same schema bindings', () => {
+  const brief = applyFieldValue(
+    applyFieldValue(
+      applyFieldValue(createEmptyBrief(), 'instruction.instructingParty', 'North & Co'),
+      'purpose',
+      'Pre-purchase level 2 survey',
+    ),
+    'instruction.client',
+    'Jane Doe',
+  );
+
+  const partyRead = executeSurveyOperation(brief, {
+    operationId: SURVEY_OPERATIONS.readInstructingParty,
+    arguments: {},
+  });
+  const clientRead = executeSurveyOperation(brief, {
+    operationId: SURVEY_OPERATIONS.readInstructionClient,
+    arguments: {},
+  });
+  const purposeRead = executeSurveyOperation(brief, {
+    operationId: SURVEY_OPERATIONS.readPurpose,
+    arguments: {},
+  });
+
+  assert.equal(partyRead?.value, 'North & Co');
+  assert.equal(clientRead?.value, 'Jane Doe');
+  assert.equal(purposeRead?.value, 'Pre-purchase level 2 survey');
+});
+
+test('re-entry prefers a stashed draft over the committed PREP field value', () => {
+  const path = ['prep', 'brief', 'purp'];
+  const committed = 'Committed purpose';
+  const draft = 'Draft purpose';
+
+  const suffix = suffixForDataEntryReentry({
+    path,
+    draft,
+    defaultInsertion: 'purp ',
+    suffixForPath,
+  });
+  assert.match(suffix, /Draft purpose$/);
+
+  const reopened = suffixForDataEntryReentry({
+    path,
+    draft: committed,
+    defaultInsertion: 'purp ',
+    suffixForPath,
+  });
+  assert.match(reopened, /Committed purpose$/);
+});
 
 test('every generated PREP brief command leaf agrees with its schema definition', () => {
   for (const { path, token } of PREP_PATHS) {

@@ -1,6 +1,7 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo } from 'react-native';
 
+import { createAsyncStorageCaseAdapter } from '@/lib/async-storage-case-adapter';
 import { verifyCommandContract } from '@/lib/command-contract';
 import {
     canRemoveLastEditableCommandSegment,
@@ -25,13 +26,22 @@ import {
     structuredCommandPathFromInput,
     type SvyrExecutionResult,
 } from '@/lib/field-information';
-import { findFieldDefinition, normalizeFieldInputValue } from '@/lib/field-schema';
+import { findFieldDefinition, normalizeFieldInputValue, resolveFieldValue } from '@/lib/field-schema';
 import {
   orderMultiChoiceValues,
   prepareMultiChoiceCommit,
   toggleMultiChoiceValue,
 } from '@/lib/multi-choice';
-import { createEmptyInspectionRecord } from '@/lib/inspection-record';
+import {
+  buildPersistedInspectionCase,
+  createWorkspaceAutosaveScheduler,
+  hydrateWorkspaceCase,
+  INITIAL_ACTIVE_JOB,
+  INITIAL_INSPECTION_BRIEF,
+  INITIAL_WORKSPACE_COMMITTED_STATE,
+  resolveHydratedWorkspaceState,
+  type WorkspaceCommittedState,
+} from '@/lib/workspace-case-persistence';
 import { commitInspectionFindingField, resolveFindingFieldValue } from '@/lib/level-2-finding-capture';
 import { resolveLookup } from '@/lib/lookup';
 import { suffixForPath } from '@/lib/pin-context';
@@ -65,26 +75,8 @@ if (__DEV__) {
   }
 }
 
-const INITIAL_BRIEF: InspectionBrief = {
-  instruction: {
-    instructingParty: null,
-    client: null,
-    reference: null,
-    source: null,
-  },
-  purpose: null,
-  deliverable: null,
-  limitation: null,
-};
-
-/** Demo job site — presentation reads this; it never hard-codes the address. */
-const INITIAL_JOB: ActiveJob = {
-  property: {
-    displayAddress: '18 Market Street',
-    instructionType: 'Level 2 Building Survey',
-  },
-  inspection: createEmptyInspectionRecord(),
-};
+const INITIAL_BRIEF = INITIAL_INSPECTION_BRIEF;
+const INITIAL_JOB = INITIAL_ACTIVE_JOB;
 
 function announce(message: string) {
   AccessibilityInfo.announceForAccessibility(message);
@@ -195,6 +187,8 @@ export type SvyrController = {
    * Never canonical Engine state, notes, or completion.
    */
   entryDraftsByPath: SvyrEntryDraftsByPath;
+  /** True after local case hydration has completed. */
+  isHydrated: boolean;
 };
 
 export function useSvyrController(): SvyrController {
@@ -220,6 +214,7 @@ export function useSvyrController(): SvyrController {
   const [inspectionBrief, setInspectionBrief] =
     useState<InspectionBrief>(INITIAL_BRIEF);
   const [activeJob, setActiveJobState] = useState<ActiveJob>(INITIAL_JOB);
+  const [isHydrated, setIsHydrated] = useState(false);
   const suffixRef = useRef('');
   const briefRef = useRef<InspectionBrief>(INITIAL_BRIEF);
   const activeJobRef = useRef<ActiveJob>(INITIAL_JOB);
@@ -227,6 +222,22 @@ export function useSvyrController(): SvyrController {
   const activeCompoundCaptureRef = useRef<ActiveCompoundCapture | null>(null);
   const dataEntryDirectoryRef = useRef<string[]>([]);
   const entryDraftsByPathRef = useRef<SvyrEntryDraftsByPath>({});
+  const caseStorageAdapterRef = useRef(createAsyncStorageCaseAdapter());
+  const lastPersistedCommittedRef = useRef<WorkspaceCommittedState>(
+    INITIAL_WORKSPACE_COMMITTED_STATE,
+  );
+  const autosaveSchedulerRef = useRef(
+    createWorkspaceAutosaveScheduler({
+      adapter: caseStorageAdapterRef.current,
+      onSave: (inspectionCase) => {
+        lastPersistedCommittedRef.current = resolveHydratedWorkspaceState(
+          inspectionCase,
+          INITIAL_WORKSPACE_COMMITTED_STATE,
+        );
+      },
+    }),
+  );
+  const isHydratedRef = useRef(false);
 
   // Kept in sync during render, not in an effect: gesture and native-input
   // callbacks fire outside React's commit order and must never act on a
@@ -238,6 +249,32 @@ export function useSvyrController(): SvyrController {
   activeCompoundCaptureRef.current = activeCompoundCapture;
   dataEntryDirectoryRef.current = dataEntryDirectory;
   entryDraftsByPathRef.current = entryDraftsByPath;
+  isHydratedRef.current = isHydrated;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void (async () => {
+      const hydrated = await hydrateWorkspaceCase(
+        caseStorageAdapterRef.current,
+        undefined,
+        INITIAL_WORKSPACE_COMMITTED_STATE,
+      );
+      if (cancelled) return;
+
+      setActiveJobState(hydrated.activeJob);
+      setInspectionBrief(hydrated.inspectionBrief);
+      setNotesByPath(hydrated.notesByPath);
+      lastPersistedCommittedRef.current = hydrated;
+      isHydratedRef.current = true;
+      setIsHydrated(true);
+    })();
+
+    return () => {
+      cancelled = true;
+      autosaveSchedulerRef.current.cancel();
+    };
+  }, []);
 
   const suggestions = useMemo(
     () => getCommandAssistance(commandSuffix),
@@ -262,6 +299,35 @@ export function useSvyrController(): SvyrController {
   );
   const editablePath = editableCommand.structuredTokens;
   const entryValue = editableCommand.valueText;
+
+  useEffect(() => {
+    if (!isHydrated) return;
+
+    autosaveSchedulerRef.current.schedule(
+      buildPersistedInspectionCase(
+        {
+          activeJob,
+          inspectionBrief,
+          notesByPath,
+        },
+        {
+          entryDraftsByPath,
+          activeEntry: activeEntryField
+            ? { path: activeEntryField.path, valueText: entryValue }
+            : null,
+          persistedBaseline: lastPersistedCommittedRef.current,
+        },
+      ),
+    );
+  }, [
+    activeEntryField,
+    activeJob,
+    entryDraftsByPath,
+    entryValue,
+    inspectionBrief,
+    isHydrated,
+    notesByPath,
+  ]);
 
   /**
    * Dedicated entry mode is explicit: an active field means the navigation
@@ -713,10 +779,18 @@ export function useSvyrController(): SvyrController {
           node.findingTarget,
         )
       : null;
+    const committedFieldValue =
+      fieldDefinition?.fieldId && !node.findingTarget
+        ? resolveFieldValue(briefRef.current, fieldDefinition.fieldId)
+        : null;
     setCommandSuffix(
       suffixForDataEntryReentry({
         path: suggestion.commandPath,
-        draft: stashedDraft ?? canonicalFindingValue ?? undefined,
+        draft:
+          stashedDraft ??
+          canonicalFindingValue ??
+          committedFieldValue ??
+          undefined,
         defaultInsertion: suggestion.insertion,
         suffixForPath,
       }),
@@ -1146,5 +1220,6 @@ export function useSvyrController(): SvyrController {
     notesByPath,
     setPathNote,
     entryDraftsByPath,
+    isHydrated,
   };
 }

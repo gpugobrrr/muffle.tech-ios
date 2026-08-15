@@ -298,7 +298,7 @@ test('workflow coverage does not change completion or notes', () => {
       total,
     })),
     [
-      { token: 'instr', completed: 0, total: 2 },
+      { token: 'instr', completed: 0, total: 4 },
       { token: 'purp', completed: 0, total: 1 },
       { token: 'deliv', completed: 0, total: 1 },
       { token: 'limit', completed: 0, total: 1 },

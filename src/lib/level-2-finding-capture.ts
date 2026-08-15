@@ -1,6 +1,7 @@
 import type {
   CommandNode,
   InspectionFindingCaptureTarget,
+  Level2CaptureCoverage,
 } from '@/lib/command-registry';
 import type {
   InspectionElementConceptId,
@@ -16,6 +17,56 @@ import type { InspectionFinding, InspectionRecord } from '@/types/workspace';
 export type FindingFieldCommitResult =
   | { ok: true; result: InspectionOperationResult }
   | { ok: false; message: string };
+
+export type FindingCaptureFieldLeafDefinition = {
+  kind: 'finding';
+  token: string;
+  label: string;
+  description: string;
+  field: InspectionFindingField;
+};
+
+export type FindingWorkflowLeafDefinition = {
+  kind: 'workflow';
+  token: string;
+  label: string;
+  description: string;
+  coverage: Level2CaptureCoverage;
+};
+
+export type FindingLeafDefinition =
+  | FindingCaptureFieldLeafDefinition
+  | FindingWorkflowLeafDefinition;
+
+export function buildFindingLeaf(
+  leaf: FindingLeafDefinition,
+  findingContext: {
+    findingId: string;
+    elementConceptId: InspectionElementConceptId;
+    subjectLabel: string;
+  },
+): CommandNode {
+  if (leaf.kind === 'workflow') {
+    return {
+      token: leaf.token,
+      label: leaf.label,
+      learnerLabel: leaf.label,
+      description: leaf.description,
+      workflowOnly: true,
+      coverage: leaf.coverage,
+    };
+  }
+
+  return buildFindingCaptureLeaf(
+    leaf.token,
+    leaf.label,
+    leaf.description,
+    findingContext.findingId,
+    findingContext.elementConceptId,
+    leaf.field,
+    `${findingContext.subjectLabel} ${leaf.label.toLowerCase()}`,
+  );
+}
 
 export function buildFindingCaptureLeaf(
   token: string,

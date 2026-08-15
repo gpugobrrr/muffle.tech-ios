@@ -5,6 +5,7 @@ import type {
 import type { FieldDefinition } from '@/lib/field-schema';
 import { buildFindingCaptureLeaf as createFindingCaptureLeaf } from '@/lib/level-2-finding-capture';
 import { HEATING_FIELD_DEFINITIONS } from '@/lib/property-energy-heating';
+import { MAINS_SERVICE_FIELD_DEFINITIONS } from '@/lib/property-energy-mains-services';
 import {
   servicesPresenceFieldDefinition,
   type ServicesPresenceRouteId,
@@ -61,32 +62,41 @@ function compoundFieldLeaf(field: FieldDefinition): CommandNode {
   };
 }
 
-function controlledStatusLeaf(
-  token: string,
-  label: string,
-  fieldId: string,
+function mainsServiceFieldToCommandNode(
+  field: FieldDefinition,
   requirement: string,
 ): CommandNode {
   return {
-    token,
-    label,
-    learnerLabel: label,
-    description: `${label} mains service presence.`,
+    token: field.token,
+    label: field.label,
+    learnerLabel: field.label,
+    description: `${field.label} mains service presence.`,
     requiresValue: true,
-    valuePrompt: `ENTER ${label.toUpperCase()} STATUS`,
-    entryLabel: label.toUpperCase(),
-    operationId: 'survey.controlled_fact.set',
-    readOperationId: 'survey.controlled_fact.read',
-    fieldId,
-    required: true,
+    valuePrompt: field.valuePrompt,
+    entryLabel: field.entryLabel,
+    operationId: field.operationId,
+    readOperationId: field.readOperationId,
+    fieldId: field.fieldId,
+    required: field.required,
     coverage: {
       requirement,
       status: 'interactive',
-      engineBinding: 'survey.controlled_fact.set',
+      engineBinding: field.operationId,
       recommendedLaterWork:
         'Retain grouped mains-services capture and optional provenance later.',
     },
   };
+}
+
+function controlledStatusLeaf(
+  token: string,
+  requirement: string,
+): CommandNode {
+  const field = MAINS_SERVICE_FIELD_DEFINITIONS.find((f) => f.token === token);
+  if (!field) {
+    throw new Error(`Missing mains service field definition for token: ${token}`);
+  }
+  return mainsServiceFieldToCommandNode(field, requirement);
 }
 
 function servicesPresenceLeaf(
@@ -286,30 +296,10 @@ const PROPERTY_NODE: CommandNode = {
               'Model advised/observed service presence with provenance.',
           },
           [
-            controlledStatusLeaf(
-              'gas',
-              'Gas',
-              'property.energy.mains_services.gas',
-              'Gas mains service',
-            ),
-            controlledStatusLeaf(
-              'electricity',
-              'Electricity',
-              'property.energy.mains_services.electricity',
-              'Electricity mains service',
-            ),
-            controlledStatusLeaf(
-              'water',
-              'Water',
-              'property.energy.mains_services.water',
-              'Water mains service',
-            ),
-            controlledStatusLeaf(
-              'drainage',
-              'Drainage',
-              'property.energy.mains_services.drainage',
-              'Drainage mains service',
-            ),
+            controlledStatusLeaf('gas', 'Gas mains service'),
+            controlledStatusLeaf('electricity', 'Electricity mains service'),
+            controlledStatusLeaf('water', 'Water mains service'),
+            controlledStatusLeaf('drainage', 'Drainage mains service'),
           ],
         ),
       ],

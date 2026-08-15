@@ -13,6 +13,7 @@ export type InspectionElementConceptId =
   (typeof INSPECTION_ELEMENT_CONCEPT_IDS)[number];
 
 export type InspectionFindingField =
+  | 'location'
   | 'observation'
   | 'condition'
   | 'defect'

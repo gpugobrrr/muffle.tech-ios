@@ -11,6 +11,7 @@ import {
 test('External Walls configuration asserts', () => {
   const expectedTokens = [
     'observe',
+    'location',
     'condition',
     'defect',
     'recommend',
@@ -20,7 +21,7 @@ test('External Walls configuration asserts', () => {
     'evidence',
   ];
 
-  // 1. The configuration has exactly the eight tokens above, in order
+  // 1. The configuration has exactly the nine tokens above, in order
   const configTokens = EXTERNAL_WALL_FINDING_LEAVES.map((l) => l.token);
   assert.deepEqual(configTokens, expectedTokens);
 
@@ -28,6 +29,14 @@ test('External Walls configuration asserts', () => {
   const registryNodes = childNodes(['external', 'walls']);
   const registryTokens = registryNodes.map((n) => n.token);
   assert.deepEqual(registryTokens, expectedTokens);
+
+  // 2b. External Walls node declares findingHubTarget
+  const wallsNode = findCommandNode(['external', 'walls']);
+  assert.ok(wallsNode);
+  assert.deepEqual(wallsNode.findingHubTarget, {
+    elementConceptId: EXTERNAL_WALL_ELEMENT_CONCEPT_ID,
+    baseFindingId: EXTERNAL_WALL_FINDING_ID,
+  });
 
   // 3. Finding targets retain the existing finding ID, element ID, fields and operations
   const findingLeaves = EXTERNAL_WALL_FINDING_LEAVES.filter((l) => l.kind === 'finding');

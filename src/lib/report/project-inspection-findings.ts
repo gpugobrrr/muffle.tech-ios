@@ -1,6 +1,7 @@
 import {
   labelForInspectionElement,
 } from '@/lib/inspection-finding-elements';
+import { sortFindings } from '@/lib/inspection-findings';
 import type { FindingBlock } from '@/types/report';
 import type {
   InspectionFinding,
@@ -13,6 +14,7 @@ function optionalText(value: string | null | undefined): string | undefined {
 }
 
 function projectFinding(finding: InspectionFinding): FindingBlock {
+  const location = optionalText(finding.location);
   const condition = optionalText(finding.condition);
   const defect = optionalText(finding.defect);
   const recommendation = optionalText(finding.recommendation);
@@ -29,6 +31,7 @@ function projectFinding(finding: InspectionFinding): FindingBlock {
     findingId: finding.id,
     elementConceptId: finding.elementConceptId,
     elementLabel: labelForInspectionElement(finding.elementConceptId),
+    ...(location ? { location } : {}),
     observation: finding.observation,
     ...(condition ? { condition } : {}),
     ...(defect ? { defect } : {}),
@@ -40,7 +43,5 @@ function projectFinding(finding: InspectionFinding): FindingBlock {
 export function projectInspectionFindings(
   inspection: InspectionRecord,
 ): readonly FindingBlock[] {
-  return Object.values(inspection.findings)
-    .sort((left, right) => left.id.localeCompare(right.id))
-    .map(projectFinding);
+  return sortFindings(Object.values(inspection.findings)).map(projectFinding);
 }

@@ -95,6 +95,9 @@ function renderFindingBlock(
       ? finding.sectionHeading
       : finding.elementLabel;
   const rows = [
+    ...(finding.location
+      ? [renderFindingRow('Location', finding.location)]
+      : []),
     renderFindingRow('Observation', finding.observation),
     ...(finding.condition
       ? [renderFindingRow('Condition', finding.condition)]

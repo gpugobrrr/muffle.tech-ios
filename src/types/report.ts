@@ -41,6 +41,7 @@ export type FindingBlock = {
   elementConceptId: InspectionElementConceptId;
   /** Neutral ontology label, before any firm terminology is applied. */
   elementLabel: string;
+  location?: string;
   observation: string;
   condition?: string;
   defect?: string;

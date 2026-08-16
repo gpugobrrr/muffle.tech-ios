@@ -37,6 +37,13 @@ export const EXTERNAL_WALL_FINDING_LEAVES: readonly FindingLeafDefinition[] = [
   },
   {
     kind: 'finding',
+    token: 'location',
+    label: 'location',
+    description: 'Record where on the wall the finding was observed.',
+    field: 'location',
+  },
+  {
+    kind: 'finding',
     token: 'condition',
     label: 'condition',
     description: 'Record free-text current condition.',
@@ -509,6 +516,10 @@ const EXTERNAL_NODE: CommandNode = {
         canonicalConceptId: EXTERNAL_WALL_ELEMENT_CONCEPT_ID,
         engineBinding: 'survey.inspection.finding.upsert',
         recommendedLaterWork: 'Add repeated findings and location context.',
+      },
+      findingHubTarget: {
+        elementConceptId: EXTERNAL_WALL_ELEMENT_CONCEPT_ID,
+        baseFindingId: EXTERNAL_WALL_FINDING_ID,
       },
       children: EXTERNAL_WALL_FINDING_LEAVES.map((leaf) =>
         buildFindingLeaf(leaf, {

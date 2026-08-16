@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo } from 'react-native';
 
 import { verifyCommandContract } from '@/lib/command-contract';
@@ -27,20 +27,40 @@ import {
 } from '@/lib/field-information';
 import { findFieldDefinition, normalizeFieldInputValue } from '@/lib/field-schema';
 import {
+  allocateProspectiveFindingId,
+  buildFindingFieldMenu,
+  type FindingHubItem,
+  buildFindingHubItems,
+} from '@/lib/finding-hub';
+import {
+  labelForInspectionElement,
+  type InspectionElementConceptId,
+} from '@/lib/inspection-finding-elements';
+import {
   orderMultiChoiceValues,
   prepareMultiChoiceCommit,
   toggleMultiChoiceValue,
 } from '@/lib/multi-choice';
 import { createEmptyInspectionRecord } from '@/lib/inspection-record';
-import { commitInspectionFindingField, resolveFindingFieldValue } from '@/lib/level-2-finding-capture';
+import {
+  buildFindingLeaf,
+  commitInspectionFindingField,
+  resolveFindingFieldValue,
+} from '@/lib/level-2-finding-capture';
+import {
+  EXTERNAL_WALL_FINDING_LEAVES,
+} from '@/lib/level-2-capture';
 import { resolveLookup } from '@/lib/lookup';
 import { suffixForPath } from '@/lib/pin-context';
 import { executeSurveyOperation } from '@/lib/survey-operations';
 import {
   clearEntryDraft,
+  clearFindingEntryDraft,
   readEntryDraft,
+  readFindingEntryDraft,
   readMultiChoiceEntryDraft,
   stashEntryDraft,
+  stashFindingEntryDraft,
   stashMultiChoiceEntryDraft,
   suffixForDataEntryReentry,
   type SvyrEntryDraftsByPath,
@@ -115,6 +135,39 @@ export type ActiveCompoundCapture = {
   path: string[];
   node: CommandNode;
 };
+
+export type ActiveFindingHub = {
+  path: string[];
+  elementConceptId: InspectionElementConceptId;
+  baseFindingId: string;
+};
+
+function resolveFindingCaptureNode(
+  path: string[],
+  findingId: string | null,
+  hub: ActiveFindingHub | null,
+): CommandNode | null {
+  const node = findCommandNode(path);
+  if (!node) return null;
+  if (!findingId || !node.findingTarget) return node;
+
+  const leafToken = path.at(-1);
+  const leaf = EXTERNAL_WALL_FINDING_LEAVES.find(
+    (item) => item.kind === 'finding' && item.token === leafToken,
+  );
+  if (leaf && hub) {
+    return buildFindingLeaf(leaf, {
+      findingId,
+      elementConceptId: hub.elementConceptId,
+      subjectLabel: labelForInspectionElement(hub.elementConceptId),
+    });
+  }
+
+  return {
+    ...node,
+    findingTarget: { ...node.findingTarget, findingId },
+  };
+}
 
 /**
  * Single source of SVYR command state for the landscape Power User workspace.
@@ -195,6 +248,20 @@ export type SvyrController = {
    * Never canonical Engine state, notes, or completion.
    */
   entryDraftsByPath: SvyrEntryDraftsByPath;
+
+  // ── Finding hub ────────────────────────────────────────────────────
+  /** Active finding hub, set when navigation enters a findingHubTarget node. */
+  activeFindingHub: ActiveFindingHub | null;
+  /** Finding currently being edited inside the hub. */
+  selectedFindingId: string | null;
+  /** Ordered hub items for the active finding hub. */
+  findingHubItems: readonly FindingHubItem[];
+  /** Dynamic field menu for the selected finding. */
+  findingFieldSuggestions: CommandSuggestion[];
+  /** Select an existing finding to edit its fields. */
+  selectFinding: (findingId: string) => void;
+  /** Start a new finding — opens Observation immediately. */
+  selectNewFinding: () => void;
 };
 
 export function useSvyrController(): SvyrController {
@@ -220,6 +287,9 @@ export function useSvyrController(): SvyrController {
   const [inspectionBrief, setInspectionBrief] =
     useState<InspectionBrief>(INITIAL_BRIEF);
   const [activeJob, setActiveJobState] = useState<ActiveJob>(INITIAL_JOB);
+  const [selectedFindingId, setSelectedFindingId] = useState<string | null>(
+    null,
+  );
   const suffixRef = useRef('');
   const briefRef = useRef<InspectionBrief>(INITIAL_BRIEF);
   const activeJobRef = useRef<ActiveJob>(INITIAL_JOB);
@@ -227,6 +297,41 @@ export function useSvyrController(): SvyrController {
   const activeCompoundCaptureRef = useRef<ActiveCompoundCapture | null>(null);
   const dataEntryDirectoryRef = useRef<string[]>([]);
   const entryDraftsByPathRef = useRef<SvyrEntryDraftsByPath>({});
+  const activeFindingHubRef = useRef<ActiveFindingHub | null>(null);
+  const selectedFindingIdRef = useRef<string | null>(null);
+
+  /**
+   * Grammar-based split of the editable suffix into path and free text.
+   * Defined early so activeFindingHub and callbacks can consume editablePath.
+   */
+  const editableCommand = useMemo(
+    () => parseEditableCommand(commandSuffix),
+    [commandSuffix],
+  );
+  const editablePath = editableCommand.structuredTokens;
+  const entryValue = editableCommand.valueText;
+
+  /** Active finding hub, auto-derived from the current structural path. */
+  const activeFindingHub = useMemo((): ActiveFindingHub | null => {
+    const hubPath = activeEntryField
+      ? activeEntryField.path.slice(0, -1)
+      : editablePath;
+    const node = findCommandNode(hubPath);
+    if (!node?.findingHubTarget) return null;
+    return {
+      path: hubPath,
+      elementConceptId: node.findingHubTarget.elementConceptId,
+      baseFindingId: node.findingHubTarget.baseFindingId,
+    };
+  }, [activeEntryField, editablePath]);
+
+  // Reset selected finding ID if the surveyor navigates away from the hub.
+  useEffect(() => {
+    if (!activeFindingHub) {
+      selectedFindingIdRef.current = null;
+      setSelectedFindingId(null);
+    }
+  }, [activeFindingHub]);
 
   // Kept in sync during render, not in an effect: gesture and native-input
   // callbacks fire outside React's commit order and must never act on a
@@ -238,6 +343,8 @@ export function useSvyrController(): SvyrController {
   activeCompoundCaptureRef.current = activeCompoundCapture;
   dataEntryDirectoryRef.current = dataEntryDirectory;
   entryDraftsByPathRef.current = entryDraftsByPath;
+  activeFindingHubRef.current = activeFindingHub;
+  selectedFindingIdRef.current = selectedFindingId;
 
   const suggestions = useMemo(
     () => getCommandAssistance(commandSuffix),
@@ -255,18 +362,6 @@ export function useSvyrController(): SvyrController {
 
   const fullCommandText = commandSuffix;
 
-  /** Grammar-based split of the editable suffix into path and free text. */
-  const editableCommand = useMemo(
-    () => parseEditableCommand(commandSuffix),
-    [commandSuffix],
-  );
-  const editablePath = editableCommand.structuredTokens;
-  const entryValue = editableCommand.valueText;
-
-  /**
-   * Dedicated entry mode is explicit: an active field means the navigation
-   * dock is replaced entirely. Leaving clears the field, never the reverse.
-   */
   const inputMode: SvyrInputMode =
     activeEntryField || activeCompoundCapture ? 'data-entry' : 'navigation';
 
@@ -274,6 +369,45 @@ export function useSvyrController(): SvyrController {
   const infoBarText = lastExecutionResult
     ? formatExecutionResult(lastExecutionResult)
     : null;
+
+  // ── Finding hub derived state ─────────────────────────────────────────────
+  const findingHubItems = useMemo((): readonly FindingHubItem[] => {
+    if (!activeFindingHub) return [];
+    return buildFindingHubItems(
+      activeJob.inspection,
+      activeFindingHub.elementConceptId,
+    );
+  }, [activeFindingHub, activeJob.inspection]);
+
+  const findingFieldSuggestions = useMemo((): CommandSuggestion[] => {
+    if (!activeFindingHub || !selectedFindingId) return [];
+    const menuNodes = buildFindingFieldMenu(
+      selectedFindingId,
+      activeFindingHub.elementConceptId,
+      labelForInspectionElement(activeFindingHub.elementConceptId),
+      EXTERNAL_WALL_FINDING_LEAVES,
+    );
+    // Convert to suggestions matching the hub path
+    const hubPath = activeFindingHub.path;
+    return menuNodes.map((node): CommandSuggestion => ({
+      type: 'token',
+      id: `${hubPath.join('/')}-${node.token}`,
+      label: node.label,
+      description: node.description,
+      insertion: suffixForPath([...hubPath, node.token]),
+      commandPath: [...hubPath, node.token],
+      available: node.available !== false,
+      isTerminal: !node.children?.length,
+      requiresValue: Boolean(node.requiresValue),
+      compoundCapture: Boolean(node.compoundCapture),
+      workflowOnly: Boolean(node.workflowOnly),
+    }));
+  }, [activeFindingHub, selectedFindingId]);
+
+  const assignSelectedFinding = useCallback((findingId: string | null) => {
+    selectedFindingIdRef.current = findingId;
+    setSelectedFindingId(findingId);
+  }, []);
 
   const clearActiveEntry = useCallback(() => {
     setActiveEntryField(null);
@@ -286,9 +420,10 @@ export function useSvyrController(): SvyrController {
     setDataEntryDirectory([]);
     setTemporaryAutocompleteContent(null);
     setLastExecutionResult(null);
+    assignSelectedFinding(null);
     clearActiveEntry();
     setFocusToken((token) => token + 1);
-  }, [clearActiveEntry]);
+  }, [assignSelectedFinding, clearActiveEntry]);
 
   const setDataEntryDirectoryForPath = useCallback((path: string[]) => {
     const nextPath = [...path];
@@ -621,9 +756,15 @@ export function useSvyrController(): SvyrController {
       const target = field.node.findingTarget;
       if (!target) return false;
 
+      // Override finding ID from the dynamically selected finding.
+      const dynamicFindingId = selectedFindingIdRef.current;
+      const resolvedTarget = dynamicFindingId
+        ? { ...target, findingId: dynamicFindingId }
+        : target;
+
       const committed = commitInspectionFindingField(
         activeJobRef.current.inspection,
-        target,
+        resolvedTarget,
         value,
       );
       if (!committed.ok) {
@@ -634,31 +775,52 @@ export function useSvyrController(): SvyrController {
       }
 
       const submittedCommand = `${formatCommandPath(field.path)} ${value.trim()}`;
-      const entryParent = field.path.slice(0, -1);
       setActiveJobState((current) => ({
         ...current,
         inspection: committed.result.inspection,
       }));
       setLastExecutionResult({
         operationId: committed.result.operationId,
-        label: field.node.entryLabel ?? target.field,
+        label: field.node.entryLabel ?? resolvedTarget.field,
         value: value.trim(),
         executedCommand: submittedCommand,
       });
-      setEntryDraftsByPath((current) => clearEntryDraft(current, field.path));
-      clearActiveEntry();
-      setTemporaryAutocompleteContent(null);
-      if (entryParent.length > 0) {
-        setDataEntryDirectoryForPath(entryParent);
-        setCommandSuffix(suffixForPath(entryParent));
+
+      // Clear draft with finding-scoped key.
+      if (dynamicFindingId) {
+        setEntryDraftsByPath((current) =>
+          clearFindingEntryDraft(current, field.path, dynamicFindingId),
+        );
       } else {
-        setDataEntryDirectory([]);
-        setCommandSuffix('');
+        setEntryDraftsByPath((current) => clearEntryDraft(current, field.path));
       }
-      announce(`${field.node.entryLabel ?? target.field} recorded`);
+
+      // Clear entry field but keep selectedFindingId so we return to
+      // the finding's field menu inside the hub.
+      setActiveEntryField(null);
+      setActiveCompoundCapture(null);
+      setEntryError(null);
+      setTemporaryAutocompleteContent(null);
+
+      // Navigate back to the hub path (field menu of the selected finding).
+      const hub = activeFindingHubRef.current;
+      if (hub) {
+        setDataEntryDirectoryForPath(hub.path);
+        setCommandSuffix(suffixForPath(hub.path));
+      } else {
+        const entryParent = field.path.slice(0, -1);
+        if (entryParent.length > 0) {
+          setDataEntryDirectoryForPath(entryParent);
+          setCommandSuffix(suffixForPath(entryParent));
+        } else {
+          setDataEntryDirectory([]);
+          setCommandSuffix('');
+        }
+      }
+      announce(`${field.node.entryLabel ?? resolvedTarget.field} recorded`);
       return true;
     },
-    [clearActiveEntry, setDataEntryDirectoryForPath],
+    [setDataEntryDirectoryForPath],
   );
 
   const requestTerminalFocus = useCallback(() => {
@@ -676,7 +838,13 @@ export function useSvyrController(): SvyrController {
    * internally; the navigation dock is replaced by the entry panel.
    */
   const beginDataEntry = useCallback((suggestion: TokenSuggestion) => {
-    const node = findCommandNode(suggestion.commandPath);
+    const findingId = selectedFindingIdRef.current;
+    const hub = activeFindingHubRef.current;
+    const node = resolveFindingCaptureNode(
+      suggestion.commandPath,
+      findingId,
+      hub,
+    );
     if (!node?.requiresValue) return;
 
     const fieldDefinition = findFieldDefinition(suggestion.commandPath);
@@ -703,10 +871,14 @@ export function useSvyrController(): SvyrController {
       return;
     }
 
-    const stashedDraft = readEntryDraft(
-      entryDraftsByPathRef.current,
-      suggestion.commandPath,
-    );
+    const stashedDraft = findingId
+      ? readFindingEntryDraft(
+          entryDraftsByPathRef.current,
+          suggestion.commandPath,
+          findingId,
+        )
+      : readEntryDraft(entryDraftsByPathRef.current, suggestion.commandPath);
+
     const canonicalFindingValue = node.findingTarget
       ? resolveFindingFieldValue(
           activeJobRef.current.inspection,
@@ -770,9 +942,16 @@ export function useSvyrController(): SvyrController {
     const fieldDefinition = findFieldDefinition(field.path);
     if (fieldDefinition?.valueType === 'multiSelect') return;
     const draft = parseEditableCommand(suffixRef.current).valueText;
-    setEntryDraftsByPath((current) =>
-      stashEntryDraft(current, field.path, draft),
-    );
+    const findingId = selectedFindingIdRef.current;
+    if (findingId) {
+      setEntryDraftsByPath((current) =>
+        stashFindingEntryDraft(current, field.path, findingId, draft),
+      );
+    } else {
+      setEntryDraftsByPath((current) =>
+        stashEntryDraft(current, field.path, draft),
+      );
+    }
   }, []);
 
   const activeMultiChoiceValues = useMemo((): readonly string[] => {
@@ -905,11 +1084,65 @@ export function useSvyrController(): SvyrController {
       setActiveCompoundCapture(null);
       setDataEntryDirectory(targetDirectory);
       setCommandSuffix(suffixForPath(targetDirectory));
+
+      const hub = activeFindingHubRef.current;
+      const stillInHub =
+        Boolean(hub) &&
+        targetDirectory.length >= (hub?.path.length ?? 0) &&
+        (hub?.path.every((segment, index) => targetDirectory[index] === segment) ??
+          false);
+      if (!stillInHub) {
+        assignSelectedFinding(null);
+      }
+
       setFocusToken((token) => token + 1);
       return true;
     },
-    [stashActiveEntryDraft],
+    [assignSelectedFinding, stashActiveEntryDraft],
   );
+
+  const selectFinding = useCallback((findingId: string) => {
+    setTemporaryAutocompleteContent(null);
+    setLastExecutionResult(null);
+    setEntryError(null);
+    assignSelectedFinding(findingId);
+    if (activeFindingHubRef.current) {
+      setDataEntryDirectoryForPath(activeFindingHubRef.current.path);
+      setCommandSuffix(suffixForPath(activeFindingHubRef.current.path));
+    }
+    setFocusToken((n) => n + 1);
+  }, [assignSelectedFinding, setDataEntryDirectoryForPath]);
+
+  const selectNewFinding = useCallback(() => {
+    const hub = activeFindingHubRef.current;
+    if (!hub) return;
+
+    const prospectiveId = allocateProspectiveFindingId(
+      activeJobRef.current.inspection,
+      hub.baseFindingId,
+    );
+    assignSelectedFinding(prospectiveId);
+    setTemporaryAutocompleteContent(null);
+    setLastExecutionResult(null);
+    setEntryError(null);
+
+    const observePath = [...hub.path, 'observe'];
+    const observeNode = findCommandNode(observePath);
+    if (observeNode) {
+      beginDataEntry({
+        type: 'token',
+        id: `${hub.path.join('/')}-observe`,
+        label: observeNode.label,
+        description: observeNode.description,
+        insertion: suffixForPath(observePath),
+        commandPath: observePath,
+        available: true,
+        isTerminal: false,
+        requiresValue: true,
+      });
+    }
+  }, [assignSelectedFinding, beginDataEntry]);
+
   /**
    * Shared SVYR bar segment press:
    * - earlier segment → jump directly to that path level
@@ -998,7 +1231,25 @@ export function useSvyrController(): SvyrController {
       if (activeEntryRef.current) {
         stashActiveEntryDraft();
       }
+      const currentSelectedId = selectedFindingIdRef.current;
       cancelDataEntry();
+      // If the prospective finding was never committed, clear selectedFindingId
+      // so the user returns to the finding hub list.
+      if (
+        currentSelectedId &&
+        !activeJobRef.current.inspection.findings[currentSelectedId]
+      ) {
+        assignSelectedFinding(null);
+      }
+      setFocusToken((n) => n + 1);
+      return true;
+    }
+
+    // Inside finding hub with a selected finding: return to finding hub list.
+    if (activeFindingHubRef.current && selectedFindingIdRef.current) {
+      assignSelectedFinding(null);
+      setTemporaryAutocompleteContent(null);
+      setLastExecutionResult(null);
       setFocusToken((n) => n + 1);
       return true;
     }
@@ -1015,11 +1266,12 @@ export function useSvyrController(): SvyrController {
 
     setTemporaryAutocompleteContent(null);
     setLastExecutionResult(null);
-    setDataEntryDirectory((current) => current.slice(0, -1));
+    assignSelectedFinding(null);
+    setDataEntryDirectory((c) => c.slice(0, -1));
     setCommandSuffix(next);
     setFocusToken((n) => n + 1);
     return true;
-  }, [cancelDataEntry, stashActiveEntryDraft]);
+  }, [assignSelectedFinding, cancelDataEntry, stashActiveEntryDraft]);
 
   /**
    * Shared semantic delete action. TextInput decides when native character
@@ -1031,7 +1283,22 @@ export function useSvyrController(): SvyrController {
       const parsed = parseEditableCommand(suffixRef.current);
       if (parsed.valueText.length > 0) return;
       stashActiveEntryDraft();
+      const currentSelectedId = selectedFindingIdRef.current;
       cancelDataEntry();
+      if (
+        currentSelectedId &&
+        !activeJobRef.current.inspection.findings[currentSelectedId]
+      ) {
+        assignSelectedFinding(null);
+      }
+      setFocusToken((n) => n + 1);
+      return;
+    }
+
+    if (activeFindingHubRef.current && selectedFindingIdRef.current) {
+      assignSelectedFinding(null);
+      setTemporaryAutocompleteContent(null);
+      setLastExecutionResult(null);
       setFocusToken((n) => n + 1);
       return;
     }
@@ -1044,9 +1311,10 @@ export function useSvyrController(): SvyrController {
 
     setTemporaryAutocompleteContent(null);
     setLastExecutionResult(null);
+    assignSelectedFinding(null);
     setCommandSuffix(next);
     setFocusToken((n) => n + 1);
-  }, [cancelDataEntry, stashActiveEntryDraft]);
+  }, [assignSelectedFinding, cancelDataEntry, stashActiveEntryDraft]);
 
   /**
    * Return key inside the dedicated value field — the only submission
@@ -1083,9 +1351,16 @@ export function useSvyrController(): SvyrController {
     if (activeEntryRef.current) {
       stashActiveEntryDraft();
     }
+    const currentSelectedId = selectedFindingIdRef.current;
     cancelDataEntry();
+    if (
+      currentSelectedId &&
+        !activeJobRef.current.inspection.findings[currentSelectedId]
+      ) {
+        assignSelectedFinding(null);
+      }
     return true;
-  }, [cancelDataEntry, stashActiveEntryDraft]);
+  }, [assignSelectedFinding, cancelDataEntry, stashActiveEntryDraft]);
 
   const setPathNote = useCallback((pathKey: string, note: string) => {
     setNotesByPath((current) => {
@@ -1146,5 +1421,11 @@ export function useSvyrController(): SvyrController {
     notesByPath,
     setPathNote,
     entryDraftsByPath,
+    activeFindingHub,
+    selectedFindingId,
+    findingHubItems,
+    findingFieldSuggestions,
+    selectFinding,
+    selectNewFinding,
   };
 }

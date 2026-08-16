@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureDetector } from 'react-native-gesture-handler';
 
 import { CommandDock } from '@/components/command-dock';
+import { FindingHubPage } from '@/components/finding-hub-page';
 import { SvyrNavigationPage } from '@/components/svyr-navigation-page';
 import { CompoundCaptureEntryPage } from '@/components/controlled-group-entry-page';
 import { SvyrDataEntryPanel } from '@/components/svyr-data-entry-panel';
@@ -28,6 +29,7 @@ import {
     resolveFieldSetValue,
     resolveFieldValue,
 } from '@/lib/field-schema';
+import { resolveFindingFieldValue } from '@/lib/level-2-finding-capture';
 import { HEATING_NOTES_PATH } from '@/lib/property-energy-heating';
 import {
     isBranchSuggestion,
@@ -84,12 +86,27 @@ export function SvyrInterface({
     activeFieldDefinition?.valueType === 'multiSelect';
   const isChoiceCaptureEntry = isSingleChoiceEntry || isMultiChoiceEntry;
   const activeStoredValue = useMemo(() => {
+    if (
+      controller.activeEntryField?.node.findingTarget &&
+      controller.selectedFindingId
+    ) {
+      return resolveFindingFieldValue(controller.activeJob.inspection, {
+        ...controller.activeEntryField.node.findingTarget,
+        findingId: controller.selectedFindingId,
+      });
+    }
     if (!activeFieldDefinition) return null;
     return resolveFieldValue(
       controller.inspectionBrief,
       activeFieldDefinition.fieldId,
     );
-  }, [activeFieldDefinition, controller.inspectionBrief]);
+  }, [
+    activeFieldDefinition,
+    controller.activeEntryField,
+    controller.activeJob.inspection,
+    controller.inspectionBrief,
+    controller.selectedFindingId,
+  ]);
   const compoundRows = useMemo(() => {
     if (!controller.activeCompoundCapture) return [];
     return compoundGroupRows(
@@ -348,14 +365,30 @@ export function SvyrInterface({
             />
           ) : null}
           {!isDataEntry ? (
-            <SvyrNavigationPage
-              path={controller.editablePath}
-              suggestions={controller.suggestions}
-              temporaryContent={controller.temporaryAutocompleteContent}
-              onApplySuggestion={handleSelectSuggestion}
-              onNavigateUpDirectory={handleNavigateUpDirectory}
-              onSwipeBackCommitted={handleSwipeBackCommitted}
-            />
+            controller.activeFindingHub && !controller.selectedFindingId ? (
+              <FindingHubPage
+                path={controller.editablePath}
+                items={controller.findingHubItems}
+                temporaryContent={controller.temporaryAutocompleteContent}
+                onSelectNewFinding={controller.selectNewFinding}
+                onSelectFinding={controller.selectFinding}
+                onNavigateUpDirectory={handleNavigateUpDirectory}
+                onSwipeBackCommitted={handleSwipeBackCommitted}
+              />
+            ) : (
+              <SvyrNavigationPage
+                path={controller.editablePath}
+                suggestions={
+                  controller.activeFindingHub && controller.selectedFindingId
+                    ? controller.findingFieldSuggestions
+                    : controller.suggestions
+                }
+                temporaryContent={controller.temporaryAutocompleteContent}
+                onApplySuggestion={handleSelectSuggestion}
+                onNavigateUpDirectory={handleNavigateUpDirectory}
+                onSwipeBackCommitted={handleSwipeBackCommitted}
+              />
+            )
           ) : null}
         </View>
 

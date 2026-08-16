@@ -21,6 +21,7 @@ import { WorkspaceHeader } from '@/components/workspace-header';
 import { Colors, Spacing } from '@/constants/theme';
 import { useSvyrHints } from '@/hooks/use-svyr-hints';
 import { useDataEntrySwipe } from '@/hooks/use-data-entry-swipe';
+import { usePresentationMode } from '@/hooks/use-presentation-mode';
 import type { SvyrController } from '@/hooks/use-workspace';
 import type { CommandSuggestion } from '@/lib/command-parser';
 import { compoundGroupRows } from '@/lib/controlled-group';
@@ -58,6 +59,7 @@ export function SvyrInterface({
   const entrance = useRef(new Animated.Value(0)).current;
   const insets = useSafeAreaInsets();
   const hints = useSvyrHints();
+  const presentationMode = usePresentationMode();
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
   const [heldCommandDescription, setHeldCommandDescription] = useState<
@@ -261,7 +263,7 @@ export function SvyrInterface({
     ? Spacing.xs
     : Math.max(insets.bottom, Spacing.xs);
   const dataEntryGesture = useDataEntrySwipe({
-    enabled: isDataEntry,
+    enabled: isDataEntry && presentationMode === 'touch',
     fieldKey: noteEditing
       ? PARTY_NOTES_PATH
       : controller.activeEntryField?.path.join('/') ?? null,
@@ -337,6 +339,7 @@ export function SvyrInterface({
               onCommitScalar={controller.commitControlledFieldValue}
               onCommitSet={controller.commitControlledSetFieldValue}
               onNavigateUpDirectory={controller.cancelCurrentInteraction}
+              presentationMode={presentationMode}
             />
           ) : controller.activeEntryField ? (
             <SvyrDataEntryPanel
@@ -362,6 +365,7 @@ export function SvyrInterface({
                 activeHint === 'executeValue' ? 'executeValue' : null
               }
               onDismissHint={hints.dismissHint}
+              presentationMode={presentationMode}
             />
           ) : null}
           {!isDataEntry ? (

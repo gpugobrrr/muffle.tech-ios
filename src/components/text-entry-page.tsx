@@ -18,6 +18,7 @@ import { SplitTextKeyboard } from '@/components/split-text-keyboard';
 import { Colors, Fonts, Spacing, Type } from '@/constants/theme';
 import type { ActiveEntryField } from '@/hooks/use-workspace';
 import type { SvyrHintId } from '@/lib/hint-repository';
+import type { PresentationMode } from '@/lib/presentation-mode';
 
 const SPACE_DOUBLE_TAP_MAX_DELAY_MS = 450;
 const SPACE_DOUBLE_TAP_MAX_DISTANCE = 24;
@@ -49,6 +50,8 @@ type Props = {
   displayUnit?: string | null;
   /** When false, disables the double-tap space gesture (numeric entry). */
   allowSpaceGesture?: boolean;
+  /** Touch keeps the split keyboard; laptop uses native text editing. */
+  presentationMode?: PresentationMode;
 };
 
 export function TextEntryPage({
@@ -69,17 +72,19 @@ export function TextEntryPage({
   initialKeyboardMode = 'alpha',
   displayUnit = null,
   allowSpaceGesture = true,
+  presentationMode = 'touch',
 }: Props) {
   const inputRef = useRef<TextInput>(null);
   const valueRef = useRef(value);
   valueRef.current = value;
+  const isLaptopPresentation = presentationMode === 'laptop';
 
   const focusInput = useCallback(() => {
     requestAnimationFrame(() => {
       inputRef.current?.focus();
-      Keyboard.dismiss();
+      if (!isLaptopPresentation) Keyboard.dismiss();
     });
-  }, []);
+  }, [isLaptopPresentation]);
 
   const fieldPathKey = field.path.join('/');
 
@@ -157,7 +162,7 @@ export function TextEntryPage({
 
             <View style={styles.dataEntryInputShell}>
               <Pressable
-                onPress={focusInput}
+                onPress={isLaptopPresentation ? undefined : focusInput}
                 accessibilityRole="none"
                 accessibilityActions={[
                   { name: 'escape', label: 'Cancel data entry' },
@@ -173,7 +178,7 @@ export function TextEntryPage({
                     onChangeText={onChangeText}
                     onKeyPress={handleKeyPress}
                     onSubmitEditing={onSubmit}
-                    showSoftInputOnFocus={false}
+                    showSoftInputOnFocus={isLaptopPresentation}
                     autoFocus
                     autoCapitalize={
                       initialKeyboardMode === 'numeric' ? 'none' : 'words'
@@ -184,7 +189,9 @@ export function TextEntryPage({
                     submitBehavior="submit"
                     blurOnSubmit={false}
                     placeholder=""
-                    caretHidden={value.length === 0}
+                    caretHidden={
+                      !isLaptopPresentation && value.length === 0
+                    }
                     style={[
                       styles.dataEntryInput,
                       displayUnit ? styles.dataEntryInputWithUnit : null,
@@ -199,7 +206,9 @@ export function TextEntryPage({
                     </Text>
                   ) : null}
                 </View>
-                {value.length === 0 ? <PulsingCaret /> : null}
+                {!isLaptopPresentation && value.length === 0 ? (
+                  <PulsingCaret />
+                ) : null}
               </Pressable>
             </View>
           </View>
@@ -214,13 +223,15 @@ export function TextEntryPage({
         ) : (
           <View style={styles.spaceWorkspace} />
         )}
-        <SplitTextKeyboard
-          value={customKeyboardValue}
-          onChangeText={handleCustomKeyboardChange}
-          onSubmit={handleCustomKeyboardSubmit}
-          showNumericMode
-          initialMode={initialKeyboardMode}
-        />
+        {isLaptopPresentation ? null : (
+          <SplitTextKeyboard
+            value={customKeyboardValue}
+            onChangeText={handleCustomKeyboardChange}
+            onSubmit={handleCustomKeyboardSubmit}
+            showNumericMode
+            initialMode={initialKeyboardMode}
+          />
+        )}
       </View>
     </View>
   );

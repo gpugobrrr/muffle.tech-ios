@@ -7,6 +7,7 @@ import { TextEntryPage } from '@/components/text-entry-page';
 import type { ActiveEntryField } from '@/hooks/use-workspace';
 import { findFieldDefinition } from '@/lib/field-schema';
 import type { SvyrHintId } from '@/lib/hint-repository';
+import type { PresentationMode } from '@/lib/presentation-mode';
 
 type Props = {
   field: ActiveEntryField;
@@ -28,6 +29,7 @@ type Props = {
   noteEditing?: boolean;
   noteValue?: string;
   onChangeNote?: (value: string) => void;
+  presentationMode?: PresentationMode;
 };
 
 /** Select the reusable capture primitive declared by the canonical field schema. */
@@ -51,6 +53,7 @@ export function SvyrDataEntryPanel({
   noteEditing = false,
   noteValue = '',
   onChangeNote,
+  presentationMode = 'touch',
 }: Props) {
   const fieldDefinition = findFieldDefinition(field.path);
 
@@ -97,6 +100,7 @@ export function SvyrDataEntryPanel({
         noteEditing={noteEditing}
         noteValue={noteValue}
         onChangeNote={onChangeNote}
+        presentationMode={presentationMode}
       />
     );
   }
@@ -117,6 +121,7 @@ export function SvyrDataEntryPanel({
       noteEditing={noteEditing}
       noteValue={noteValue}
       onChangeNote={onChangeNote}
+      presentationMode={presentationMode}
     />
   );
 }

@@ -17,6 +17,7 @@ import { PulsingCaret } from '@/components/text-entry-page';
 import { SplitTextKeyboard } from '@/components/split-text-keyboard';
 import { Colors, Fonts, Spacing, Type } from '@/constants/theme';
 import { useDataEntrySwipe } from '@/hooks/use-data-entry-swipe';
+import { usePresentationMode } from '@/hooks/use-presentation-mode';
 import {
   findLoqateAddresses,
   getLoqateDevelopmentMessage,
@@ -151,6 +152,8 @@ export function AddressEntryScreen({
   onBack,
 }: Props) {
   const insets = useSafeAreaInsets();
+  const presentationMode = usePresentationMode();
+  const isLaptopPresentation = presentationMode === 'laptop';
   const inputRef = useRef<TextInput>(null);
   const requestSequenceRef = useRef(0);
   const requestControllerRef = useRef<AbortController | null>(null);
@@ -211,9 +214,9 @@ export function AddressEntryScreen({
   const focusInput = useCallback(() => {
     requestAnimationFrame(() => {
       inputRef.current?.focus();
-      Keyboard.dismiss();
+      if (!isLaptopPresentation) Keyboard.dismiss();
     });
-  }, []);
+  }, [isLaptopPresentation]);
 
   useEffect(() => {
     if (showingAddressResults) return;
@@ -421,7 +424,7 @@ export function AddressEntryScreen({
   }, [clearNumberFeedback]);
 
   const dataEntryGesture = useDataEntrySwipe({
-    enabled: true,
+    enabled: presentationMode === 'touch',
     fieldKey: `${phase}:${postcodeDraft}:${selectedRoad ?? ''}:${
       containerId ?? 'root'
     }`,
@@ -721,32 +724,36 @@ export function AddressEntryScreen({
 
               <View style={styles.inputRegion}>
                 <Text style={styles.phaseLabel}>POSTCODE</Text>
-                <Pressable onPress={focusInput} style={styles.inputRow}>
+                <Pressable onPress={isLaptopPresentation ? undefined : focusInput} style={styles.inputRow}>
                   <TextInput
                     ref={inputRef}
                     value={postcodeDraft}
                     onChangeText={handlePostcodeChange}
                     onSubmitEditing={handleSubmit}
-                    showSoftInputOnFocus={false}
+                    showSoftInputOnFocus={isLaptopPresentation}
                     autoFocus
                     autoCapitalize="characters"
                     autoCorrect={false}
                     spellCheck={false}
                     placeholder=""
-                    caretHidden={postcodeDraft.length === 0}
+                    caretHidden={!isLaptopPresentation && postcodeDraft.length === 0}
                     accessibilityLabel="Postcode"
                     style={styles.input}
                   />
-                  {postcodeDraft.length === 0 ? <PulsingCaret /> : null}
+                  {!isLaptopPresentation && postcodeDraft.length === 0 ? (
+                    <PulsingCaret />
+                  ) : null}
                 </Pressable>
               </View>
 
-              <SplitTextKeyboard
-                value={postcodeDraft}
-                onChangeText={handlePostcodeChange}
-                onSubmit={handleSubmit}
-                showNumericMode
-              />
+              {isLaptopPresentation ? null : (
+                <SplitTextKeyboard
+                  value={postcodeDraft}
+                  onChangeText={handlePostcodeChange}
+                  onSubmit={handleSubmit}
+                  showNumericMode
+                />
+              )}
             </>
           )}
         </View>

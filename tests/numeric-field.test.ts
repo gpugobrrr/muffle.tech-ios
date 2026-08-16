@@ -212,7 +212,7 @@ test('UI routes number through NumericEntryPage with split keyboard numeric laye
   assert.match(page, /initialKeyboardMode="numeric"/);
   assert.match(page, /TextEntryPage/);
   assert.match(textPage, /SplitTextKeyboard/);
-  assert.match(textPage, /showSoftInputOnFocus=\{false\}/);
+  assert.match(textPage, /showSoftInputOnFocus=\{isLaptopPresentation\}/);
   assert.match(textPage, /initialMode=\{initialKeyboardMode\}/);
   assert.match(keyboard, /initialMode/);
   assert.match(keyboard, /NUMERIC_LEFT_ROWS/);

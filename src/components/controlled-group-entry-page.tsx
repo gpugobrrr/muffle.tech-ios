@@ -10,6 +10,7 @@ import type { ActiveEntryField } from '@/hooks/use-workspace';
 import type { CompoundGroupRow } from '@/lib/controlled-group';
 import type { FieldDefinition } from '@/lib/field-schema';
 import { orderMultiChoiceValues, toggleMultiChoiceValue } from '@/lib/multi-choice';
+import type { PresentationMode } from '@/lib/presentation-mode';
 import { formatSvyrDisplayedLabel } from '@/lib/svyr-label-presentation';
 import {
   buildSingleChoiceSuggestions,
@@ -27,6 +28,7 @@ type Props = {
   onCommitScalar: (path: string[], value: string) => boolean;
   onCommitSet: (path: string[], values: readonly string[]) => boolean;
   onNavigateUpDirectory: () => boolean;
+  presentationMode?: PresentationMode;
 };
 
 function syntheticEntryField(field: FieldDefinition): ActiveEntryField {
@@ -57,6 +59,7 @@ export function CompoundCaptureEntryPage({
   onCommitScalar,
   onCommitSet,
   onNavigateUpDirectory,
+  presentationMode = 'touch',
 }: Props) {
   const [activeFieldPath, setActiveFieldPath] = useState<string[] | null>(null);
   const [textDraft, setTextDraft] = useState('');
@@ -121,6 +124,7 @@ export function CompoundCaptureEntryPage({
             return true;
           }}
           noteEditing={false}
+          presentationMode={presentationMode}
         />
       </View>
     );
@@ -149,6 +153,7 @@ export function CompoundCaptureEntryPage({
               setActiveFieldPath(null);
               return true;
             }}
+            presentationMode={presentationMode}
           />
         </View>
       );
@@ -166,6 +171,7 @@ export function CompoundCaptureEntryPage({
             setActiveFieldPath(null);
             return true;
           }}
+          presentationMode={presentationMode}
         />
       </View>
     );

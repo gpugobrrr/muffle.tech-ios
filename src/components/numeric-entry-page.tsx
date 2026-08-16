@@ -4,6 +4,7 @@ import { TextEntryPage } from '@/components/text-entry-page';
 import type { ActiveEntryField } from '@/hooks/use-workspace';
 import type { FieldDefinition } from '@/lib/field-schema';
 import type { SvyrHintId } from '@/lib/hint-repository';
+import type { PresentationMode } from '@/lib/presentation-mode';
 
 type Props = {
   field: ActiveEntryField;
@@ -21,6 +22,7 @@ type Props = {
   noteEditing?: boolean;
   noteValue?: string;
   onChangeNote?: (value: string) => void;
+  presentationMode?: PresentationMode;
 };
 
 /**
@@ -44,6 +46,7 @@ export function NumericEntryPage({
   noteEditing = false,
   noteValue = '',
   onChangeNote,
+  presentationMode = 'touch',
 }: Props) {
   return (
     <TextEntryPage
@@ -64,6 +67,7 @@ export function NumericEntryPage({
       initialKeyboardMode="numeric"
       displayUnit={fieldDefinition.numeric?.displayUnit ?? null}
       allowSpaceGesture={false}
+      presentationMode={presentationMode}
     />
   );
 }

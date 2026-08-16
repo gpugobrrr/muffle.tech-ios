@@ -82,6 +82,7 @@ export type InspectionEvidenceReference = {
 export type InspectionFinding = {
   id: string;
   elementConceptId: InspectionElementConceptId;
+  location?: string;
   observation: string;
   condition?: string;
   defect?: string;

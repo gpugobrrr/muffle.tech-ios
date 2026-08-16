@@ -82,6 +82,14 @@ export type CommandNode = {
    * Required leaves without a fieldId cannot be completed.
    */
   fieldId?: string;
+  /**
+   * Finding-hub configuration. When present the UI renders a finding hub
+   * instead of static registry children. Generic shape — enabled per-element.
+   */
+  findingHubTarget?: {
+    elementConceptId: InspectionElementConceptId;
+    baseFindingId: string;
+  };
 };
 
 /** Display title for a registry node (completion rows, guidance headers). */

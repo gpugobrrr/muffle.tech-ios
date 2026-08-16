@@ -21,13 +21,22 @@ export function entryDraftPathKey(path: string[]): string {
   return pathKey(path);
 }
 
-/** Store or clear a transient text draft. Empty clears the key. */
-export function stashEntryDraft(
-  drafts: SvyrEntryDraftsByPath,
+/**
+ * Composite draft key scoped by both command path and finding ID.
+ * Prevents text from leaking between findings that share the same route.
+ */
+export function entryDraftFindingPathKey(
   path: string[],
+  findingId: string,
+): string {
+  return `${pathKey(path)}@${findingId}`;
+}
+
+function stashTextDraftAtKey(
+  drafts: SvyrEntryDraftsByPath,
+  key: string,
   draft: string,
 ): SvyrEntryDraftsByPath {
-  const key = entryDraftPathKey(path);
   if (!draft) {
     if (!(key in drafts)) return drafts;
     const next = { ...drafts };
@@ -39,23 +48,75 @@ export function stashEntryDraft(
   return { ...drafts, [key]: { kind: 'text', text: draft } };
 }
 
+function readTextDraftAtKey(
+  drafts: SvyrEntryDraftsByPath,
+  key: string,
+): string | undefined {
+  const draft = drafts[key];
+  return draft?.kind === 'text' ? draft.text : undefined;
+}
+
+function clearDraftAtKey(
+  drafts: SvyrEntryDraftsByPath,
+  key: string,
+): SvyrEntryDraftsByPath {
+  if (!(key in drafts)) return drafts;
+  const next = { ...drafts };
+  delete next[key];
+  return next;
+}
+
+/** Store or clear a transient text draft. Empty clears the key. */
+export function stashEntryDraft(
+  drafts: SvyrEntryDraftsByPath,
+  path: string[],
+  draft: string,
+): SvyrEntryDraftsByPath {
+  return stashTextDraftAtKey(drafts, entryDraftPathKey(path), draft);
+}
+
 export function readEntryDraft(
   drafts: SvyrEntryDraftsByPath,
   path: string[],
 ): string | undefined {
-  const draft = drafts[entryDraftPathKey(path)];
-  return draft?.kind === 'text' ? draft.text : undefined;
+  return readTextDraftAtKey(drafts, entryDraftPathKey(path));
 }
 
 export function clearEntryDraft(
   drafts: SvyrEntryDraftsByPath,
   path: string[],
 ): SvyrEntryDraftsByPath {
-  const key = entryDraftPathKey(path);
-  if (!(key in drafts)) return drafts;
-  const next = { ...drafts };
-  delete next[key];
-  return next;
+  return clearDraftAtKey(drafts, entryDraftPathKey(path));
+}
+
+/** Store or clear a finding-scoped text draft. Empty clears that finding's key. */
+export function stashFindingEntryDraft(
+  drafts: SvyrEntryDraftsByPath,
+  path: string[],
+  findingId: string,
+  draft: string,
+): SvyrEntryDraftsByPath {
+  return stashTextDraftAtKey(
+    drafts,
+    entryDraftFindingPathKey(path, findingId),
+    draft,
+  );
+}
+
+export function readFindingEntryDraft(
+  drafts: SvyrEntryDraftsByPath,
+  path: string[],
+  findingId: string,
+): string | undefined {
+  return readTextDraftAtKey(drafts, entryDraftFindingPathKey(path, findingId));
+}
+
+export function clearFindingEntryDraft(
+  drafts: SvyrEntryDraftsByPath,
+  path: string[],
+  findingId: string,
+): SvyrEntryDraftsByPath {
+  return clearDraftAtKey(drafts, entryDraftFindingPathKey(path, findingId));
 }
 
 /** Store or clear a transient multi-choice draft (schema-ordered values). */

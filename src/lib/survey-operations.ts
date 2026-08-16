@@ -109,6 +109,7 @@ function normalizeFinding(
         .filter(Boolean),
     ),
   ];
+  const location = optionalText(finding.location);
   const condition = optionalText(finding.condition);
   const defect = optionalText(finding.defect);
   const recommendation = optionalText(finding.recommendation);
@@ -116,6 +117,7 @@ function normalizeFinding(
   return {
     id,
     elementConceptId: finding.elementConceptId,
+    ...(location ? { location } : {}),
     observation,
     ...(condition ? { condition } : {}),
     ...(defect ? { defect } : {}),

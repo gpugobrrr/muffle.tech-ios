@@ -10,7 +10,10 @@ import { executeSurveyOperation } from '../src/lib/survey-operations';
 import {
   clearEntryDraft,
   readEntryDraft,
+  readFindingEntryDraft,
+  resolveReentryDraftText,
   stashEntryDraft,
+  stashFindingEntryDraft,
   suffixForDataEntryReentry,
   type SvyrEntryDraftsByPath,
 } from '../src/lib/svyr-entry-drafts';
@@ -60,13 +63,20 @@ function applyUnconditionalBarNavigation(
   };
 }
 
-function reenterField(state: NavState, fieldPath: string[]): NavState {
-  const draft = readEntryDraft(state.draftsByPath, fieldPath);
+function reenterField(
+  state: NavState,
+  fieldPath: string[],
+  committedValue: string | null = null,
+): NavState {
+  const restored = resolveReentryDraftText({
+    stashedDraft: readEntryDraft(state.draftsByPath, fieldPath),
+    committedValue,
+  });
   return {
     ...state,
     path: fieldPath,
     activeEntry: true,
-    draft: draft ?? '',
+    draft: restored ?? '',
   };
 }
 
@@ -198,6 +208,66 @@ test('stash helpers are field-scoped and empty clears', () => {
   drafts = stashEntryDraft(drafts, party, '');
   assert.equal(readEntryDraft(drafts, party), undefined);
   assert.equal(readEntryDraft(drafts, client), 'B');
+});
+
+test('empty leave clears the prior draft and falls back to committed value', () => {
+  const party = ['prep', 'brief', 'instr', 'party'];
+  const observe = ['external', 'walls', 'observe'];
+  const findingA = 'finding.external-wall.1';
+  const findingB = 'finding.external-wall.2';
+  const committedParty = 'Smith & Co';
+
+  let state = baseState({ path: party, draft: 'Unsubmitted party' });
+  state = applyUnconditionalBarNavigation(
+    state,
+    resolveSvyrBarSegmentTarget(party, 3)!,
+  );
+  state = reenterField(state, party, committedParty);
+  assert.equal(state.draft, 'Unsubmitted party');
+
+  state = { ...state, draft: '' };
+  state = applyUnconditionalBarNavigation(
+    state,
+    resolveSvyrBarSegmentTarget(party, 3)!,
+  );
+  assert.equal(readEntryDraft(state.draftsByPath, party), undefined);
+  state = reenterField(state, party, committedParty);
+  assert.equal(state.draft, committedParty);
+  assert.equal(state.brief.instruction.instructingParty, null);
+
+  let findingDrafts: SvyrEntryDraftsByPath = {};
+  findingDrafts = stashFindingEntryDraft(
+    findingDrafts,
+    observe,
+    findingA,
+    'Draft observation A',
+  );
+  findingDrafts = stashFindingEntryDraft(
+    findingDrafts,
+    observe,
+    findingB,
+    'Draft observation B',
+  );
+  findingDrafts = stashFindingEntryDraft(findingDrafts, observe, findingA, '');
+  assert.equal(readFindingEntryDraft(findingDrafts, observe, findingA), undefined);
+  assert.equal(
+    readFindingEntryDraft(findingDrafts, observe, findingB),
+    'Draft observation B',
+  );
+  assert.equal(
+    resolveReentryDraftText({
+      stashedDraft: readFindingEntryDraft(findingDrafts, observe, findingA),
+      committedValue: 'Committed observation A',
+    }),
+    'Committed observation A',
+  );
+  assert.equal(
+    resolveReentryDraftText({
+      stashedDraft: readFindingEntryDraft(findingDrafts, observe, findingA),
+      committedValue: null,
+    }),
+    undefined,
+  );
 });
 
 test('controller still refuses to treat bar leave as submit', () => {

@@ -37,7 +37,7 @@ function stashTextDraftAtKey(
   key: string,
   draft: string,
 ): SvyrEntryDraftsByPath {
-  if (!draft) {
+  if (!draft.trim()) {
     if (!(key in drafts)) return drafts;
     const next = { ...drafts };
     delete next[key];
@@ -149,6 +149,19 @@ export function readMultiChoiceEntryDraft(
 }
 
 /**
+ * Re-entry text for a field: a non-empty stash wins; otherwise the committed
+ * canonical value. Empty / whitespace stashes do not mask committed data.
+ */
+export function resolveReentryDraftText(options: {
+  stashedDraft: string | undefined;
+  committedValue: string | null | undefined;
+}): string | undefined {
+  const stashed = options.stashedDraft;
+  if (stashed !== undefined && stashed.trim() !== '') return stashed;
+  return options.committedValue ?? undefined;
+}
+
+/**
  * Rebuild the editable suffix for text data-entry re-entry.
  * Restores a stashed text draft when present; otherwise uses the suggestion insertion.
  */
@@ -159,7 +172,7 @@ export function suffixForDataEntryReentry(options: {
   suffixForPath: (path: string[]) => string;
 }): string {
   const { path, draft, defaultInsertion, suffixForPath } = options;
-  if (!draft) return defaultInsertion;
+  if (!draft?.trim()) return defaultInsertion;
   const base = suffixForPath(path).replace(/\s+$/, '');
   return `${base} ${draft}`;
 }

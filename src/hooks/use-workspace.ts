@@ -67,6 +67,7 @@ import {
   readEntryDraft,
   readFindingEntryDraft,
   readMultiChoiceEntryDraft,
+  resolveReentryDraftText,
   stashEntryDraft,
   stashFindingEntryDraft,
   stashMultiChoiceEntryDraft,
@@ -523,9 +524,9 @@ export function useSvyrController(): SvyrController {
     setEntryError(null);
     setLastExecutionResult(null);
     setTemporaryAutocompleteContent(null);
-    setCommandSuffix(
-      `${suffixForPath(field.path).replace(/\s+$/, '')} ${value}`,
-    );
+    const nextSuffix = `${suffixForPath(field.path).replace(/\s+$/, '')} ${value}`;
+    suffixRef.current = nextSuffix;
+    setCommandSuffix(nextSuffix);
   }, []);
 
   // ── Command execution ─────────────────────────────────────────────
@@ -958,11 +959,10 @@ export function useSvyrController(): SvyrController {
     setCommandSuffix(
       suffixForDataEntryReentry({
         path: suggestion.commandPath,
-        draft:
-          stashedDraft ??
-          canonicalFindingValue ??
-          committedFieldValue ??
-          undefined,
+        draft: resolveReentryDraftText({
+          stashedDraft,
+          committedValue: canonicalFindingValue ?? committedFieldValue,
+        }),
         defaultInsertion: suggestion.insertion,
         suffixForPath,
       }),
@@ -1017,15 +1017,13 @@ export function useSvyrController(): SvyrController {
     if (fieldDefinition?.valueType === 'multiSelect') return;
     const draft = parseEditableCommand(suffixRef.current).valueText;
     const findingId = selectedFindingIdRef.current;
-    if (findingId) {
-      setEntryDraftsByPath((current) =>
-        stashFindingEntryDraft(current, field.path, findingId, draft),
-      );
-    } else {
-      setEntryDraftsByPath((current) =>
-        stashEntryDraft(current, field.path, draft),
-      );
-    }
+    setEntryDraftsByPath((current) => {
+      const next = findingId
+        ? stashFindingEntryDraft(current, field.path, findingId, draft)
+        : stashEntryDraft(current, field.path, draft);
+      entryDraftsByPathRef.current = next;
+      return next;
+    });
   }, []);
 
   const activeMultiChoiceValues = useMemo((): readonly string[] => {

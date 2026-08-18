@@ -86,7 +86,7 @@ test('invalid property elements are rejected by finding normalization', () => {
     arguments: {
       finding: {
         id: 'finding.invalid.1',
-        elementConceptId: 'service_system.unlisted',
+        elementConceptId: 'service_system.unlisted' as any,
         observation: 'Should not persist.',
       },
     },

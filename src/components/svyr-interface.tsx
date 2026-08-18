@@ -21,6 +21,7 @@ import { WorkspaceHeader } from '@/components/workspace-header';
 import { Colors, Spacing } from '@/constants/theme';
 import { useSvyrHints } from '@/hooks/use-svyr-hints';
 import { useDataEntrySwipe } from '@/hooks/use-data-entry-swipe';
+import { useVoiceFindingPipeline } from '@/hooks/use-voice-finding-pipeline';
 import type { SvyrController } from '@/hooks/use-workspace';
 import type { CommandSuggestion } from '@/lib/command-parser';
 import { compoundGroupRows } from '@/lib/controlled-group';
@@ -43,6 +44,8 @@ import {
 export type SvyrInterfaceProps = {
   controller: SvyrController;
   onNavigateBack?: () => void;
+  /** Case key for voice macro persistence (defaults to demo case). */
+  voiceCaseId?: string;
 };
 
 /**
@@ -54,10 +57,12 @@ export type SvyrInterfaceProps = {
 export function SvyrInterface({
   controller,
   onNavigateBack,
+  voiceCaseId = 'demo-ox3-8se',
 }: SvyrInterfaceProps) {
   const entrance = useRef(new Animated.Value(0)).current;
   const insets = useSafeAreaInsets();
   const hints = useSvyrHints();
+  const voice = useVoiceFindingPipeline(voiceCaseId, { activeRoom: 'roof void' });
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
   const [heldCommandDescription, setHeldCommandDescription] = useState<
@@ -256,6 +261,14 @@ export function SvyrInterface({
     void hints.resetHints();
   }, [hints]);
 
+  const handlePttPressIn = useCallback(() => {
+    void voice.handlePttPressIn();
+  }, [voice]);
+
+  const handlePttPressOut = useCallback(() => {
+    void voice.handlePttPressOut();
+  }, [voice]);
+
   // Keyboard already owns the bottom inset when visible — avoid double padding.
   const dockBottomPad = keyboardVisible
     ? Spacing.xs
@@ -408,6 +421,12 @@ export function SvyrInterface({
                 : null
             }
             onDismissHint={hints.dismissHint}
+            onPttPressIn={handlePttPressIn}
+            onPttPressOut={handlePttPressOut}
+            pttActive={
+              voice.acousticState === 'LISTENING' ||
+              voice.acousticState === 'PARSING'
+            }
           />
         </View>
           </View>

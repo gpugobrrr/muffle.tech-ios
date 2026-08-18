@@ -268,7 +268,7 @@ function servicesPresenceCaptureBranch(
     },
     children: [
       servicesPresenceLeaf(
-        config.routeId,
+        config.routeId as ServicesPresenceRouteId,
         `Mains ${config.label.toLowerCase()} presence`,
         recommendedLaterWork,
       ),

@@ -156,7 +156,6 @@ function PanelSurface({ side }: { side: 'left' | 'right' }) {
       height="100%"
       viewBox="0 0 100 100"
       preserveAspectRatio="none"
-      overflow="visible"
       style={styles.panelSurface}>
       <Path
         d={LEFT_PANEL_PATH}

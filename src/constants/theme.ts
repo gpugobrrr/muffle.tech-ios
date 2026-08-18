@@ -35,6 +35,8 @@ export const Colors = {
   limestone: '#C9C2B5',
 } as const;
 
+export type ThemeColor = keyof typeof Colors;
+
 /** Status chips — compact, semantic, material-inspired */
 export const StatusColors = {
   draft: {

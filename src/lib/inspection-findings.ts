@@ -1,5 +1,30 @@
+import type { CanonicalDefectId } from '@/domain/ontology/canonical-defects';
+import type { ConditionRating } from '@/domain/ontology/loft-room-ontology';
 import type { InspectionElementConceptId } from '@/lib/inspection-finding-elements';
-import type { InspectionFinding, InspectionRecord } from '@/types/workspace';
+import type {
+  InspectionFinding as WorkspaceInspectionFinding,
+  InspectionRecord,
+} from '@/types/workspace';
+
+export type InspectionFindingSource = 'voice_macro' | 'manual';
+
+export type InspectionElementId = 'roof_structure';
+
+/** Voice-captured inspection finding persisted per case. */
+export type InspectionFinding = {
+  id: string;
+  observation: string;
+  implication: string;
+  recommendation: string;
+  conditionRating: ConditionRating;
+  elementId: InspectionElementId;
+  source: InspectionFindingSource;
+  slots: Record<string, string>;
+  missingSlots: string[];
+  defectId: CanonicalDefectId;
+  photoUris?: readonly string[];
+  photoCount?: number;
+};
 
 /**
  * Compares two finding IDs with natural numeric ordering for trailing numeric suffixes.
@@ -30,6 +55,10 @@ export function sortFindings<T extends { id: string }>(
   return [...findings].sort((left, right) => compareFindingIds(left.id, right.id));
 }
 
+export function photoCountForFinding(finding: InspectionFinding): number {
+  return finding.photoUris?.length ?? finding.photoCount ?? 0;
+}
+
 /**
  * Returns all findings recorded for a specific inspection element concept,
  * sorted deterministically with natural numeric ordering (.1, .2, ... .10).
@@ -37,10 +66,10 @@ export function sortFindings<T extends { id: string }>(
 export function listFindingsForElement(
   inspection:
     | InspectionRecord
-    | Readonly<Record<string, InspectionFinding>>
-    | readonly InspectionFinding[],
+    | Readonly<Record<string, WorkspaceInspectionFinding>>
+    | readonly WorkspaceInspectionFinding[],
   elementConceptId: InspectionElementConceptId,
-): readonly InspectionFinding[] {
+): readonly WorkspaceInspectionFinding[] {
   const findingsList = Array.isArray(inspection)
     ? inspection
     : 'findings' in inspection
@@ -67,7 +96,8 @@ function extractFindingIdPrefix(baseFindingId: string): string {
 export function allocateFindingId(
   inspection:
     | InspectionRecord
-    | Readonly<Record<string, InspectionFinding>>
+    | Readonly<Record<string, WorkspaceInspectionFinding>>
+    | readonly WorkspaceInspectionFinding[]
     | readonly InspectionFinding[],
   baseFindingId: string,
 ): string {

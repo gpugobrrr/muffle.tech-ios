@@ -1,11 +1,16 @@
 import { createEmptyInspectionRecord } from '@/lib/inspection-record';
+import {
+  allocateFindingId,
+  sortFindings,
+  type InspectionFinding,
+} from '@/lib/inspection-findings';
 import type { SvyrNotesByPath } from '@/lib/svyr-notes';
 import type {
   ActiveJob,
   ActiveProperty,
   InspectionBrief,
   InspectionEvidenceReference,
-  InspectionFinding,
+  InspectionFinding as WorkspaceInspectionFinding,
   StructuredAddress,
 } from '@/types/workspace';
 
@@ -141,7 +146,7 @@ function normalizeEvidence(
   return evidence.length > 0 ? evidence : undefined;
 }
 
-function normalizeFinding(raw: unknown): InspectionFinding | null {
+function normalizeFinding(raw: unknown): WorkspaceInspectionFinding | null {
   if (!isRecord(raw)) return null;
   if (typeof raw.id !== 'string' || !raw.id.trim()) return null;
   if (typeof raw.elementConceptId !== 'string' || !raw.elementConceptId.trim()) {
@@ -149,10 +154,10 @@ function normalizeFinding(raw: unknown): InspectionFinding | null {
   }
   if (typeof raw.observation !== 'string') return null;
 
-  const finding: InspectionFinding = {
+  const finding: WorkspaceInspectionFinding = {
     ...raw,
     id: raw.id,
-    elementConceptId: raw.elementConceptId as InspectionFinding['elementConceptId'],
+    elementConceptId: raw.elementConceptId as WorkspaceInspectionFinding['elementConceptId'],
     observation: raw.observation,
   };
 
@@ -172,7 +177,7 @@ function normalizeFindings(
   raw: unknown,
 ): InspectionCase['job']['inspection']['findings'] | null {
   if (!isRecord(raw)) return null;
-  const findings: Record<string, InspectionFinding> = {};
+  const findings: Record<string, WorkspaceInspectionFinding> = {};
   for (const [findingId, value] of Object.entries(raw)) {
     const finding = normalizeFinding(value);
     if (!finding) return null;
@@ -394,4 +399,80 @@ export function createMemoryCaseStorageAdapter(
       store.delete(key);
     },
   };
+}
+
+const inspectionFindingStores = new Map<string, Map<string, InspectionFinding>>();
+
+function findingsStoreForCase(caseId: string): Map<string, InspectionFinding> {
+  let store = inspectionFindingStores.get(caseId);
+  if (!store) {
+    store = new Map();
+    inspectionFindingStores.set(caseId, store);
+  }
+  return store;
+}
+
+/** Persist one voice or manual inspection finding for a case. */
+export async function saveInspectionFinding(
+  caseId: string,
+  finding: InspectionFinding,
+): Promise<InspectionFinding> {
+  const store = findingsStoreForCase(caseId);
+  const persisted = cloneJson(finding);
+  store.set(persisted.id, persisted);
+  return persisted;
+}
+
+export async function loadInspectionFinding(
+  caseId: string,
+  findingId: string,
+): Promise<InspectionFinding | null> {
+  return findingsStoreForCase(caseId).get(findingId) ?? null;
+}
+
+export async function listInspectionFindings(
+  caseId: string,
+): Promise<readonly InspectionFinding[]> {
+  return sortFindings([...findingsStoreForCase(caseId).values()]);
+}
+
+/** Append one photo URI to a persisted finding. */
+export async function attachPhotoToFinding(
+  caseId: string,
+  findingId: string,
+  photoUri: string,
+): Promise<InspectionFinding> {
+  const existing = await loadInspectionFinding(caseId, findingId);
+  if (!existing) {
+    throw new Error(`Finding not found: ${findingId}`);
+  }
+
+  const trimmedUri = photoUri.trim();
+  if (!trimmedUri) {
+    throw new Error('Photo URI is required');
+  }
+
+  const photoUris = [...(existing.photoUris ?? []), trimmedUri];
+  const updated: InspectionFinding = {
+    ...existing,
+    photoUris,
+    photoCount: photoUris.length,
+  };
+
+  return saveInspectionFinding(caseId, updated);
+}
+
+/** Test helper — clears the in-memory per-case finding store. */
+export function resetInspectionFindingStores(): void {
+  inspectionFindingStores.clear();
+}
+
+export function allocateNextInspectionFindingId(
+  caseId: string,
+  baseFindingId: string,
+): string {
+  return allocateFindingId(
+    [...findingsStoreForCase(caseId).values()],
+    baseFindingId,
+  );
 }

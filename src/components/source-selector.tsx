@@ -89,7 +89,7 @@ export function SourceSelector({ controller }: Props) {
             autoCapitalize="sentences"
             autoCorrect={false}
             autoFocus
-            singleLine
+            multiline={false}
           />
         </View>
       )}

@@ -3,14 +3,22 @@
     "name": "Muffle Demo",
     "slug": "muffle-demo",
     "version": "1.0.0",
-    "orientation": "landscape",
+    "assetBundlePatterns": ["assets/images/*", "assets/models/*"],
+    "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "muffledemo",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Allow Muffle to record voice macros during inspection.",
+        "NSCameraUsageDescription": "Allow Muffle to capture inspection photos.",
+        "NSPhotoLibraryUsageDescription": "Allow Muffle to attach inspection photos from your library."
+      }
     },
     "android": {
+      "screenOrientation": "portrait",
+      "permissions": ["RECORD_AUDIO", "CAMERA"],
       "adaptiveIcon": {
         "backgroundColor": "#F1F1ED",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

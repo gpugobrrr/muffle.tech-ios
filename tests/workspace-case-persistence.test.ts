@@ -316,7 +316,7 @@ test('invalid stored case does not crash hydration controller', async () => {
             'finding.invalid': {
               id: 'finding.invalid',
               elementConceptId: 'building_element.external_wall',
-            },
+            } as any,
           },
         },
       },

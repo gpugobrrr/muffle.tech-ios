@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo } from 'react-native';
 
+import {
+  DEFAULT_VOICE_CASE_ID,
+  executeRoofStructureSetCommand,
+  hydrateVoiceFindings,
+  parseRoofStructureSetCommand,
+} from '@/hooks/use-voice-finding-pipeline';
+
 import { createAsyncStorageCaseAdapter } from '@/lib/async-storage-case-adapter';
 import { verifyCommandContract } from '@/lib/command-contract';
 import {
@@ -340,6 +347,7 @@ export function useSvyrController(): SvyrController {
       lastPersistedCommittedRef.current = hydrated;
       isHydratedRef.current = true;
       setIsHydrated(true);
+      await hydrateVoiceFindings(DEFAULT_VOICE_CASE_ID);
     })();
 
     return () => {
@@ -534,6 +542,48 @@ export function useSvyrController(): SvyrController {
   const executeCommand = useCallback(
     (rawCommand: string, options?: { fromDataEntry?: boolean }) => {
       const fromDataEntry = Boolean(options?.fromDataEntry);
+      const trimmedCommand = rawCommand.trim();
+
+      const roofStructureSet = parseRoofStructureSetCommand(trimmedCommand);
+      if (roofStructureSet) {
+        void executeRoofStructureSetCommand(
+          DEFAULT_VOICE_CASE_ID,
+          trimmedCommand,
+        )
+          .then((finding) => {
+            if (!finding) return;
+
+            const slotValue =
+              finding.slots[roofStructureSet.slotName] ??
+              roofStructureSet.value;
+            setLastExecutionResult({
+              operationId: 'survey.roof_structure.slot.set',
+              label: roofStructureSet.slotName.toUpperCase(),
+              value: slotValue,
+              executedCommand: trimmedCommand,
+            });
+            setTemporaryAutocompleteContent(null);
+            clearActiveEntry();
+            setCommandSuffix('');
+            announce(`${roofStructureSet.slotName} updated`);
+          })
+          .catch((error: unknown) => {
+            const message =
+              error instanceof Error
+                ? error.message
+                : 'Could not update roof finding';
+            setLastExecutionResult(null);
+            if (fromDataEntry) {
+              setEntryError(message);
+              setFocusToken((n) => n + 1);
+            } else {
+              setTemporaryAutocompleteContent(message.toUpperCase());
+            }
+            announce(message);
+          });
+        return true;
+      }
+
       const parsed = parseCommand(rawCommand);
 
       switch (parsed.type) {

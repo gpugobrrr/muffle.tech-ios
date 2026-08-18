@@ -1,4 +1,5 @@
 import { Stack } from 'expo-router';
+import * as ScreenOrientation from 'expo-screen-orientation';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
@@ -8,6 +9,16 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   useEffect(() => {
+    async function lockOrientation() {
+      try {
+        await ScreenOrientation.lockAsync(
+          ScreenOrientation.OrientationLock.PORTRAIT_UP
+        );
+      } catch (err) {
+        console.warn('Failed to lock screen orientation:', err);
+      }
+    }
+    lockOrientation();
     SplashScreen.hideAsync();
   }, []);
 

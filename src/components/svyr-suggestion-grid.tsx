@@ -28,30 +28,30 @@ export type SvyrSuggestionGridItem = Omit<
   'align' | 'onPress' | 'onLongPress' | 'onPressIn' | 'onTouchMove' | 'onPressOut' | 'onTouchCancel' | 'delayLongPress'
 >;
 
-type Props = {
-  items: readonly SvyrSuggestionGridItem[];
+type Props<T extends SvyrSuggestionGridItem = SvyrSuggestionGridItem> = {
+  items: readonly T[];
   contentKey: string;
   paddingTop: number;
   paddingBottom?: number;
   /** Expand to the full central workspace height (navigation template). */
   fillAvailableHeight?: boolean;
   renderItem: (
-    item: SvyrSuggestionGridItem,
+    item: T,
     align: 'left' | 'right',
   ) => ReactNode;
 };
 
-type NavigationColumnProps = {
-  items: readonly SvyrSuggestionGridItem[];
+type NavigationColumnProps<T extends SvyrSuggestionGridItem = SvyrSuggestionGridItem> = {
+  items: readonly T[];
   align: 'left' | 'right';
   contentKey: string;
   paddingTop: number;
   paddingBottom: number;
   fillAvailableHeight: boolean;
-  renderItem: Props['renderItem'];
+  renderItem: Props<T>['renderItem'];
 };
 
-function NavigationColumn({
+function NavigationColumn<T extends SvyrSuggestionGridItem = SvyrSuggestionGridItem>({
   items,
   align,
   contentKey,
@@ -59,7 +59,7 @@ function NavigationColumn({
   paddingBottom,
   fillAvailableHeight,
   renderItem,
-}: NavigationColumnProps) {
+}: NavigationColumnProps<T>) {
   const [scrollOffsetY, setScrollOffsetY] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(0);
   const [contentHeight, setContentHeight] = useState(0);
@@ -144,14 +144,16 @@ function NavigationColumn({
   );
 }
 
-export function SvyrSuggestionGrid({
+export function SvyrSuggestionGrid<
+  T extends SvyrSuggestionGridItem = SvyrSuggestionGridItem,
+>({
   items,
   contentKey,
   paddingTop,
   paddingBottom = Spacing.xl,
   fillAvailableHeight = false,
   renderItem,
-}: Props) {
+}: Props<T>) {
   const { left, right } = toNavigationColumns(items);
 
   return (

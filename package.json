@@ -5,9 +5,12 @@
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
     "expo": "~54.0.36",
+    "expo-av": "~16.0.8",
     "expo-constants": "~18.0.13",
+    "expo-image-picker": "~17.0.8",
     "expo-linking": "~8.0.12",
     "expo-router": "~6.0.24",
+    "expo-screen-orientation": "~9.0.9",
     "expo-splash-screen": "~31.0.13",
     "expo-status-bar": "~3.0.9",
     "react": "19.1.0",
@@ -19,7 +22,8 @@
     "react-native-screens": "~4.16.0",
     "react-native-svg": "15.12.1",
     "react-native-web": "~0.21.0",
-    "react-native-worklets": "0.5.1"
+    "react-native-worklets": "0.5.1",
+    "whisper.rn": "^0.7.2"
   },
   "devDependencies": {
     "@types/react": "~19.1.10",
@@ -27,7 +31,8 @@
     "eslint": "^9.0.0",
     "eslint-config-expo": "~10.0.0",
     "pdfjs-dist": "^6.2.108",
-    "typescript": "~5.9.2"
+    "typescript": "~5.9.2",
+    "vitest": "^3.2.4"
   },
   "scripts": {
     "start": "expo start",
@@ -76,7 +81,11 @@
     "test:svyr-bar": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/svyr-bar-navigation.test.ts tests/svyr-entry-drafts.test.ts",
     "test:semantic-fragments": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/semantic-fragment-extractor.test.ts tests/semantic-fragment-extractor-cli.test.ts tests/semantic-fragment-retrieval.test.ts",
     "test:semantic-mapping-inspection": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/semantic-mapping-inspection.test.ts tests/semantic-mapping-inspection-cli.test.ts",
-    "test:semantic-mapping": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/semantic-mapping.test.ts"
+    "test:semantic-mapping": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs --test tests/semantic-mapping.test.ts",
+    "test:voice-loop": "vitest run tests/voice-loop.e2e.test.ts",
+    "test:voice-touch-sync": "vitest run tests/voice-touch-sync.test.ts",
+    "test:voice-transcription": "vitest run tests/voice-transcription.test.ts",
+    "test": "vitest run tests/voice-loop.e2e.test.ts tests/voice-touch-sync.test.ts tests/voice-transcription.test.ts tests/finding-photo-binding.test.ts tests/offline-normalization.test.ts tests/ontology-hud.test.ts tests/golden-zone-ptt.test.tsx tests/command-dock.test.tsx tests/active-finding-focus.test.tsx tests/offline-whisper.test.ts"
   },
   "private": true
 }

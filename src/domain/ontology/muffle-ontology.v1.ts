@@ -33,6 +33,8 @@ export type OntologyValueType =
   | 'object'
   | 'text'
   | 'singleSelect'
+  | 'multiSelect'
+  | 'controlledStatus'
   | 'boolean'
   | 'number'
   | 'address';

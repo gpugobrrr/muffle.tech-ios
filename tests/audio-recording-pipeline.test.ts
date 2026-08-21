@@ -1,15 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Audio } from 'expo-av';
-import { PermissionStatus } from 'expo-modules-core';
-import { startRecording, stopAndGetUri, resetAudioRecording } from '../src/lib/audio/microphone-capture';
+import {
+  startRecording,
+  stopAndGetUri,
+  resetAudioRecording,
+  prepareMicrophoneForCapture,
+} from '../src/lib/audio/microphone-capture';
+import { VoiceTranscriptionError } from '../src/lib/audio/voice-transcription-error';
 
 vi.mock('expo-av', () => ({
   Audio: {
     requestPermissionsAsync: vi.fn(),
     setAudioModeAsync: vi.fn(),
     Recording: vi.fn(),
-    RecordingOptionsPresets: { HIGH_QUALITY: {} }
-  }
+    RecordingOptionsPresets: { HIGH_QUALITY: {} },
+  },
 }));
 
 describe('audio recording pipeline', () => {
@@ -27,8 +32,8 @@ describe('audio recording pipeline', () => {
       granted: true,
       canAskAgain: true,
       expires: 'never',
-      status: PermissionStatus.GRANTED,
-    });
+      status: 'granted',
+    } as Awaited<ReturnType<typeof Audio.requestPermissionsAsync>>);
     vi.spyOn(Audio, 'setAudioModeAsync').mockResolvedValue();
 
     const mockRecording = {
@@ -37,7 +42,7 @@ describe('audio recording pipeline', () => {
       stopAndUnloadAsync: vi.fn().mockResolvedValue({}),
       getURI: vi.fn().mockReturnValue('file:///test/audio.m4a'),
     };
-    vi.spyOn(Audio, 'Recording').mockImplementation(() => mockRecording as any);
+    vi.spyOn(Audio, 'Recording').mockImplementation(() => mockRecording as never);
 
     const started = await startRecording();
     expect(started).toBe(true);
@@ -53,14 +58,26 @@ describe('audio recording pipeline', () => {
       granted: false,
       canAskAgain: false,
       expires: 'never',
-      status: PermissionStatus.DENIED,
-    });
-    
+      status: 'denied',
+    } as Awaited<ReturnType<typeof Audio.requestPermissionsAsync>>);
+
     const started = await startRecording();
     expect(started).toBe(false);
 
     const uri = await stopAndGetUri();
     expect(uri).toBeNull();
   });
-});
 
+  it('prepareMicrophoneForCapture throws on denied permission and does not start recording', async () => {
+    vi.spyOn(Audio, 'requestPermissionsAsync').mockResolvedValue({
+      granted: false,
+      canAskAgain: false,
+      expires: 'never',
+      status: 'denied',
+    } as Awaited<ReturnType<typeof Audio.requestPermissionsAsync>>);
+
+    await expect(prepareMicrophoneForCapture()).rejects.toBeInstanceOf(
+      VoiceTranscriptionError,
+    );
+  });
+});

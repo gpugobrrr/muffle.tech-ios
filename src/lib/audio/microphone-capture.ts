@@ -1,5 +1,7 @@
 import { Audio } from 'expo-av';
 
+import { VoiceTranscriptionError } from '@/lib/audio/voice-transcription-error';
+
 let activeRecording: Audio.Recording | null = null;
 
 export async function ensureMicrophonePermissions(): Promise<boolean> {
@@ -9,6 +11,20 @@ export async function ensureMicrophonePermissions(): Promise<boolean> {
   } catch (err) {
     console.warn('Failed to request microphone permissions:', err);
     return false;
+  }
+}
+
+/**
+ * Request microphone permission without starting expo-av recording.
+ * Production PTT uses whisper.rn's PCM stream as the only capture pipeline.
+ */
+export async function prepareMicrophoneForCapture(): Promise<void> {
+  const granted = await ensureMicrophonePermissions();
+  if (!granted) {
+    throw new VoiceTranscriptionError(
+      'Microphone permission denied.',
+      'permission_denied',
+    );
   }
 }
 

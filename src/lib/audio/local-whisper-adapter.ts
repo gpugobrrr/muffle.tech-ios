@@ -1,6 +1,6 @@
 import { Asset } from 'expo-asset';
-import { initWhisper } from 'whisper.rn';
-import type { WhisperContext } from 'whisper.rn';
+import { initWhisper, initWhisperVad } from 'whisper.rn';
+import type { WhisperContext, WhisperVadContext } from 'whisper.rn';
 
 /**
  * RICS domain vocabulary injected as an initial prompt so Whisper biases
@@ -11,16 +11,29 @@ export const RICS_DOMAIN_PROMPT =
 
 /** Module-level singleton — loaded once per app session. */
 let _whisperContext: WhisperContext | null = null;
+let _vadContext: WhisperVadContext | null = null;
 
-/** Reset cached context — used in tests. */
+/** Reset cached Whisper and VAD contexts — used in tests. */
 export function resetLocalWhisperContext(): void {
   _whisperContext = null;
+  _vadContext = null;
 }
 
 function resolveModelAsset(): number | string {
+  if (process.env.VITEST) return 1;
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     return require('../../../assets/models/ggml-tiny.en.bin');
+  } catch {
+    return 1;
+  }
+}
+
+function resolveVadModelAsset(): number | string {
+  if (process.env.VITEST) return 1;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    return require('../../../assets/models/ggml-silero-v6.2.0.bin');
   } catch {
     return 1;
   }
@@ -59,6 +72,34 @@ export async function getLocalWhisperContext(): Promise<WhisperContext> {
   });
 
   return _whisperContext;
+}
+
+/**
+ * Load and cache the Silero VAD context required by whisper.rn 0.7.2
+ * `RingBufferVad`. Throws if `ggml-silero-v6.2.0.bin` is missing.
+ */
+export async function getLocalWhisperVadContext(): Promise<WhisperVadContext> {
+  if (_vadContext) return _vadContext;
+
+  const asset = Asset.fromModule(resolveVadModelAsset());
+  await asset.downloadAsync();
+
+  const filePath = asset.localUri;
+  if (!filePath) {
+    throw new Error(
+      '[local-whisper] Failed to resolve Silero VAD model path. ' +
+        'Download ggml-silero-v6.2.0.bin to assets/models/. ' +
+        'See assets/models/README.md.',
+    );
+  }
+
+  _vadContext = await initWhisperVad({
+    filePath,
+    useGpu: true,
+    nThreads: 4,
+  });
+
+  return _vadContext;
 }
 
 /**

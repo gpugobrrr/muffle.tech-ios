@@ -1,0 +1,53 @@
+# EAS Build Ignore File
+# When present, EAS CLI uses this file instead of .gitignore to package and upload the project archive.
+
+# dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# local env files
+.env
+.env.*
+!.env.example
+.env*.local
+
+# On-device Whisper / Silero VAD model binaries
+# Exclude arbitrary binaries, but explicitly INCLUDE the required runtime models for EAS cloud builds:
+assets/models/*.bin
+!assets/models/ggml-tiny.en.bin
+!assets/models/ggml-silero-v6.2.0.bin
+
+# typescript
+*.tsbuildinfo
+
+example
+
+# generated native folders (managed CNG project)
+/ios
+/android

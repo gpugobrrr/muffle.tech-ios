@@ -3,17 +3,52 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   resolve: {
-    alias: {
-      '@': path.resolve(__dirname, 'src'),
-      'react-native': 'react-native-web',
-      // whisper.rn has no root '.' export specifier; point Vite at the CJS build.
-      // vi.mock() intercepts before any native code runs, so the alias only
-      // needs to let Vite resolve the module path during collection.
-      'whisper.rn': path.resolve(__dirname, 'node_modules/whisper.rn/lib/commonjs/index.js'),
-      // expo-asset is a native module — aliased to its compiled JS so Vite
-      // can resolve it; vi.mock() replaces it before any native calls.
-      'expo-asset': path.resolve(__dirname, 'node_modules/expo-asset/build/index.js'),
-    },
+    alias: [
+      { find: '@', replacement: path.resolve(__dirname, 'src') },
+      {
+        find: 'whisper.rn/src/realtime-transcription/adapters/AudioPcmStreamAdapter',
+        replacement: path.resolve(
+          __dirname,
+          'node_modules/whisper.rn/src/realtime-transcription/adapters/AudioPcmStreamAdapter.ts',
+        ),
+      },
+      {
+        find: 'whisper.rn/src/realtime-transcription/types',
+        replacement: path.resolve(
+          __dirname,
+          'node_modules/whisper.rn/src/realtime-transcription/types.ts',
+        ),
+      },
+      {
+        find: 'whisper.rn/src/realtime-transcription',
+        replacement: path.resolve(
+          __dirname,
+          'node_modules/whisper.rn/src/realtime-transcription/index.ts',
+        ),
+      },
+      {
+        find: 'whisper.rn',
+        replacement: path.resolve(
+          __dirname,
+          'node_modules/whisper.rn/lib/commonjs/index.js',
+        ),
+      },
+      {
+        find: '@fugood/react-native-audio-pcm-stream',
+        replacement: path.resolve(
+          __dirname,
+          'tests/mocks/react-native-audio-pcm-stream.ts',
+        ),
+      },
+      {
+        find: 'expo-asset',
+        replacement: path.resolve(
+          __dirname,
+          'node_modules/expo-asset/build/index.js',
+        ),
+      },
+      { find: 'react-native', replacement: 'react-native-web' },
+    ],
   },
   test: {
     environment: 'node',
@@ -28,6 +63,7 @@ export default defineConfig({
       'tests/command-dock.test.tsx',
       'tests/active-finding-focus.test.tsx',
       'tests/offline-whisper.test.ts',
+      'tests/realtime-streaming.test.ts',
     ],
   },
 });

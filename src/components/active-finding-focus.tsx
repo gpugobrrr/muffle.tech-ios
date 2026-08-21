@@ -9,7 +9,6 @@ import {
 } from 'react-native';
 
 import { Colors, Fonts, Spacing, Type } from '@/constants/theme';
-import { formatSvyrDisplayedLabel } from '@/lib/svyr-label-presentation';
 import { SVYR_BAR_LAYOUT } from '@/lib/svyr-bar-navigation';
 
 const INK = '#20262B';

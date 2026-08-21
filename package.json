@@ -3,10 +3,12 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "dependencies": {
+    "@fugood/react-native-audio-pcm-stream": "^1.1.4",
     "@react-native-async-storage/async-storage": "2.2.0",
-    "expo": "~54.0.36",
+    "expo": "~54.0.37",
     "expo-av": "~16.0.8",
-    "expo-constants": "~18.0.13",
+    "expo-constants": "~18.0.14",
+    "expo-dev-client": "~6.0.21",
     "expo-image-picker": "~17.0.8",
     "expo-linking": "~8.0.12",
     "expo-router": "~6.0.24",
@@ -41,6 +43,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
+    "download-models": "node ./scripts/download-models.mjs",
+    "eas-build-pre-install": "node ./scripts/download-models.mjs",
     "lint": "expo lint",
     "onboarding:extract-fragments": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs ./scripts/extract-firm-pdf-semantic-fragments.mjs",
     "onboarding:map-fragments-local": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/register-ts-alias.mjs ./scripts/map-firm-pdf-semantic-fragments-local.mjs",
@@ -85,7 +89,7 @@
     "test:voice-loop": "vitest run tests/voice-loop.e2e.test.ts",
     "test:voice-touch-sync": "vitest run tests/voice-touch-sync.test.ts",
     "test:voice-transcription": "vitest run tests/voice-transcription.test.ts",
-    "test": "vitest run tests/voice-loop.e2e.test.ts tests/voice-touch-sync.test.ts tests/voice-transcription.test.ts tests/finding-photo-binding.test.ts tests/offline-normalization.test.ts tests/ontology-hud.test.ts tests/golden-zone-ptt.test.tsx tests/command-dock.test.tsx tests/active-finding-focus.test.tsx tests/offline-whisper.test.ts"
+    "test": "vitest run tests/voice-loop.e2e.test.ts tests/voice-touch-sync.test.ts tests/voice-transcription.test.ts tests/finding-photo-binding.test.ts tests/offline-normalization.test.ts tests/ontology-hud.test.ts tests/golden-zone-ptt.test.tsx tests/command-dock.test.tsx tests/active-finding-focus.test.tsx tests/offline-whisper.test.ts tests/realtime-streaming.test.ts tests/audio-recording-pipeline.test.ts"
   },
   "private": true
 }

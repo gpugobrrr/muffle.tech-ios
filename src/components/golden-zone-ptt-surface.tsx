@@ -13,7 +13,6 @@ import {
 } from 'react-native';
 
 import {
-  COMMAND_REGISTRY,
   getSubCommandHints,
 } from '@/lib/cli/command-sub-contexts';
 import { SVYR_COMMAND_HINTS } from '@/lib/cli/svyr-command-hints';

@@ -11,7 +11,7 @@ export type StreamingPartialCallback = (event: StreamingPartialEvent) => void;
 export type StreamingSession = {
   onPartial: (callback: StreamingPartialCallback) => () => void;
   stop: () => Promise<string>;
-  abort?: () => void;
+  abort?: () => void | Promise<void>;
   sendAudioChunk?: (chunk: ArrayBuffer | string) => void;
   onError?: (cb: (err: Error) => void) => () => void;
 };

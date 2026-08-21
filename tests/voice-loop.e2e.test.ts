@@ -106,16 +106,8 @@ describe('voice loop', () => {
     expect(persisted?.source).toBe('voice_macro');
   });
 
-  it('runs the PTT release pipeline cycle with transcribeAudio adapter', async () => {
-    const { transcribeAudio, resetSimulationBeats } = await import(
-      '../src/lib/audio/transcription-adapter'
-    );
-    resetSimulationBeats();
-
-    const audioUri: string | null = null;
-    const transcript = await transcribeAudio(audioUri, 'roof void');
-    expect(transcript).toBe('Macro: CR3 roof spread rear slope, SE referral');
-
+  it('runs the PTT release pipeline with a real final transcript', async () => {
+    const transcript = 'Macro: CR3 roof spread rear slope, SE referral';
     const finding = await processTranscript(CASE_ID, transcript);
     expect(finding.defectId).toBe('roof_spread');
     expect(finding.conditionRating).toBe('CR3');

@@ -9,24 +9,38 @@ const {
   mockTranscribe,
   mockWhisperContext,
   mockInitWhisper,
+  mockInitWhisperVad,
+  mockVadContext,
   mockDownloadAsync,
   mockAsset,
   mockFromModule,
 } = vi.hoisted(() => {
   const mockTranscribe = vi.fn();
   const mockWhisperContext = { transcribe: mockTranscribe };
+  const mockVadContext = { detectSpeechData: vi.fn() };
   const mockInitWhisper = vi.fn().mockResolvedValue(mockWhisperContext);
+  const mockInitWhisperVad = vi.fn().mockResolvedValue(mockVadContext);
   const mockDownloadAsync = vi.fn().mockResolvedValue(undefined);
   const mockAsset = {
     downloadAsync: mockDownloadAsync,
     localUri: 'file:///tmp/ggml-tiny.en.bin',
   };
   const mockFromModule = vi.fn().mockReturnValue(mockAsset);
-  return { mockTranscribe, mockWhisperContext, mockInitWhisper, mockDownloadAsync, mockAsset, mockFromModule };
+  return {
+    mockTranscribe,
+    mockWhisperContext,
+    mockInitWhisper,
+    mockInitWhisperVad,
+    mockVadContext,
+    mockDownloadAsync,
+    mockAsset,
+    mockFromModule,
+  };
 });
 
 vi.mock('whisper.rn', () => ({
   initWhisper: mockInitWhisper,
+  initWhisperVad: mockInitWhisperVad,
 }));
 
 vi.mock('expo-asset', () => ({
@@ -40,6 +54,7 @@ vi.mock('expo-asset', () => ({
 import {
   RICS_DOMAIN_PROMPT,
   getLocalWhisperContext,
+  getLocalWhisperVadContext,
   resetLocalWhisperContext,
   transcribeOfflineAudio,
 } from '../src/lib/audio/local-whisper-adapter';
@@ -63,6 +78,7 @@ describe('offline Whisper transcription pipeline', () => {
       promise: Promise.resolve({ result: 'rafter deflection CR2' }),
     });
     mockInitWhisper.mockResolvedValue(mockWhisperContext);
+    mockInitWhisperVad.mockResolvedValue(mockVadContext);
     mockDownloadAsync.mockResolvedValue(undefined);
     mockFromModule.mockReturnValue(mockAsset);
   });
@@ -115,26 +131,41 @@ describe('offline Whisper transcription pipeline', () => {
     expect(result).toBe('');
   });
 
-  it('transcribeAudio dispatches to local Whisper (tier 1) when audioUri is present', async () => {
+  it('transcribeAudio dispatches to local Whisper when audioUri is present', async () => {
     const result = await transcribeAudio('file:///audio/voice.m4a', 'roof void');
     expect(result).toBe('rafter deflection CR2');
-    // Simulation beats must NOT have advanced
     const beat0 = nextSimulationBeat('roof void');
-    expect(beat0).toContain('CR3'); // first beat, not incremented by transcribeAudio
+    expect(beat0).toContain('CR3');
   });
 
-  it('falls through to simulation beats when local Whisper throws', async () => {
+  it('does not fall through to simulation when local Whisper throws', async () => {
     mockInitWhisper.mockRejectedValue(new Error('model not found'));
 
-    const result = await transcribeAudio(null, 'roof void');
-    expect(result).toContain('CR3');
+    await expect(
+      transcribeAudio('file:///audio/voice.m4a', 'roof void'),
+    ).rejects.toThrow(/model not found/);
   });
 
-  it('falls through to simulation beats when audioUri is null', async () => {
+  it('returns empty string when audioUri is null without invoking Whisper', async () => {
     const result = await transcribeAudio(null, 'default');
-    expect(result).toBe('Macro: CR3 roof spread rear slope, SE referral');
-    // local Whisper should NOT have been invoked
+    expect(result).toBe('');
     expect(mockTranscribe).not.toHaveBeenCalled();
+  });
+
+  it('caches the Silero VAD context across getLocalWhisperVadContext calls', async () => {
+    mockFromModule.mockReturnValue({
+      downloadAsync: mockDownloadAsync,
+      localUri: 'file:///tmp/ggml-silero-v6.2.0.bin',
+    });
+
+    await getLocalWhisperVadContext();
+    await getLocalWhisperVadContext();
+    expect(mockInitWhisperVad).toHaveBeenCalledTimes(1);
+    expect(mockInitWhisperVad).toHaveBeenCalledWith({
+      filePath: 'file:///tmp/ggml-silero-v6.2.0.bin',
+      useGpu: true,
+      nThreads: 4,
+    });
   });
 
   it('produces 100% offline results — zero network calls', async () => {

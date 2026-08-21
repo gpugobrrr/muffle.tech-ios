@@ -93,6 +93,7 @@ export type LoftInspectionScreenProps = {
   transcribedText?: string | null;
   latestTranscript?: string | null;
   streamingTranscript?: string;
+  pttError?: string | null;
   activeRoom?: string;
 };
 
@@ -112,6 +113,7 @@ export function LoftInspectionScreenConnected({
     acousticState,
     streamingTranscript,
     latestTranscript,
+    pttError,
     findings,
     processTranscript,
     mutateFindingSlot,
@@ -138,6 +140,7 @@ export function LoftInspectionScreenConnected({
       streamingTranscript={streamingTranscript}
       transcribedText={latestTranscript}
       latestTranscript={latestTranscript}
+      pttError={pttError}
       activeRoom="roof_void"
       onBack={onBack}
       mutateFindingSlot={mutateFindingSlot}
@@ -229,6 +232,7 @@ export function LoftInspectionScreen({
   latestTranscript = null,
   streamingTranscript,
   activeRoom = 'roof_void',
+  pttError = null,
 }: LoftInspectionScreenProps) {
   const insets = useSafeAreaInsets();
   const inputRef = useRef<TextInput>(null);
@@ -482,7 +486,7 @@ export function LoftInspectionScreen({
         ]}>
         <CommandDock
           variant="terminal"
-          infoBarText={null}
+          infoBarText={pttError}
           commandValue={commandValue}
           onCommandValueChange={setCommandValue}
           onCommandSubmit={(parsed) => {

@@ -36,6 +36,9 @@ yarn-error.*
 !.env.example
 .env*.local
 
+# On-device Whisper / Silero VAD model binaries (download locally — see assets/models/README.md)
+assets/models/*.bin
+
 # typescript
 *.tsbuildinfo
 

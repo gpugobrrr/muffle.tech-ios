@@ -73,6 +73,28 @@ describe('CommandDock', () => {
     expect(html).toContain('✓ CR2 FINDING ADDED: missing insulation');
   });
 
+  it('shows completed transcribedText in the dock after listening ends', () => {
+    const html = renderToStaticMarkup(
+      <CommandDock
+        variant="terminal"
+        acousticState="STANDBY"
+        transcribedText="rafter deflection CR2"
+      />,
+    );
+    expect(html).toContain('rafter deflection CR2');
+  });
+
+  it('shows streamingTranscript while LISTENING', () => {
+    const html = renderToStaticMarkup(
+      <CommandDock
+        variant="terminal"
+        acousticState="LISTENING"
+        streamingTranscript="collar tie"
+      />,
+    );
+    expect(html).toContain('collar tie');
+  });
+
   it('triggers command change, submit, and suggestion callbacks', () => {
     const onCommandValueChange = vi.fn();
     const onCommandSubmit = vi.fn();

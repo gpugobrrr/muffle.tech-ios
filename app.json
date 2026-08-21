@@ -3,13 +3,17 @@
     "name": "Muffle Demo",
     "slug": "muffle-demo",
     "version": "1.0.0",
-    "assetBundlePatterns": ["assets/images/*", "assets/models/*"],
+    "assetBundlePatterns": [
+      "assets/images/*",
+      "assets/models/*"
+    ],
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "muffledemo",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": false,
+      "bundleIdentifier": "tech.muffle.demo",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Allow Muffle to record voice macros during inspection.",
         "NSCameraUsageDescription": "Allow Muffle to capture inspection photos.",
@@ -17,8 +21,11 @@
       }
     },
     "android": {
-      "screenOrientation": "portrait",
-      "permissions": ["RECORD_AUDIO", "CAMERA"],
+      "package": "tech.muffle.demo",
+      "permissions": [
+        "RECORD_AUDIO",
+        "CAMERA"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#F1F1ED",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -32,6 +39,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-dev-client",
       [
         "expo-splash-screen",
         {
@@ -43,6 +51,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "8c99b54f-2cc7-4d32-b428-f7f6a51e17f8"
+      }
     }
   }
 }

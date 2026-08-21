@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 
 import {
   buildCanonicalClause,
@@ -13,7 +13,7 @@ import {
 import type { InspectionFinding } from '@/lib/inspection-findings';
 import { sortFindings } from '@/lib/inspection-findings';
 import { createStreamingSession } from '@/lib/audio/streaming-transcription-adapter';
-import type { StreamingSession } from '@/lib/audio/streaming-types';
+import { PttRealtimeController } from '@/lib/audio/ptt-realtime-controller';
 import { persistVoiceFinding } from '@/lib/voice-finding-bridge';
 import {
   parseVoiceMacro,
@@ -345,11 +345,48 @@ export function useVoiceFindingPipeline(
   options: VoiceFindingPipelineOptions = {},
 ) {
   const activeRoom = options.activeRoom ?? DEFAULT_VOICE_ACTIVE_ROOM;
-  const apiKey = options.apiKey;
   const [acousticState, setAcousticState] = useState<AcousticState>('STANDBY');
   const [latestTranscript, setLatestTranscript] = useState<string | null>(null);
   const [streamingTranscript, setStreamingTranscript] = useState<string>('');
-  const sessionRef = useRef<StreamingSession | null>(null);
+  const [pttError, setPttError] = useState<string | null>(null);
+  const caseIdRef = useRef(caseId);
+  caseIdRef.current = caseId;
+  const controllerRef = useRef<PttRealtimeController | null>(null);
+
+  if (controllerRef.current === null) {
+    controllerRef.current = new PttRealtimeController({
+      requestPermission: async () => {
+        const { prepareMicrophoneForCapture } = await import(
+          '@/lib/audio/microphone-capture'
+        );
+        await prepareMicrophoneForCapture();
+      },
+      createSession: () => createStreamingSession(),
+      processTranscript: (transcript, targetFindingId) =>
+        processTranscript(caseIdRef.current, transcript, targetFindingId),
+      onState: (patch) => {
+        if (patch.acousticState !== undefined) {
+          setAcousticState(patch.acousticState);
+        }
+        if (patch.streamingTranscript !== undefined) {
+          setStreamingTranscript(patch.streamingTranscript);
+        }
+        if (patch.latestTranscript !== undefined) {
+          setLatestTranscript(patch.latestTranscript);
+        }
+        if (patch.error !== undefined) {
+          setPttError(patch.error);
+        }
+      },
+    });
+  }
+
+  useEffect(() => {
+    return () => {
+      void controllerRef.current?.dispose();
+      controllerRef.current = null;
+    };
+  }, []);
   const getFindingsSnapshot = useCallback(
     () => getVoiceFindingsSnapshot(caseId),
     [caseId],
@@ -393,60 +430,12 @@ export function useVoiceFindingPipeline(
   );
 
   const handlePttPressIn = useCallback(async () => {
-    setAcousticState('LISTENING');
-    setStreamingTranscript('');
-    try {
-      const { startRecording } = await import(
-        '@/lib/audio/microphone-capture'
-      );
-      await startRecording();
-    } catch (err) {
-      console.warn('Audio recording start failed:', err);
-    }
-    const session = createStreamingSession(activeRoom, apiKey);
-    sessionRef.current = session;
-    session.onPartial((e) => {
-      setStreamingTranscript(e.text);
-    });
-  }, [activeRoom, apiKey]);
+    await controllerRef.current?.pressIn();
+  }, []);
 
-  const handlePttPressOut = useCallback(
-    async (targetFindingId?: string) => {
-      setAcousticState('PARSING');
-      try {
-        let audioUri: string | null = null;
-        try {
-          const { stopAndGetUri } = await import(
-            '@/lib/audio/microphone-capture'
-          );
-          audioUri = await stopAndGetUri();
-        } catch (err) {
-          console.warn('Audio recording stop failed:', err);
-        }
-
-        let finalText = '';
-        if (sessionRef.current) {
-          finalText = await sessionRef.current.stop();
-          sessionRef.current = null;
-        } else {
-          const { transcribeAudio } = await import(
-            '@/lib/audio/transcription-adapter'
-          );
-          finalText = await transcribeAudio(audioUri, activeRoom);
-        }
-
-        setLatestTranscript(finalText);
-        if (finalText.trim()) {
-          await processTranscript(caseId, finalText, targetFindingId);
-        }
-      } finally {
-        setStreamingTranscript('');
-        setLatestTranscript(null);
-        setAcousticState('STANDBY');
-      }
-    },
-    [activeRoom, caseId],
-  );
+  const handlePttPressOut = useCallback(async (targetFindingId?: string) => {
+    await controllerRef.current?.pressOut(targetFindingId);
+  }, []);
 
   const captureAndAttachPhoto = useCallback(
     async (findingId?: string): Promise<InspectionFinding | null> => {
@@ -471,6 +460,7 @@ export function useVoiceFindingPipeline(
     setAcousticState,
     streamingTranscript,
     latestTranscript,
+    pttError,
     findings,
     hydrateFindings: useCallback(
       () => hydrateVoiceFindings(caseId),
